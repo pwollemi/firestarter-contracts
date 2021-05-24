@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "compile": "hardhat compile",
     "merge": "sol-merger --export-plugin SPDXLicenseRemovePlugin \"./contracts/*.sol\" ./merged"
   },
   "keywords": [],
