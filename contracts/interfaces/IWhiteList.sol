@@ -2,8 +2,9 @@
 pragma solidity 0.7.6;
 
 interface IWhiteList {
-    function addToWhiteList(address _user) external;
-    function removeFromWhiteList(address _user) external;
+    function addToWhiteList(address[] memory, uint256[] memory) external;
 
-    event AddedOrRemoved(address indexed, bool, uint256); // 1: Added, 0: Removed
+    function removeFromWhiteList(address[] memory _user) external;
+
+    event AddedOrRemoved(bool, address[], uint256[], uint256); // 1: Added, 0: Removed
 }

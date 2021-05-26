@@ -9,49 +9,35 @@ contract WhiteList is Context, Ownable {
     using SafeMath for uint256;
 
     struct UserData {
-        bool isKycDone;
-        uint256 allocation;
+        bool isKycPassed;
+        uint256 MAX_ALLOC;
     }
 
-    uint256 public totalAllocation;
-    mapping(address => UserData) public whiteList;
-    event AddedOrRemoved(address indexed, bool, uint256, uint256); // 1: Added, 0: Removed
+    mapping(address => UserData) public WL; //White List
+    event AddedOrRemoved(bool, address[], uint256[], uint256); // 1: Added, 0: Removed
 
     constructor() {}
 
-    function addToWhiteList(address _user, uint256 _allocation)
-        external
-        onlyOwner
-    {
-        require(
-            whilteList[_user].isKycDone == false,
-            "Already in the whiltelist!"
-        );
-        require(_allocation > 0, "Allocation couldn't be ZERO!");
-        whilteList[_user].isKycDone = true;
-        whilteList[_user].allocation = _allocation;
-        totalAllocation = totalAllocation.add(_allocation);
-        emit AddedOrRemoved(_user, true, totalAllocation, block.timestamp);
+    function addToWhiteList(
+        address[] memory _users,
+        uint256[] memory _MAX_ALLOCs
+    ) external onlyOwner {
+        for (uint256 i = 0; i < _users.length; i++) {
+            address _user = _users[i];
+            uint256 _MAX_ALLOC = _MAX_ALLOCs[i];
+
+            whilteList[_user].isKycPassed = true;
+            whilteList[_user].MAX_ALLOC = _MAX_ALLOC;
+        }
+
+        emit AddedOrRemoved(true, _users, _MAX_ALLOCs, block.timestamp);
     }
 
-    function updateUserAllocation(address _user, uint256 _allocation)
-        external
-        onlyOwner
-    {
-        require(
-            whilteList[_user].isKycDone == true,
-            "User should complete the KYC first!"
-        );
-        totalAllocation = totalAllocation.sub(whilteList[_user].allocation);
-        whilteList[_user].allocation = _allocation;
-        totalAllocation = totalAllocation.add(_allocation);
-        emit AddedOrRemoved(_user, true, totalAllocation, block.timestamp);
-    }
-
-    function removeFromWhiteList(address _user) external onlyOwner {
-        require(whilteList[_user].isKycDone == true, "User is not exist!");
-        delete whilteList[user];
-        totalAllocation = totalAllocation.sub(whilteList[_user].allocation);
-        emit AddedOrRemoved(_user, false, totalAllocation, block.timestamp);
+    function removeFromWhiteList(address[] memory _users) external onlyOwner {
+        for (uint256 i = 0; i < _users.length; i++) {
+            address _user = _users[i];
+            delete whilteList[_user];
+        }
+        emit AddedOrRemoved(false, _users, [], block.timestamp);
     }
 }
