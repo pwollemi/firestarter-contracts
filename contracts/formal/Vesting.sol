@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract TokenVesting is Context, Ownable {
+contract Vesting is Context, Ownable {
     using SafeMath for uint256;
 
     struct VestingSchedule {

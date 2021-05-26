@@ -5,31 +5,21 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./interfaces/IWhiteList.sol";
+import "./interfaces/IWhitelist.sol";
 
 contract Presale is Context, Ownable {
     using SafeMath for uint256;
 
-    uint256 public startTime;
-    bool public isStartTimeSet;
-    uint256 public withdrawInterval; // Amount of time in seconds between withdrawal periods.
-    uint256 public releaseRate; // Release percent in each withdrawing interval
-
-    uint256 public totalAmount; // Total amount of tokens to be vested.
-    uint256 public unallocatedAmount; // The amount of tokens that are not allocated yet.
-    uint256 public initialUnlock; // Percent of tokens initially unlocked
-
-    // *****
     bool public enabled = false;
 
     struct Recipient {
-        uint256 amountDepositedFT;
-        uint256 amountRF;
+        uint256 amountDepositedFT;  // Funds token amount per recipient
+        uint256 amountRF;   // Rewards token that needs to be vested
     }
 
     IERC20 public FT; // Funds Token : Token for funderside. (Maybe it will be the stable coin)
     IERC20 public RT; // Rewards Token : Token for distribution as rewards.
-    IWhiteList public CW; // WhiteList Contract : For checking if the user has passed the KYC
+    IWhitelist public CW; // WhiteList Contract : For checking if the user has passed the KYC
     IVesting public CV; // Vesting Contract
 
     uint256 public goalFunds; // Funds amount to be raised. Amount * FT's Decimals
@@ -50,7 +40,7 @@ contract Presale is Context, Ownable {
         uint256 _PT,
         uint256 _PP,
     ) {
-        CW = IWhiteList(_CW);
+        CW = IWhitelist(_CW);
         CV = IVesting(_CV);
         FT = IERC20(_FT);
         RT = IERC20(_RT);
@@ -61,7 +51,8 @@ contract Presale is Context, Ownable {
     }
 
     modifier whileEnabled() {
-        require(block.timestamp >= PP, "Presale has been started yet");
+        require(block.timestamp >= PT, "Presale has been started yet");
+        require(block.timestamp <= PT + PP, "Presale has been ended");
         require(enabled == true, "Presale has been ended or paused");
         _;
     }
@@ -75,15 +66,22 @@ contract Presale is Context, Ownable {
     }
 
     function updateER(uint256 _ER) external onlyOwner {
-        require(_ER > 0, "UpdateER: Exchnage Rate couldn't be ZERO!");
+        require(_ER > 0, "UpdateER: Exchnage Rate can't be ZERO!");
         ER = _ER;
+    }
+
+    function updatePP(uint256 _PP) external onlyOwner {
+        require(_PP > 0, "UpdatePP: PP can't be ZERO!");
+        PP = _PP;
     }
 
     function startPresale() external onlyOwner {
         enabled = true;
+        // TODO: Are we updating the initial PT?
+        PT = block.timestamp;
     }
 
-    function pausePresaleForEmbergency() external onlyOwner {
+    function pausePresaleByEmergency() external onlyOwner {
         enabled = false;
     }
     /**
@@ -114,6 +112,7 @@ contract Presale is Context, Ownable {
         recipients[msg.sender].amountRF = recipients[msg.sender].amountRF.add(
             (amount.mul(_exchangeRate).div(1e6))
         );
+
         emit Deposit(msg.sender, amount, newAmountDepositedFT, block.timestamp);
     }
 }

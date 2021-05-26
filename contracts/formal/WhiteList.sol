@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
-contract WhiteList is Context, Ownable {
+contract Whitelist is Context, Ownable {
     using SafeMath for uint256;
 
     struct UserData {
@@ -18,7 +18,7 @@ contract WhiteList is Context, Ownable {
 
     constructor() {}
 
-    function addToWhiteList(
+    function addToWhitelist(
         address[] memory _users,
         uint256[] memory _MAX_ALLOCs
     ) external onlyOwner {
@@ -26,17 +26,17 @@ contract WhiteList is Context, Ownable {
             address _user = _users[i];
             uint256 _MAX_ALLOC = _MAX_ALLOCs[i];
 
-            whilteList[_user].isKycPassed = true;
-            whilteList[_user].MAX_ALLOC = _MAX_ALLOC;
+            WL[_user].isKycPassed = true;
+            WL[_user].MAX_ALLOC = _MAX_ALLOC;
         }
 
         emit AddedOrRemoved(true, _users, _MAX_ALLOCs, block.timestamp);
     }
 
-    function removeFromWhiteList(address[] memory _users) external onlyOwner {
+    function removeFromWhitelist(address[] memory _users) external onlyOwner {
         for (uint256 i = 0; i < _users.length; i++) {
             address _user = _users[i];
-            delete whilteList[_user];
+            delete WL[_user];
         }
         emit AddedOrRemoved(false, _users, [], block.timestamp);
     }
