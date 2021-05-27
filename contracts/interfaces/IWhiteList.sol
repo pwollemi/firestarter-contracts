@@ -6,5 +6,16 @@ interface IWhitelist {
 
     function removeFromWhitelist(address[] memory _user) external;
 
-    event AddedOrRemoved(bool, address[], uint256[], uint256); // 1: Added, 0: Removed
+    function isUserInWL(address _user) external view returns (bool);
+
+    function getUser(address _user)
+        external
+        view
+        returns (
+            address,
+            bool,
+            uint256
+        );
+
+    event AddedOrRemoved(bool, address, uint256); // 1: Added, 0: Removed
 }

@@ -5,7 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./interfaces/IWhitelist.sol";
+import "../interfaces/IWhitelist.sol";
+import "../interfaces/IVesting.sol";
 
 contract Presale is Context, Ownable {
     using SafeMath for uint256;
@@ -13,8 +14,8 @@ contract Presale is Context, Ownable {
     bool public enabled = false;
 
     struct Recipient {
-        uint256 amountDepositedFT;  // Funds token amount per recipient
-        uint256 amountRF;   // Rewards token that needs to be vested
+        uint256 amountDepositedFT; // Funds token amount per recipient
+        uint256 amountRF; // Rewards token that needs to be vested
     }
 
     IERC20 public FT; // Funds Token : Token for funderside. (Maybe it will be the stable coin)
@@ -24,8 +25,8 @@ contract Presale is Context, Ownable {
 
     uint256 public goalFunds; // Funds amount to be raised. Amount * FT's Decimals
     uint256 public ER; // Exchange Rate : Fixed Rate between FT vs rewardsToken = rewards/funds * 1e6
-    uint256 public PP: // Presale Period
-    uint256 public PT: // Presale Start Time
+    uint256 public PP; // Presale Period
+    uint256 public PT; // Presale Start Time
     mapping(address => Recipient) public recipients;
 
     event Deposit(address indexed, uint256, uint256, uint256);
@@ -38,7 +39,7 @@ contract Presale is Context, Ownable {
         uint256 _goalFunds,
         uint256 _ER,
         uint256 _PT,
-        uint256 _PP,
+        uint256 _PP
     ) {
         CW = IWhitelist(_CW);
         CV = IVesting(_CV);
@@ -58,11 +59,11 @@ contract Presale is Context, Ownable {
     }
 
     function updateCV(address _CV) external onlyOwner {
-        CW = IWhiteList(_CV);
+        CV = IVesting(_CV);
     }
 
     function updateCW(address _CW) external onlyOwner {
-        CW = IWhiteList(_CW);
+        CW = IWhitelist(_CW);
     }
 
     function updateER(uint256 _ER) external onlyOwner {
@@ -84,19 +85,18 @@ contract Presale is Context, Ownable {
     function pausePresaleByEmergency() external onlyOwner {
         enabled = false;
     }
-    /**
-    @note Users will call this deposit function for deposit the FT
-    */
-    function deposit(uint256 amount) external whileEnabled{
+
+    function deposit(uint256 amount) external whileEnabled {
         uint256 newAmountDepositedFT =
             recipients[msg.sender].amountDepositedFT.add(amount);
 
+        (, bool isKycPassed, uint256 MAX_ALLOC) = CW.getUser(msg.sender);
         require(
-            CW.WL(msg.sender).isKycDone == true,
-            "Deposit: Pass the KCY first please!"
+            CW.isUserInWL(msg.sender),
+            "Deposit: Not exist on the whitelist"
         );
         require(
-            CW.WL(msg.sender).MAX_ALLOC >= newAmountDepositedFT,
+            MAX_ALLOC >= newAmountDepositedFT,
             "Deposit: Can't exceed the MAX_ALLOC!"
         );
         require(
@@ -110,7 +110,7 @@ contract Presale is Context, Ownable {
 
         recipients[msg.sender].amountDepositedFT = newAmountDepositedFT;
         recipients[msg.sender].amountRF = recipients[msg.sender].amountRF.add(
-            (amount.mul(_exchangeRate).div(1e6))
+            (amount.mul(ER).div(1e6))
         );
 
         emit Deposit(msg.sender, amount, newAmountDepositedFT, block.timestamp);
