@@ -1,57 +1,57 @@
-// SPDX-License-Identifier: UNLICENSED
+pragma experimental ABIEncoderV2;
 pragma solidity 0.7.6;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
+import "hardhat/console.sol";
 
-contract WhiteList is Context, Ownable {
+contract Whitelist is Context, Ownable {
     using SafeMath for uint256;
-
     struct UserData {
-        bool isKycDone;
-        uint256 allocation;
+        address wallet;
+        bool isKycPassed;
+        uint256 MAX_ALLOC;
     }
 
-    uint256 public totalAllocation;
-    mapping(address => UserData) public whiteList;
-    event AddedOrRemoved(address indexed, bool, uint256, uint256); // 1: Added, 0: Removed
+    uint256 public totalUsers;
+    mapping(address => UserData) public WL; //White List
+    event AddedOrRemoved(bool, address, uint256); // 1: Added, 0: Removed
 
     constructor() {}
 
-    function addToWhiteList(address _user, uint256 _allocation)
-        external
-        onlyOwner
-    {
-        require(
-            whilteList[_user].isKycDone == false,
-            "Already in the whiltelist!"
-        );
-        require(_allocation > 0, "Allocation couldn't be ZERO!");
-        whilteList[_user].isKycDone = true;
-        whilteList[_user].allocation = _allocation;
-        totalAllocation = totalAllocation.add(_allocation);
-        emit AddedOrRemoved(_user, true, totalAllocation, block.timestamp);
+    function addToWhitelist(UserData[] memory _users) external onlyOwner {
+        for (uint256 i = 0; i < _users.length; i++) {
+            WL[_users[i].wallet] = _users[i];
+            emit AddedOrRemoved(true, _users[i].wallet, block.timestamp);
+        }
+        totalUsers = totalUsers.add(_users.length);
     }
 
-    function updateUserAllocation(address _user, uint256 _allocation)
-        external
-        onlyOwner
-    {
-        require(
-            whilteList[_user].isKycDone == true,
-            "User should complete the KYC first!"
-        );
-        totalAllocation = totalAllocation.sub(whilteList[_user].allocation);
-        whilteList[_user].allocation = _allocation;
-        totalAllocation = totalAllocation.add(_allocation);
-        emit AddedOrRemoved(_user, true, totalAllocation, block.timestamp);
+    function removeFromWhitelist(address[] memory _addrs) external onlyOwner {
+        for (uint256 i = 0; i < _addrs.length; i++) {
+            // Ignore for non-existing users
+            if (WL[_addrs[i]].wallet == address(0x0)) continue;
+            delete WL[_addrs[i]];
+            emit AddedOrRemoved(false, _addrs[i], block.timestamp);
+
+            totalUsers = totalUsers.sub(1);
+        }
     }
 
-    function removeFromWhiteList(address _user) external onlyOwner {
-        require(whilteList[_user].isKycDone == true, "User is not exist!");
-        delete whilteList[user];
-        totalAllocation = totalAllocation.sub(whilteList[_user].allocation);
-        emit AddedOrRemoved(_user, false, totalAllocation, block.timestamp);
+    function isUserInWL(address _user) external view returns (bool) {
+        return WL[_user].wallet != address(0x0);
+    }
+
+    function getUser(address _user)
+        external
+        view
+        returns (
+            address,
+            bool,
+            uint256
+        )
+    {
+        return (WL[_user].wallet, WL[_user].isKycPassed, WL[_user].MAX_ALLOC);
     }
 }

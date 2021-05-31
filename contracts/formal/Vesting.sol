@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./interfaces/IWhiteList.sol";
 
 contract Vesting is Context, Ownable {
     using SafeMath for uint256;
@@ -26,62 +25,159 @@ contract Vesting is Context, Ownable {
     uint256 public unallocatedAmount; // The amount of tokens that are not allocated yet.
     uint256 public initialUnlock; // Percent of tokens initially unlocked
 
-    // *****
-    IERC20 public fundsToken; // Token that will be used to contribute for funds
-    IERC20 public rewardToken; // Token for distributing. (Maybe it will be the stable coin)
-    IWhiteList public whiteListContract; // For checking if the user has done the KYC
+    IERC20 public token;
 
-    uint256 public totalFunds; // Funds amount to be raised. Amount * FundsToken's Decimals
-    uint256 public totalRewards; // Rewards amount to be distributed. Amount * RewardsToken's Decimals
-
-    uint256 public exchangeRate; // Fixed Rate between fundsToken vs rewardsToken = rewards/funds * 1e6
-    mapping(address => uint256) public rewardsAmount; // userAddres => amount of RewardsToken
-
-    event Deposit(address indexed, uint256, uint256);
+    event VestingScheduleRegistered(
+        address registeredAddress,
+        uint256 totalAmount
+    );
+    event VestingSchedulesRegistered(
+        address[] registeredAddresses,
+        uint256[] totalAmounts
+    );
+    event Withdraw(address registeredAddress, uint256 amountWithdrawn);
+    event StartTimeSet(uint256 startTime);
 
     constructor(
-        address _rewardsToken,
-        address _fundsToken,
-        address _whiteList,
-        uint256 _totalFunds,
-        uint256 _totalRewards,
-        uint256 _exchangeRate
+        address _token,
+        uint256 _totalAmount,
+        uint256 _initialUnlock,
+        uint256 _withdrawInterval,
+        uint256 _releaseRate
     ) {
-        rewardToken = IERC20(_rewardsToken);
-        fundsToken = IERC20(_fundsToken);
-        whiteListContract = IWhiteList(_whiteList);
-        totalFunds = _totalFunds;
-        totalRewards = _totalRewards;
-        exchangeRate = _exchangeRate;
+        require(_totalAmount > 0);
+        require(_withdrawInterval > 0);
+
+        token = IERC20(_token);
+
+        totalAmount = _totalAmount;
+        initialUnlock = _initialUnlock;
+        unallocatedAmount = _totalAmount;
+        withdrawInterval = _withdrawInterval;
+        releaseRate = _releaseRate;
+
         isStartTimeSet = false;
     }
 
-    function updateWhiteListContract(address _whiteList) external onlyOwner {
-        IWhiteList = IWhiteList(_whiteList);
+    function addRecipient(address _newRecipient, uint256 _totalAmount)
+        external
+        onlyOwner
+    {
+        // Only allow to add recipient before the counting starts
+        require(!isStartTimeSet || startTime > block.timestamp);
+
+        require(_newRecipient != address(0));
+
+        unallocatedAmount = unallocatedAmount.add(
+            recipients[_newRecipient].totalAmount
+        );
+        require(_totalAmount > 0 && _totalAmount <= unallocatedAmount);
+
+        recipients[_newRecipient] = VestingSchedule({
+            totalAmount: _totalAmount,
+            amountWithdrawn: 0
+        });
+        unallocatedAmount = unallocatedAmount.sub(_totalAmount);
+
+        emit VestingScheduleRegistered(_newRecipient, _totalAmount);
     }
 
-    function updateExchangeRate(uint256 _exchangeRate) external onlyOwner {
-        exchangeRate = _exchangeRate;
+    function addRecipients(
+        address[] memory _newRecipients,
+        uint256[] memory _totalAmounts
+    ) external onlyOwner {
+        // Only allow to add recipient before the counting starts
+        require(!isStartTimeSet || startTime > block.timestamp);
+
+        for (uint256 i = 0; i < _newRecipients.length; i++) {
+            address _newRecipient = _newRecipients[i];
+            uint256 _totalAmount = _totalAmounts[i];
+
+            require(_newRecipient != address(0));
+
+            unallocatedAmount = unallocatedAmount.add(
+                recipients[_newRecipient].totalAmount
+            );
+            require(_totalAmount > 0 && _totalAmount <= unallocatedAmount);
+
+            recipients[_newRecipient] = VestingSchedule({
+                totalAmount: _totalAmount,
+                amountWithdrawn: 0
+            });
+            unallocatedAmount = unallocatedAmount.sub(_totalAmount);
+        }
+
+        emit VestingSchedulesRegistered(_newRecipients, _totalAmounts);
     }
 
-    /**
-    @note Users will call this deposit function for deposit the fundsToken
-    */
-    function deposit(uint256 amount) external {
-        require(
-            whiteListContract.whiteList(msg.sender).isKycDone == true,
-            "Deposit: KCY first please"
-        );
-        require(
-            fundsToken.balanceOf(msg.sender) >= amount,
-            "Deposit: Insufficient balance on the user wallet"
-        );
-        require(
-            fundsToken.transferFrom(msg.sender, address(this), amount),
-            "Deposit: Transaction has been failed"
-        );
+    function setStartTime(uint256 _newStartTime) external onlyOwner {
+        // Only allow to change start time before the counting starts
+        require(!isStartTimeSet || startTime > block.timestamp);
+        require(_newStartTime > block.timestamp);
 
-        rewardsAmount[msg.sender] = (amount.mul(_exchangeRate).div(1e6));
-        emit Deposit(msg.sender, amount, block.timestamp);
+        startTime = _newStartTime;
+        isStartTimeSet = true;
+
+        emit StartTimeSet(_newStartTime);
+    }
+
+    // Returns the amount of tokens you can withdraw
+    function vested(address beneficiary)
+        public
+        view
+        virtual
+        returns (uint256 _amountVested)
+    {
+        VestingSchedule memory _vestingSchedule = recipients[beneficiary];
+        if (
+            !isStartTimeSet ||
+            (_vestingSchedule.totalAmount == 0) ||
+            (block.timestamp < startTime)
+        ) {
+            return 0;
+        }
+
+        uint256 initialUnlockAmount =
+            _vestingSchedule.totalAmount.mul(initialUnlock).div(100);
+
+        uint256 unlockRate =
+            _vestingSchedule.totalAmount.mul(releaseRate).div(100).div(
+                withdrawInterval
+            );
+
+        uint256 vestedAmount =
+            unlockRate.mul(block.timestamp - startTime).add(
+                initialUnlockAmount
+            );
+
+        if (vestedAmount > _vestingSchedule.totalAmount) {
+            return _vestingSchedule.totalAmount;
+        }
+        return vestedAmount;
+    }
+
+    function locked(address beneficiary) public view returns (uint256 amount) {
+        return recipients[beneficiary].totalAmount.sub(vested(beneficiary));
+    }
+
+    function withdrawable(address beneficiary)
+        public
+        view
+        returns (uint256 amount)
+    {
+        return vested(beneficiary).sub(recipients[beneficiary].amountWithdrawn);
+    }
+
+    function withdraw() external {
+        VestingSchedule storage vestingSchedule = recipients[_msgSender()];
+        if (vestingSchedule.totalAmount == 0) return;
+
+        uint256 _vested = vested(_msgSender());
+        uint256 _withdrawable = withdrawable(_msgSender());
+        vestingSchedule.amountWithdrawn = _vested;
+
+        require(_withdrawable > 0, "Nothing to withdraw");
+        require(token.transfer(_msgSender(), _withdrawable));
+        emit Withdraw(_msgSender(), _withdrawable);
     }
 }

@@ -1,9 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.7.6;
 
-interface IWhiteList {
-    function addToWhiteList(address _user) external;
-    function removeFromWhiteList(address _user) external;
+interface IWhitelist {
+    function addToWhitelist(address[] memory, uint256[] memory) external;
 
-    event AddedOrRemoved(address indexed, bool, uint256); // 1: Added, 0: Removed
+    function removeFromWhitelist(address[] memory _user) external;
+
+    function isUserInWL(address _user) external view returns (bool);
+
+    function getUser(address _user)
+        external
+        view
+        returns (
+            address,
+            bool,
+            uint256
+        );
+
+    event AddedOrRemoved(bool, address, uint256); // 1: Added, 0: Removed
 }
