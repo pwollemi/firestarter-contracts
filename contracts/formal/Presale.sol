@@ -75,6 +75,11 @@ contract Presale is Context, AccessControlEnumerable {
         PP = _vals[3];
         SF = _vals[4];
 
+        // For vesting contract
+        // IU : Initual Unlock
+        // WI : Withdraw Interval
+        // RR : Release Rate
+        // LP : LockPeriod
         CV = new Vesting(_addrs[2], _vals[5], _vals[6], _vals[7], _vals[8]);
     }
 
