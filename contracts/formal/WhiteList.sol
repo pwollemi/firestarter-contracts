@@ -1,12 +1,12 @@
 pragma experimental ABIEncoderV2;
-pragma solidity 0.7.6;
+pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "hardhat/console.sol";
 
-contract Whitelist is Context, Ownable {
+contract Whitelist is Context, AccessControlEnumerable {
     using SafeMath for uint256;
     struct UserData {
         address wallet;
@@ -15,10 +15,21 @@ contract Whitelist is Context, Ownable {
     }
 
     uint256 public totalUsers;
-    mapping(address => UserData) public WL; //White List
+    mapping(address => UserData) private WL; //White List
     event AddedOrRemoved(bool, address, uint256); // 1: Added, 0: Removed
 
-    constructor() {}
+    modifier onlyOwner() {
+        require(
+            hasRole(DEFAULT_ADMIN_ROLE, _msgSender()),
+            "Requires Owner Role"
+        );
+        _;
+    }
+
+    constructor(address _owner) {
+        _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _setupRole(DEFAULT_ADMIN_ROLE, _owner);
+    }
 
     function addToWhitelist(UserData[] memory _users) external onlyOwner {
         for (uint256 i = 0; i < _users.length; i++) {
