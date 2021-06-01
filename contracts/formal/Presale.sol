@@ -12,11 +12,13 @@ contract Presale is Context, AccessControlEnumerable {
     using SafeMath for uint256;
 
     bool public enabled = false;
+    uint256 public totalSoldRTAmount;
 
     struct Recipient {
         uint256 amountDepositedFT; // Funds token amount per recipient.
         uint256 amountRF; // Rewards token that needs to be vested.
     }
+    mapping(address => Recipient) public recipients;
 
     IERC20 public FT; // Funds Token : Token for funderside. (Maybe it will be the stable coin)
     IERC20 public RT; // Rewards Token : Token for distribution as rewards.
@@ -30,10 +32,12 @@ contract Presale is Context, AccessControlEnumerable {
     uint256 public PT; // Presale Start Time
     uint256 public SF = 50000; // Service Fee : eg 1e4 = 1% default is 5%
 
-    mapping(address => Recipient) public recipients;
-
+    /********************** Events ***********************/
     event Deposit(address indexed, uint256, uint256, uint256);
+    event WithdrawUnsoldRT(address indexed, uint256, uint256);
+    event WithdrawFunds(address indexed, uint256, uint256);
 
+    /********************** Modifiers ***********************/
     modifier onlyOwner() {
         require(
             hasRole(DEFAULT_ADMIN_ROLE, _msgSender()),
@@ -87,6 +91,7 @@ contract Presale is Context, AccessControlEnumerable {
         return block.timestamp > PT + PP;
     }
 
+    /********************** Setter ***********************/
     function updateCW(address _CW) external onlyOwner {
         CW = IWhitelist(_CW);
     }
@@ -109,20 +114,37 @@ contract Presale is Context, AccessControlEnumerable {
         PO = _PO;
     }
 
+    /********************** Internal ***********************/
+    /// Get the RT token amount of vesting contract
+    function getDepositiedRT() internal view returns (uint256) {
+        address addrVesting = address(CV);
+        return RT.balanceOf(addrVesting);
+    }
+
+    /********************** External ***********************/
+    /// startPresale by checking the pre-requirements.
     function startPresale() external onlyOwner {
         require(
             enabled == false,
             "startPresale: Presale has been already started!"
         );
+
+        require(
+            getDepositiedRT() != 0,
+            "startPresale: Please deposit RT tokens to vesting contract first!"
+        );
+
         enabled = true;
         // TODO: Are we updating the initial PT?
         PT = block.timestamp;
     }
 
+    /// Pause the ongoing presale by mergency
     function pausePresaleByEmergency() external onlyOwner {
         enabled = false;
     }
 
+    /// After presale ends, we withdraw funds to project owner by charging a service fee
     function withdrawFunds(address treasury) external whileFinished onlyOwner {
         require(
             PO != address(0x00),
@@ -139,8 +161,30 @@ contract Presale is Context, AccessControlEnumerable {
             FT.transfer(treasury, serviceFee),
             "withdraw: can't withdraw service fee"
         );
+
+        emit WithdrawFunds(PO, actualFunds, block.timestamp);
+        emit WithdrawFunds(treasury, serviceFee, block.timestamp);
     }
 
+    /// After presale ends, we withdraw unsold RT token to project owner.
+    function withdrawUnsoldRT() external whileFinished onlyOwner {
+        require(
+            PO != address(0x00),
+            "withdraw: Project Owner address hasn't been set!"
+        );
+
+        uint256 totalDepositedRT = getDepositiedRT();
+        uint256 unsoldRT = totalDepositedRT.sub(totalSoldRTAmount);
+
+        require(
+            RT.transferFrom(address(CV), PO, unsoldRT),
+            "withdraw: can't withdraw funds"
+        );
+
+        emit WithdrawUnsoldRT(PO, unsoldRT, block.timestamp);
+    }
+
+    /// Receive funds token from the participants with checking the requirements.
     function deposit(uint256 amount) external whileOnGoing {
         uint256 newAmountDepositedFT =
             recipients[_msgSender()].amountDepositedFT.add(amount);
@@ -163,12 +207,17 @@ contract Presale is Context, AccessControlEnumerable {
             "Deposit: Transaction has been failed!"
         );
 
+        uint256 newRTAmount = amount.mul(ER).div(1e6);
+
         recipients[_msgSender()].amountDepositedFT = newAmountDepositedFT;
+        totalSoldRTAmount = newRTAmount.add(newRTAmount);
+
         recipients[_msgSender()].amountRF = recipients[_msgSender()]
             .amountRF
-            .add((amount.mul(ER).div(1e6)));
+            .add(newRTAmount);
 
         CV.updateRecipient(_msgSender(), recipients[_msgSender()].amountRF);
+
         emit Deposit(
             _msgSender(),
             amount,
