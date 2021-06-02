@@ -206,7 +206,7 @@ contract FlameLocking is Context {
     event Locked(address locker, uint256 amount);
     event Unlocked(address locker, uint256 amount);
 
-    constructor(IBEP20 _flameToken) {
+    constructor(IERC20 _flameToken) {
         flameToken = _flameToken;
     }
 
