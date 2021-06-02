@@ -262,7 +262,7 @@ contract FlameLocking is Context {
         } else if (passed < 20 days) {
             penalty = amount.mul(5).div(100);
         } else if (passed < 30 days) {
-            penalty = amount.mul(2).div(100);
+            penalty = amount.mul(3).div(100);
         } else {
             penalty = 0;
         }
@@ -314,7 +314,7 @@ contract FlameLocking is Context {
         } else if (passed < 20 days) {
             unlocked = _amount.mul(95).div(100);
         } else if (passed < 30 days) {
-            unlocked = _amount.mul(98).div(100);
+            unlocked = _amount.mul(97).div(100);
         } else {
             unlocked = _amount;
         }
