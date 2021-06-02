@@ -11,7 +11,8 @@ import "./Vesting.sol";
 contract Presale is Context, AccessControlEnumerable {
     using SafeMath for uint256;
 
-    bool public enabled = false;
+    bool private isPresaleStarted = false;
+    bool private isPrivateSaleOver = false;
     uint256 public totalSoldRTAmount;
 
     struct Recipient {
@@ -31,11 +32,15 @@ contract Presale is Context, AccessControlEnumerable {
     uint256 public PP; // Presale Period
     uint256 public PT; // Presale Start Time
     uint256 public SF = 50000; // Service Fee : eg 1e4 = 1% default is 5%
+    uint256 public IDR; // Initial Deposited RT amount
 
     /********************** Events ***********************/
-    event Deposit(address indexed, uint256, uint256, uint256);
+    event PrivateSaleDone(string, uint256);
+    event Vested(address indexed, uint256, uint256);
     event WithdrawUnsoldRT(address indexed, uint256, uint256);
     event WithdrawFunds(address indexed, uint256, uint256);
+    event PreSaleStarted(string, uint256);
+    event PreSalePaused(string, uint256);
 
     /********************** Modifiers ***********************/
     modifier onlyOwner() {
@@ -49,7 +54,7 @@ contract Presale is Context, AccessControlEnumerable {
     modifier whileOnGoing() {
         require(block.timestamp >= PT, "Presale has been started yet");
         require(block.timestamp <= PT + PP, "Presale has been ended");
-        require(enabled == true, "Presale has been ended or paused");
+        require(isPresaleStarted == true, "Presale has been ended or paused");
         _;
     }
 
@@ -58,9 +63,17 @@ contract Presale is Context, AccessControlEnumerable {
         _;
     }
 
+    modifier whileDeposited() {
+        require(
+            getDepositiedRT() >= IDR,
+            "Deposit enough RT tokens to the vesting contract first!"
+        );
+        _;
+    }
+
     constructor(
         address[4] memory _addrs, // CW, FT, RT, PO
-        uint256[9] memory _vals, // goalFunds : 0, ER : 1, PT : 2, PP : 3, SF : 4, IU : 5, WI : 6, RR : 7, LP : 8
+        uint256[10] memory _vals, // goalFunds : 0, ER : 1, PT : 2, PP : 3, SF : 4, IU : 5, WI : 6, RR : 7, LP : 8, IDR : 9
         address _owner
     ) {
         // _msgSender() will be factory contract in near future
@@ -85,10 +98,8 @@ contract Presale is Context, AccessControlEnumerable {
         // RR : Release Rate
         // LP : LockPeriod
         CV = new Vesting(_addrs[2], _vals[5], _vals[6], _vals[7], _vals[8]);
-    }
 
-    function isPresaleOver() external view returns (bool) {
-        return block.timestamp > PT + PP;
+        IDR = _vals[9];
     }
 
     /********************** Setter ***********************/
@@ -97,19 +108,19 @@ contract Presale is Context, AccessControlEnumerable {
     }
 
     function updateER(uint256 _ER) external onlyOwner {
-        require(_ER > 0, "UpdateER: Exchnage Rate can't be ZERO!");
+        require(_ER > 0, "updateER: Exchnage Rate can't be ZERO!");
         ER = _ER;
     }
 
     function updatePP(uint256 _PP) external onlyOwner {
-        require(_PP > 0, "UpdatePP: Presale Period can't be ZERO!");
+        require(_PP > 0, "updatePP: Presale Period can't be ZERO!");
         PP = _PP;
     }
 
     function updatePO(address _PO) external onlyOwner {
         require(
             _PO != address(0x00),
-            "UpdatePO: Project Owner address can't be 0x00!"
+            "updatePO: Project Owner address can't be 0x00!"
         );
         PO = _PO;
     }
@@ -122,10 +133,19 @@ contract Presale is Context, AccessControlEnumerable {
     }
 
     /********************** External ***********************/
+    function isPresaleGoing() external view returns (bool) {
+        return block.timestamp > PT + PP;
+    }
+
     /// startPresale by checking the pre-requirements.
-    function startPresale() external onlyOwner {
+    function startPresale() external whileDeposited onlyOwner {
         require(
-            enabled == false,
+            isPrivateSaleOver == true,
+            "startPresale: Private Sale has not been done yet!"
+        );
+
+        require(
+            isPresaleStarted == false,
             "startPresale: Presale has been already started!"
         );
 
@@ -134,14 +154,15 @@ contract Presale is Context, AccessControlEnumerable {
             "startPresale: Please deposit RT tokens to vesting contract first!"
         );
 
-        enabled = true;
+        isPresaleStarted = true;
         // TODO: Are we updating the initial PT?
         PT = block.timestamp;
+        emit PreSaleStarted("Presale has been started", block.timestamp);
     }
 
     /// Pause the ongoing presale by mergency
     function pausePresaleByEmergency() external onlyOwner {
-        enabled = false;
+        isPresaleStarted = false;
     }
 
     /// After presale ends, we withdraw funds to project owner by charging a service fee
@@ -210,7 +231,7 @@ contract Presale is Context, AccessControlEnumerable {
         uint256 newRTAmount = amount.mul(ER).div(1e6);
 
         recipients[_msgSender()].amountDepositedFT = newAmountDepositedFT;
-        totalSoldRTAmount = newRTAmount.add(newRTAmount);
+        totalSoldRTAmount = totalSoldRTAmount.add(newRTAmount);
 
         recipients[_msgSender()].amountRF = recipients[_msgSender()]
             .amountRF
@@ -218,11 +239,25 @@ contract Presale is Context, AccessControlEnumerable {
 
         CV.updateRecipient(_msgSender(), recipients[_msgSender()].amountRF);
 
-        emit Deposit(
+        emit Vested(
             _msgSender(),
-            amount,
-            newAmountDepositedFT,
+            recipients[_msgSender()].amountRF,
             block.timestamp
         );
+    }
+
+    function endPrivateSale() external onlyOwner {
+        isPrivateSaleOver = true;
+        emit PrivateSaleDone("Private Sale is over", block.timestamp);
+    }
+
+    function addOrUpdateInfulencer(address _influencer, uint256 _amount)
+        external
+        whileDeposited
+        onlyOwner
+    {
+        CV.updateRecipient(_influencer, _amount);
+
+        emit Vested(_msgSender(), _amount, block.timestamp);
     }
 }
