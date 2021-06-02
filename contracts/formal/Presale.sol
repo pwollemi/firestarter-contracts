@@ -258,6 +258,6 @@ contract Presale is Context, AccessControlEnumerable {
     {
         CV.updateRecipient(_influencer, _amount);
 
-        emit Vested(_msgSender(), _amount, block.timestamp);
+        emit Vested(_influencer, _amount, block.timestamp);
     }
 }
