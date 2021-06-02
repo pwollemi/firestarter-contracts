@@ -13,7 +13,8 @@ contract Presale is Context, AccessControlEnumerable {
 
     bool private isPresaleStarted = false;
     bool private isPrivateSaleOver = false;
-    uint256 public totalSoldRTAmount;
+    uint256 public publicSoldRTAmount;
+    uint256 private privateSoldRTAmount;
 
     struct Recipient {
         uint256 amountDepositedFT; // Funds token amount per recipient.
@@ -195,7 +196,8 @@ contract Presale is Context, AccessControlEnumerable {
         );
 
         uint256 totalDepositedRT = getDepositiedRT();
-        uint256 unsoldRT = totalDepositedRT.sub(totalSoldRTAmount);
+        uint256 unsoldRT =
+            totalDepositedRT.sub(publicSoldRTAmount).sub(privateSoldRTAmount);
 
         require(
             RT.transferFrom(address(CV), PO, unsoldRT),
@@ -231,7 +233,7 @@ contract Presale is Context, AccessControlEnumerable {
         uint256 newRTAmount = amount.mul(ER).div(1e6);
 
         recipients[_msgSender()].amountDepositedFT = newAmountDepositedFT;
-        totalSoldRTAmount = totalSoldRTAmount.add(newRTAmount);
+        publicSoldRTAmount = publicSoldRTAmount.add(newRTAmount);
 
         recipients[_msgSender()].amountRF = recipients[_msgSender()]
             .amountRF
@@ -251,13 +253,29 @@ contract Presale is Context, AccessControlEnumerable {
         emit PrivateSaleDone("Private Sale is over", block.timestamp);
     }
 
-    function addOrUpdateInfulencer(address _influencer, uint256 _amount)
+    function updateRecipient(address _recipient, uint256 _amount)
+        external
+        onlyOwner
+    {
+        CV.updateRecipient(_recipient, _amount);
+
+        emit Vested(_recipient, _amount, block.timestamp);
+    }
+
+    function depositPrivateSale(address _recipient, uint256 _amount)
         external
         whileDeposited
         onlyOwner
     {
-        CV.updateRecipient(_influencer, _amount);
-
-        emit Vested(_influencer, _amount, block.timestamp);
+        privateSoldRTAmount = privateSoldRTAmount.add(_amount);
+        recipients[_recipient].amountRF = recipients[_recipient].amountRF.add(
+            _amount
+        );
+        CV.updateRecipient(_recipient, recipients[_recipient].amountRF);
+        emit Vested(
+            _recipient,
+            recipients[_recipient].amountRF,
+            block.timestamp
+        );
     }
 }
