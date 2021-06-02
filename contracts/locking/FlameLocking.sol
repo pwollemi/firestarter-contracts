@@ -1,7 +1,9 @@
-pragma solidity ^0.7.6;
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/utils/Context.sol";
 
 //
-interface IBEP20 {
+interface IERC20 {
     /**
      * @dev Moves `amount` tokens from the caller's account to `recipient`.
      *
@@ -27,31 +29,6 @@ interface IBEP20 {
         address recipient,
         uint256 amount
     ) external returns (bool);
-}
-
-/*
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with GSN meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
- */
-abstract contract Context {
-    // Empty internal constructor, to prevent people from mistakenly deploying
-    // an instance of this contract, which should be used via inheritance.
-    constructor() {}
-
-    function _msgSender() internal view returns (address payable) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view returns (bytes memory) {
-        this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
-        return msg.data;
-    }
 }
 
 /**
@@ -217,7 +194,7 @@ library SafeMath {
 
 contract FlameLocking is Context {
     using SafeMath for uint256;
-    IBEP20 flameToken;
+    IERC20 flameToken;
 
     struct LockInfo {
         uint256 amount;
