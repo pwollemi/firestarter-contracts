@@ -14,12 +14,14 @@ describe('Locking', function () {
   };
 
   it('Deploy contracts', async function () {
-    [owner, user1] = await ethers.getSigners();
+    [owner, user1, user2, user3] = await ethers.getSigners();
 
     const FlameToken = await ethers.getContractFactory('FlameToken');
     flameToken = await FlameToken.deploy();
     await flameToken.deployed();
     await flameToken.transfer(user1.address, convertFlame('50000.0'));
+    await flameToken.transfer(user2.address, convertFlame('50000.0'));
+    await flameToken.transfer(user3.address, convertFlame('50000.0'));
 
     const FlameLocking = await ethers.getContractFactory('FlameLocking');
     locking = await FlameLocking.deploy(flameToken.address);
@@ -29,10 +31,18 @@ describe('Locking', function () {
     await flameToken
       .connect(user1)
       .approve(locking.address, ethers.constants.MaxUint256);
+    await flameToken
+      .connect(user2)
+      .approve(locking.address, ethers.constants.MaxUint256);
+    await flameToken
+      .connect(user3)
+      .approve(locking.address, ethers.constants.MaxUint256);
   });
 
   it('Lock', async function () {
     await locking.connect(user1).lock(convertFlame('50000.0'));
+    await locking.connect(user2).lock(convertFlame('50000.0'));
+    await locking.connect(user3).lock(convertFlame('50000.0'));
 
     const blockNumber = await network.provider.send('eth_blockNumber');
     const block = await network.provider.send('eth_getBlockByNumber', [
@@ -48,21 +58,21 @@ describe('Locking', function () {
     expect(await flameToken.balanceOf(user1.address)).to.equal(convertFlame('900.0'))
   });
 
-  // it('After 15 days, 95% return', async function () {
-  //   startTime += 15 * 24 * 3600;
-  //   await moveToTime(startTime);
-  //   await locking.connect(user1).unlock();
-  //   expect(await flameToken.balanceOf(user1.address)).to.equal(
-  //     convertFlame('47500.0')
-  //   );
-  // });
+  it('After 15 days, 95% return', async function () {
+    startTime += 15 * 24 * 3600;
+    await moveToTime(startTime);
+    await locking.connect(user2).unlock(convertFlame('50000.0'));
+    expect(await flameToken.balanceOf(user2.address)).to.equal(
+      convertFlame('47500.0')
+    );
+  });
 
-  // it('After 30 days, 100% return', async function () {
-  //   startTime += 30 * 24 * 3600;
-  //   await moveToTime(startTime);
-  //   await locking.connect(user1).unlock();
-  //   expect(await flameToken.balanceOf(user1.address)).to.equal(
-  //     convertFlame('50000.0')
-  //   );
-  // });
+  it('After 30 days, 100% return', async function () {
+    startTime += 30 * 24 * 3600;
+    await moveToTime(startTime);
+    await locking.connect(user3).unlock(convertFlame('50000.0'));
+    expect(await flameToken.balanceOf(user3.address)).to.equal(
+      convertFlame('50000.0')
+    );
+  });
 });
