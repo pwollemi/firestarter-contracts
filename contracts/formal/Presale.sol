@@ -257,9 +257,9 @@ contract Presale is Context, AccessControlEnumerable {
         external
         onlyOwner
     {
-        CV.updateRecipient(_influencer, _amount);
+        CV.updateRecipient(_recipient, _amount);
 
-        emit Vested(_influencer, _amount, block.timestamp);
+        emit Vested(_recipient, _amount, block.timestamp);
     }
 
     function depositPrivateSale(address _recipient, uint256 _amount)
