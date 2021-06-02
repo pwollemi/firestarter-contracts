@@ -2,13 +2,20 @@
  * @type import('hardhat/config').HardhatUserConfig
  */
 
-const { resolve } = require('path');
 require('@nomiclabs/hardhat-waffle');
 
 const { mnemonic } = require('./secrets.json');
 
 module.exports = {
-  solidity: '0.7.6',
+  solidity: {
+    version: "0.8.0",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+    },
+  },
   defaultNetwork: "hardhat",
   networks: {
     localnetwork: {

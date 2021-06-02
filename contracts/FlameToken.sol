@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.7.6;
+pragma solidity ^0.8.0;
 
 interface IBEP20 {
     /**
@@ -120,7 +120,7 @@ abstract contract Context {
     // an instance of this contract, which should be used via inheritance.
     constructor() {}
 
-    function _msgSender() internal view returns (address payable) {
+    function _msgSender() internal view returns (address) {
         return msg.sender;
     }
 
