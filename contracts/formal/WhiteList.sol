@@ -26,9 +26,11 @@ contract Whitelist is Context, AccessControlEnumerable {
         _;
     }
 
-    constructor(address _owner) {
+    constructor(address[] memory _initialOwners) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _setupRole(DEFAULT_ADMIN_ROLE, _owner);
+        for (uint256 i = 0; i < _initialOwners.length; i++) {
+            _setupRole(DEFAULT_ADMIN_ROLE, _initialOwners[i]);
+        }
     }
 
     function addToWhitelist(UserData[] memory _users) external onlyOwner {

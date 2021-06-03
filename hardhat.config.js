@@ -30,6 +30,12 @@ module.exports = {
       gasPrice: 20000000000,
       accounts: { mnemonic: mnemonic },
     },
+    matic: {
+      url: 'https://rpc-mainnet.matic.network',
+      chainId: 137,
+      gasPrice: 20000000000,
+      accounts: {mnemonic: mnemonic},
+    },
     mainnet: {
       url: 'https://bsc-dataseed.binance.org/',
       chainId: 56,

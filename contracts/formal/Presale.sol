@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "../interfaces/IWhitelist.sol";
-import "./Vesting.sol";
+import "../interfaces/IVesting.sol";
 
 contract Presale is Context, AccessControlEnumerable {
     using SafeMath for uint256;
@@ -24,11 +24,11 @@ contract Presale is Context, AccessControlEnumerable {
 
     IERC20 public FT; // Funds Token : Token for funderside. (Maybe it will be the stable coin)
     IERC20 public RT; // Rewards Token : Token for distribution as rewards.
-    IWhitelist public CW; // WhiteList Contract : For checking if the user has passed the KYC
-    Vesting public CV; // Vesting Contract
+    IWhitelist private CW; // WhiteList Contract : For checking if the user has passed the KYC
+    IVesting private CV; // Vesting Contract
 
     address public PO; // Project Owner : The address where to withdraw funds token to after presale
-    uint256 public goalFunds; // Funds amount to be raised. Amount * FT's Decimals
+    uint256 public GF; // Goal Funds : Funds amount to be raised. Amount * FT's Decimals
     uint256 public ER; // Exchange Rate : Fixed Rate between FT vs rewardsToken = rewards/funds * 1e6
     uint256 public PP; // Presale Period
     uint256 public PT; // Presale Start Time
@@ -73,39 +73,46 @@ contract Presale is Context, AccessControlEnumerable {
     }
 
     constructor(
-        address[4] memory _addrs, // CW, FT, RT, PO
-        uint256[10] memory _vals, // goalFunds : 0, ER : 1, PT : 2, PP : 3, SF : 4, IU : 5, WI : 6, RR : 7, LP : 8, IDR : 9
-        address _owner
+        address[5] memory _addrs, // 0:FT, 1:RT, 2:PO, 3:CW, 4:CV
+        uint256[6] memory _presaleParams, // 0:ER, 1:PT, 2:PP, 3:SF, 4:GF, 5: IDR
+        address[] memory _initialOwners
     ) {
-        // _msgSender() will be factory contract in near future
+        // _msgSender() will be factory contract
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _setupRole(DEFAULT_ADMIN_ROLE, _owner);
+        // This initialOwner will grant admin role to others
+        for (uint256 i = 0; i < _initialOwners.length; i++) {
+            _setupRole(DEFAULT_ADMIN_ROLE, _initialOwners[i]);
+        }
 
-        CW = IWhitelist(_addrs[0]);
-        FT = IERC20(_addrs[1]);
-        RT = IERC20(_addrs[2]);
-        PO = _addrs[3];
+        FT = IERC20(_addrs[0]);
+        RT = IERC20(_addrs[1]);
+        PO = _addrs[2];
+        CW = IWhitelist(_addrs[3]);
+        CV = IVesting(_addrs[4]);
 
-        goalFunds = _vals[0];
-
-        ER = _vals[1];
-        PT = _vals[2];
-        PP = _vals[3];
-        SF = _vals[4];
-
-        // For vesting contract
-        // IU : Initual Unlock
-        // WI : Withdraw Interval
-        // RR : Release Rate
-        // LP : LockPeriod
-        CV = new Vesting(_addrs[2], _vals[5], _vals[6], _vals[7], _vals[8]);
-
-        IDR = _vals[9];
+        ER = _presaleParams[0];
+        PT = _presaleParams[1];
+        PP = _presaleParams[2];
+        SF = _presaleParams[3];
+        GF = _presaleParams[4];
+        IDR = _presaleParams[5];
     }
 
     /********************** Setter ***********************/
     function updateCW(address _CW) external onlyOwner {
+        require(
+            _CW != address(0x00),
+            "updateCW: Whitelist contract address can't be ZERO!"
+        );
         CW = IWhitelist(_CW);
+    }
+
+    function updateCV(address _CV) external onlyOwner {
+        require(
+            _CV != address(0x00),
+            "updateCW: Whitelist contract address can't be ZERO!"
+        );
+        CV = IVesting(_CV);
     }
 
     function updateER(uint256 _ER) external onlyOwner {
@@ -134,6 +141,14 @@ contract Presale is Context, AccessControlEnumerable {
     }
 
     /********************** External ***********************/
+    function vestingContract() external view returns (address) {
+        return address(CV);
+    }
+
+    function whitelistContract() external view returns (address) {
+        return address(CW);
+    }
+
     function isPresaleGoing() external view returns (bool) {
         return block.timestamp > PT + PP;
     }

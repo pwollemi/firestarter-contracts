@@ -6,9 +6,10 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract Vesting is Context, Ownable {
+contract Vesting is Context {
     using SafeMath for uint256;
 
+    address private owner;
     struct VestingSchedule {
         uint256 totalAmount; // Total amount of tokens to be vested.
         uint256 amountWithdrawn; // The amount that has been withdrawn.
@@ -33,23 +34,28 @@ contract Vesting is Context, Ownable {
     event Withdraw(address registeredAddress, uint256 amountWithdrawn);
     event StartTimeSet(uint256 startTime);
 
-    constructor(
-        address _RT,
-        uint256 _initialUnlock,
-        uint256 _withdrawInterval,
-        uint256 _releaseRate,
-        uint256 _lockPeriod
-    ) {
-        require(_withdrawInterval > 0);
+    /********************** Modifiers ***********************/
+    modifier onlyOwner() {
+        require(owner == _msgSender(), "Requires Owner Role");
+        _;
+    }
 
+    constructor(address _RT, uint256[4] memory _vestingParams) {
+        require(_vestingParams[1] > 0);
+
+        owner = _msgSender();
         RT = IERC20(_RT);
 
-        initialUnlock = _initialUnlock;
-        withdrawInterval = _withdrawInterval;
-        releaseRate = _releaseRate;
-        lockPeriod = _lockPeriod;
+        initialUnlock = _vestingParams[0];
+        withdrawInterval = _vestingParams[1];
+        releaseRate = _vestingParams[2];
+        lockPeriod = _vestingParams[3];
 
         isStartTimeSet = false;
+    }
+
+    function transferOwnership(address _owner) external onlyOwner {
+        owner = _owner;
     }
 
     function updateRecipient(address _recipient, uint256 _amount)
