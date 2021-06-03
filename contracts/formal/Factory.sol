@@ -10,16 +10,9 @@ import "./Vesting.sol";
 
 contract Factory is Context, AccessControlEnumerable {
     struct Project {
-        address CW; // Whitelist Contract
         address CP; // Presale Contract
+        address CW; // Whitelist Contract
         address CV; // Vesting Contract
-        address FT; // Funds Token
-        address RT; // Rewards Token
-        uint256 ER; // Exchange Rate
-        uint256 SF; // Service Fee
-        uint256 PT; // Presale Start Time
-        uint256 PP; // Presale Period
-        uint256 goalFunds;
     }
 
     mapping(address => Project) public projectList; // Project Owner Address => Project Info
@@ -63,17 +56,11 @@ contract Factory is Context, AccessControlEnumerable {
 
         Presale _CP = new Presale(_params, _presaleParams, _initialOwners);
 
+        // For let presale to change the states of CV
         _CV.transferOwnership(address(_CP));
+
         projectList[_addrs[2]].CP = address(_CP);
         projectList[_addrs[2]].CW = address(_CW);
         projectList[_addrs[2]].CV = address(_CV);
-
-        // projectList[_addrs[2]].FT = _addrs[0];
-        // projectList[_addrs[2]].RT = _addrs[1];
-        // projectList[_addrs[2]].ER = _vals[1];
-        // projectList[_addrs[2]].SF = _vals[4];
-        // projectList[_addrs[2]].PT = _vals[2];
-        // projectList[_addrs[2]].PP = _vals[3];
-        // projectList[_addrs[2]].goalFunds = _vals[0];
     }
 }
