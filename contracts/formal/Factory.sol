@@ -10,13 +10,15 @@ import "./Vesting.sol";
 
 contract Factory is Context, AccessControlEnumerable {
     struct Project {
+        address PO; // Project Owner
         address CP; // Presale Contract
         address CW; // Whitelist Contract
         address CV; // Vesting Contract
     }
 
-    mapping(address => Project) public projectList; // Project Owner Address => Project Info
+    mapping(string => Project) public projectList; // Project Owner Address => Project Info
     /********************** Events ***********************/
+    event AddProject(string, address, address, address, address, uint256);
 
     /********************** Modifiers ***********************/
     modifier onlyOwner() {
@@ -37,11 +39,20 @@ contract Factory is Context, AccessControlEnumerable {
     }
 
     function addProject(
+        string calldata id,
         address[3] calldata _addrs, // FT, RT, PO
         uint256[6] calldata _presaleParams, // 0:ER, 1:PT, 2:PP, 3:SF, 4:GF, 5: IDR
         uint256[4] calldata _vestingParams, // 0:IU, 1:WI, 2:RR, 3:LP
         address[] calldata _initialOwners
-    ) external onlyOwner {
+    )
+        external
+        onlyOwner
+        returns (
+            address,
+            address,
+            address
+        )
+    {
         address[5] memory _params;
 
         for (uint256 i = 0; i < 3; i++) {
@@ -59,8 +70,19 @@ contract Factory is Context, AccessControlEnumerable {
         // For let presale to change the states of CV
         _CV.transferOwnership(address(_CP));
 
-        projectList[_addrs[2]].CP = address(_CP);
-        projectList[_addrs[2]].CW = address(_CW);
-        projectList[_addrs[2]].CV = address(_CV);
+        projectList[id].PO = _addrs[2];
+        projectList[id].CP = address(_CP);
+        projectList[id].CW = address(_CW);
+        projectList[id].CV = address(_CV);
+
+        emit AddProject(
+            id,
+            _addrs[2],
+            address(_CP),
+            address(_CW),
+            address(_CV),
+            block.timestamp
+        );
+        return (address(_CP), address(_CW), address(_CV));
     }
 }
