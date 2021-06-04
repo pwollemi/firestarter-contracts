@@ -6,6 +6,10 @@ require('@nomiclabs/hardhat-waffle');
 
 const { mnemonic } = require('./secrets.json');
 
+const defaultConfig = {
+  gasPrice: 20000000000,
+  accounts: { mnemonic: mnemonic },
+}
 module.exports = {
   solidity: {
     version: "0.8.0",
@@ -21,26 +25,27 @@ module.exports = {
     localnetwork: {
       url: "http://127.0.0.1:8545",
       chainId: 1337,
-      gasPrice: 20000000000,
-      accounts: { mnemonic: mnemonic },
+      ...defaultConfig
     },
     testnet: {
       url: 'https://data-seed-prebsc-1-s1.binance.org:8545',
       chainId: 97,
-      gasPrice: 20000000000,
-      accounts: { mnemonic: mnemonic },
+      ...defaultConfig
     },
     matic: {
       url: 'https://rpc-mainnet.matic.network',
       chainId: 137,
-      gasPrice: 20000000000,
-      accounts: {mnemonic: mnemonic},
+      ...defaultConfig
+    },
+    mumbai: {
+      url: 'https://rpc-mumbai.matic.today',
+      chainId: 80001,
+      ...defaultConfig
     },
     mainnet: {
       url: 'https://bsc-dataseed.binance.org/',
       chainId: 56,
-      gasPrice: 20000000000,
-      accounts: { mnemonic: mnemonic },
+      ...defaultConfig
     },
     hardhat: {
       forking: {
