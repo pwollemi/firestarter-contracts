@@ -4,20 +4,27 @@
 // When running the script with `hardhat run <script>` you'll find the Hardhat
 // Runtime Environment's members available in the global scope.
 const hre = require('hardhat');
-const Presale = require('../artifacts/contracts/formal/Presale.sol/Presale.json');
+const fs = require('fs');
+const deployments = require('../report.json');
+
 async function main() {
   const [deployer] = await ethers.getSigners();
 
   console.log('Deploying contracts with the account:', deployer.address);
 
-  // const FlameToken = await hre.ethers.getContractFactory('FlameToken');
-  // const flameToken = await FlameToken.deploy();
-  // console.log('FlameToken deployed to:', flameToken.address);
+  const RT = await hre.ethers.getContractFactory('RT');
+  const rt = await RT.deploy();
 
-  const presale = await hre.ethers.getContractAt(Presale.abi, "0xfaeecD3D755D1E680eF5741E5e70c48345784C01");
-  const PT = await presale.PT();
+  deployments.rt = rt.address;
+  console.log('RT deployed to:', rt.address);
 
-  console.log('PT:', PT.toString());
+  const FT = await hre.ethers.getContractFactory('FT');
+  const ft = await FT.deploy();
+
+  deployments.ft = ft.address;
+  console.log('FT deployed to:', ft.address);
+
+  await fs.writeFileSync('report.json', JSON.stringify(deployments));
 }
 
 // We recommend this pattern to be able to use async/await everywhere
