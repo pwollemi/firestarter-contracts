@@ -4,25 +4,20 @@
 // When running the script with `hardhat run <script>` you'll find the Hardhat
 // Runtime Environment's members available in the global scope.
 const hre = require('hardhat');
-
+const Presale = require('../artifacts/contracts/formal/Presale.sol/Presale.json');
 async function main() {
   const [deployer] = await ethers.getSigners();
 
   console.log('Deploying contracts with the account:', deployer.address);
 
-  console.log('Account balance:', (await deployer.getBalance()).toString());
-
   // const FlameToken = await hre.ethers.getContractFactory('FlameToken');
   // const flameToken = await FlameToken.deploy();
   // console.log('FlameToken deployed to:', flameToken.address);
 
-  const PresaleVesting = await hre.ethers.getContractFactory('PresaleVesting');
-  //   const presaleVesting = await PresaleVesting.deploy(flameToken.address);
-  const presaleVesting = await PresaleVesting.deploy(
-    '0x79068a4D63997cC4b553B3aa230026885135E128'
-  );
+  const presale = await hre.ethers.getContractAt(Presale.abi, "0xfaeecD3D755D1E680eF5741E5e70c48345784C01");
+  const PT = await presale.PT();
 
-  console.log('PresaleVesting deployed to:', presaleVesting.address);
+  console.log('PT:', PT.toString());
 }
 
 // We recommend this pattern to be able to use async/await everywhere

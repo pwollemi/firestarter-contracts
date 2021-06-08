@@ -6,8 +6,6 @@ interface IWhitelist {
 
     function removeFromWhitelist(address[] memory _user) external;
 
-    function isUserInWL(address _user) external view returns (bool);
-
     function getUser(address _user)
         external
         view

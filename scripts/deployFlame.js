@@ -51,18 +51,26 @@ async function main() {
     vesting.address //CV
   ]
   const _presaleParams = [
-    45000, //ER : 1Flame = 0.045USD
-    Math.floor(Date.now() / 1000), // PT
-    86400 * 10, //PP : 10 days,
-    50000, // SF : 5%,
-    10000000, // GF : just placholder we can ignore for now,
+    "45000", //ER : 1Flame = 0.045USD
+    (Math.floor(Date.now() / 1000)).toString(), // PT
+    "864000", //PP : 10 days,
+    "50000", // SF : 5%,
+    "10000000", // GF : just placholder we can ignore for now,
     "10000000000000000000000" // IDR: 10k tokens will be deposited to vesting
   ]
+  console.log('Presale params: ', _addrs, _presaleParams, initialOwners);
   const presale = await Presale.deploy(_addrs, _presaleParams, initialOwners);
   console.log('Presale deployed to:', presale.address);
 
+  await vesting.init(presale.address);
   deployments.presale = presale.address;
 
+  // FlameLocking
+  const Locking = await hre.ethers.getContractFactory('FlameLocking');
+  const locking = await Locking.deploy(flame.address);
+  console.log('Locking deployed to:', locking.address);
+
+  deployments.locking = locking.address
   await fs.writeFileSync('report.json', JSON.stringify(deployments));
 }
 

@@ -64,7 +64,7 @@ contract Factory is AccessControlEnumerable {
         Presale _CP = new Presale(_params, _presaleParams, _initialOwners);
 
         // For let presale to change the states of CV
-        _CV.transferOwnership(address(_CP));
+        _CV.init(address(_CP));
 
         PL[_id].PO = _addrs[2];
         PL[_id].CP = address(_CP);
@@ -75,7 +75,7 @@ contract Factory is AccessControlEnumerable {
             [_addrs[2], address(_CP), address(_CW), address(_CV)];
 
         string memory logId = _id;
-        emit AddProject(_msgSender(), logId, _logs, block.timestamp);
+        emit AddProject(msg.sender, logId, _logs, block.timestamp);
 
         return (address(_CP), address(_CW), address(_CV));
     }

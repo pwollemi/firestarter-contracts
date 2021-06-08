@@ -189,18 +189,12 @@ contract Presale is AccessControlEnumerable {
         uint256 newAmountDepositedFT =
             recipients[msg.sender].amountDepositedFT.add(amount);
 
-        (, bool isKycPassed, uint256 MAX_ALLOC) = CW.getUser(msg.sender);
-        require(
-            CW.isUserInWL(msg.sender),
-            "Deposit: Not exist on the whitelist"
-        );
+        (address user, , uint256 MAX_ALLOC) = CW.getUser(msg.sender);
+
+        require(user != address(0x00), "Deposit: Not exist on the whitelist");
         require(
             MAX_ALLOC >= newAmountDepositedFT,
             "Deposit: Can't exceed the MAX_ALLOC!"
-        );
-        require(
-            FT.balanceOf(msg.sender) >= amount,
-            "Deposit: Insufficient balance on the user wallet!"
         );
         require(
             FT.transferFrom(msg.sender, address(this), amount),
@@ -208,8 +202,8 @@ contract Presale is AccessControlEnumerable {
         );
 
         uint256 newRTAmount =
-            amount.mul(ER).div(1e6).div(10**FT.decimals()).mul(
-                10**RT.decimals()
+            amount.mul(ER).mul(10**RT.decimals()).div(1e6).div(
+                10**FT.decimals()
             );
 
         recipients[msg.sender].amountDepositedFT = newAmountDepositedFT;
@@ -231,15 +225,6 @@ contract Presale is AccessControlEnumerable {
     function endPrivateSale() external onlyOwner {
         isPrivateSaleOver = true;
         emit PrivateSaleDone("Private Sale is over", block.timestamp);
-    }
-
-    function updateRecipient(address _recipient, uint256 _amount)
-        external
-        onlyOwner
-    {
-        CV.updateRecipient(_recipient, _amount);
-
-        emit Vested(_recipient, _amount, block.timestamp);
     }
 
     function depositPrivateSale(address _recipient, uint256 _amount)
