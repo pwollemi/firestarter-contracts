@@ -2,13 +2,12 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import "../interfaces/IERC20.sol";
 import "../interfaces/IWhitelist.sol";
 import "../interfaces/IVesting.sol";
 
-contract Presale is Context, AccessControlEnumerable {
+contract Presale is AccessControlEnumerable {
     using SafeMath for uint256;
 
     bool private isPresaleStarted = false;
@@ -28,11 +27,11 @@ contract Presale is Context, AccessControlEnumerable {
     IVesting private CV; // Vesting Contract
 
     address public PO; // Project Owner : The address where to withdraw funds token to after presale
-    uint256 public GF; // Goal Funds : Funds amount to be raised. Amount * FT's Decimals
+    // uint256 public GF; // Goal Funds : Funds amount to be raised. Amount * FT's Decimals
     uint256 public ER; // Exchange Rate : Fixed Rate between FT vs rewardsToken = rewards/funds * 1e6
     uint256 public PP; // Presale Period
     uint256 public PT; // Presale Start Time
-    uint256 public SF = 50000; // Service Fee : eg 1e4 = 1% default is 5%
+    uint256 public SF = 50000; // Service Fee : eg 1e5 = 10% default is 5%
     uint256 public IDR; // Initial Deposited RT amount
 
     /********************** Events ***********************/
@@ -45,10 +44,7 @@ contract Presale is Context, AccessControlEnumerable {
 
     /********************** Modifiers ***********************/
     modifier onlyOwner() {
-        require(
-            hasRole(DEFAULT_ADMIN_ROLE, _msgSender()),
-            "Requires Owner Role"
-        );
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Requires Owner Role");
         _;
     }
 
@@ -74,11 +70,12 @@ contract Presale is Context, AccessControlEnumerable {
 
     constructor(
         address[5] memory _addrs, // 0:FT, 1:RT, 2:PO, 3:CW, 4:CV
-        uint256[6] memory _presaleParams, // 0:ER, 1:PT, 2:PP, 3:SF, 4:GF, 5: IDR
+        uint256[6] memory _presaleParams,
+        // 0:ER, 1:PT, 2:PP, 3:SF, 4:GF, 5: IDR
         address[] memory _initialOwners
     ) {
-        // _msgSender() will be factory contract
-        _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        // msg.sender will be factory contract
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         // This initialOwner will grant admin role to others
         for (uint256 i = 0; i < _initialOwners.length; i++) {
             _setupRole(DEFAULT_ADMIN_ROLE, _initialOwners[i]);
@@ -94,43 +91,8 @@ contract Presale is Context, AccessControlEnumerable {
         PT = _presaleParams[1];
         PP = _presaleParams[2];
         SF = _presaleParams[3];
-        GF = _presaleParams[4];
+        // GF = _presaleParams[4];
         IDR = _presaleParams[5];
-    }
-
-    /********************** Setter ***********************/
-    function updateCW(address _CW) external onlyOwner {
-        require(
-            _CW != address(0x00),
-            "updateCW: Whitelist contract address can't be ZERO!"
-        );
-        CW = IWhitelist(_CW);
-    }
-
-    function updateCV(address _CV) external onlyOwner {
-        require(
-            _CV != address(0x00),
-            "updateCW: Whitelist contract address can't be ZERO!"
-        );
-        CV = IVesting(_CV);
-    }
-
-    function updateER(uint256 _ER) external onlyOwner {
-        require(_ER > 0, "updateER: Exchnage Rate can't be ZERO!");
-        ER = _ER;
-    }
-
-    function updatePP(uint256 _PP) external onlyOwner {
-        require(_PP > 0, "updatePP: Presale Period can't be ZERO!");
-        PP = _PP;
-    }
-
-    function updatePO(address _PO) external onlyOwner {
-        require(
-            _PO != address(0x00),
-            "updatePO: Project Owner address can't be 0x00!"
-        );
-        PO = _PO;
     }
 
     /********************** Internal ***********************/
@@ -225,11 +187,11 @@ contract Presale is Context, AccessControlEnumerable {
     /// Receive funds token from the participants with checking the requirements.
     function deposit(uint256 amount) external whileOnGoing {
         uint256 newAmountDepositedFT =
-            recipients[_msgSender()].amountDepositedFT.add(amount);
+            recipients[msg.sender].amountDepositedFT.add(amount);
 
-        (, bool isKycPassed, uint256 MAX_ALLOC) = CW.getUser(_msgSender());
+        (, bool isKycPassed, uint256 MAX_ALLOC) = CW.getUser(msg.sender);
         require(
-            CW.isUserInWL(_msgSender()),
+            CW.isUserInWL(msg.sender),
             "Deposit: Not exist on the whitelist"
         );
         require(
@@ -237,28 +199,31 @@ contract Presale is Context, AccessControlEnumerable {
             "Deposit: Can't exceed the MAX_ALLOC!"
         );
         require(
-            FT.balanceOf(_msgSender()) >= amount,
+            FT.balanceOf(msg.sender) >= amount,
             "Deposit: Insufficient balance on the user wallet!"
         );
         require(
-            FT.transferFrom(_msgSender(), address(this), amount),
+            FT.transferFrom(msg.sender, address(this), amount),
             "Deposit: Transaction has been failed!"
         );
 
-        uint256 newRTAmount = amount.mul(ER).div(1e6);
+        uint256 newRTAmount =
+            amount.mul(ER).div(1e6).div(10**FT.decimals()).mul(
+                10**RT.decimals()
+            );
 
-        recipients[_msgSender()].amountDepositedFT = newAmountDepositedFT;
+        recipients[msg.sender].amountDepositedFT = newAmountDepositedFT;
         publicSoldRTAmount = publicSoldRTAmount.add(newRTAmount);
 
-        recipients[_msgSender()].amountRF = recipients[_msgSender()]
-            .amountRF
-            .add(newRTAmount);
+        recipients[msg.sender].amountRF = recipients[msg.sender].amountRF.add(
+            newRTAmount
+        );
 
-        CV.updateRecipient(_msgSender(), recipients[_msgSender()].amountRF);
+        CV.updateRecipient(msg.sender, recipients[msg.sender].amountRF);
 
         emit Vested(
-            _msgSender(),
-            recipients[_msgSender()].amountRF,
+            msg.sender,
+            recipients[msg.sender].amountRF,
             block.timestamp
         );
     }

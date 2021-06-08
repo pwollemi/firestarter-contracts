@@ -7,7 +7,6 @@ require('@nomiclabs/hardhat-waffle');
 const { mnemonic } = require('./secrets.json');
 
 const defaultConfig = {
-  gasPrice: 20000000000,
   accounts: { mnemonic: mnemonic },
 }
 module.exports = {

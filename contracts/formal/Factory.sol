@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma experimental ABIEncoderV2;
 pragma solidity ^0.8.0;
-
-import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "./Presale.sol";
 import "./Whitelist.sol";
 import "./Vesting.sol";
 
-contract Factory is Context, AccessControlEnumerable {
+contract Factory is AccessControlEnumerable {
     struct Project {
         address PO; // Project Owner
         address CP; // Presale Contract
@@ -16,22 +14,20 @@ contract Factory is Context, AccessControlEnumerable {
         address CV; // Vesting Contract
     }
 
-    mapping(string => Project) public projectList; // Project Owner Address => Project Info
+    mapping(string => Project) public PL; // Project ID => Project Info
+
     /********************** Events ***********************/
-    event AddProject(string, address, address, address, address, uint256);
+    event AddProject(address indexed, string, address[4], uint256);
 
     /********************** Modifiers ***********************/
     modifier onlyOwner() {
-        require(
-            hasRole(DEFAULT_ADMIN_ROLE, _msgSender()),
-            "Requires Owner Role"
-        );
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Requires Owner Role");
         _;
     }
 
     constructor(address[] memory _initialOwners) {
         // At first only deployer can manage the factory contract
-        _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         // This initialOwner will grant admin role to others
         for (uint256 i = 0; i < _initialOwners.length; i++) {
             _setupRole(DEFAULT_ADMIN_ROLE, _initialOwners[i]);
@@ -39,7 +35,7 @@ contract Factory is Context, AccessControlEnumerable {
     }
 
     function addProject(
-        string calldata id,
+        string calldata _id,
         address[3] calldata _addrs, // FT, RT, PO
         uint256[6] calldata _presaleParams, // 0:ER, 1:PT, 2:PP, 3:SF, 4:GF, 5: IDR
         uint256[4] calldata _vestingParams, // 0:IU, 1:WI, 2:RR, 3:LP
@@ -70,19 +66,17 @@ contract Factory is Context, AccessControlEnumerable {
         // For let presale to change the states of CV
         _CV.transferOwnership(address(_CP));
 
-        projectList[id].PO = _addrs[2];
-        projectList[id].CP = address(_CP);
-        projectList[id].CW = address(_CW);
-        projectList[id].CV = address(_CV);
+        PL[_id].PO = _addrs[2];
+        PL[_id].CP = address(_CP);
+        PL[_id].CW = address(_CW);
+        PL[_id].CV = address(_CV);
 
-        emit AddProject(
-            id,
-            _addrs[2],
-            address(_CP),
-            address(_CW),
-            address(_CV),
-            block.timestamp
-        );
+        address[4] memory _logs =
+            [_addrs[2], address(_CP), address(_CW), address(_CV)];
+
+        string memory logId = _id;
+        emit AddProject(_msgSender(), logId, _logs, block.timestamp);
+
         return (address(_CP), address(_CW), address(_CV));
     }
 }
