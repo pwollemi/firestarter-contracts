@@ -202,7 +202,7 @@ contract Presale is AccessControlEnumerable {
         );
 
         uint256 newRTAmount =
-            amount.mul(ER).mul(10**RT.decimals()).div(1e6).div(
+            amount.mul(1e6).mul(10**RT.decimals()).div(ER).div(
                 10**FT.decimals()
             );
 
