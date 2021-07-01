@@ -52,7 +52,6 @@ contract FlameStaking is Context {
     constructor(
         FlameAccessControl _accessControl,
         RewardDistributor _distributor,
-        Launchpad _launchpad,
         IERC20 _flameToken,
         uint256 _poolStartTime,
         uint256 _rewardAPY,
@@ -63,7 +62,6 @@ contract FlameStaking is Context {
     ) {
         accessControl = _accessControl;
         distributor = _distributor;
-        launchpad = _launchpad;
         flameToken = _flameToken;
         poolStartTime = _poolStartTime;
         rewardAPY = _rewardAPY;
