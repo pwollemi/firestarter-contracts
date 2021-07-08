@@ -1,45 +1,78 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma experimental ABIEncoderV2;
 pragma solidity ^0.8.0;
+pragma experimental ABIEncoderV2;
+
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "./Presale.sol";
 import "./Whitelist.sol";
 import "./Vesting.sol";
 
+/// @title Firestarter Factory Contract
+/// @author Michael, Daniel Lee
+/// @notice You can use this contract to add new projects
+/// @dev All function calls are currently implemented without side effects
 contract Factory is AccessControlEnumerable {
     struct Project {
-        address PO; // Project Owner
-        address CP; // Presale Contract
-        address CW; // Whitelist Contract
-        address CV; // Vesting Contract
+        // Project Owner
+        address projectOwner;
+        // Presale Contract
+        address presale;
+        // Whitelist Contract
+        address whitelist;
+        // Vesting Contract
+        address vesting;
     }
 
-    mapping(string => Project) public PL; // Project ID => Project Info
+    struct ProjectParams {
+        // Fund token
+        address fundToken;
+        // Reward token(from the project)
+        address rewardToken;
+        // Owner of this project
+        address projectOwner;
+    }
 
-    /********************** Events ***********************/
-    event AddProject(address indexed, string, address[4], uint256);
+    /// @notice Project List: Project ID => Project Info
+    mapping(string => Project) public PL;
 
-    /********************** Modifiers ***********************/
+    /// @notice An event emitted when a new project is added
+    event AddProject(
+        address indexed sender,
+        string id,
+        Project project,
+        uint256 timestamp
+    );
+
     modifier onlyOwner() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Requires Owner Role");
         _;
     }
 
-    constructor(address[] memory _initialOwners) {
+    constructor(address[] memory owners) {
         // At first only deployer can manage the factory contract
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         // This initialOwner will grant admin role to others
-        for (uint256 i = 0; i < _initialOwners.length; i++) {
-            _setupRole(DEFAULT_ADMIN_ROLE, _initialOwners[i]);
+        for (uint256 i = 0; i < owners.length; i++) {
+            _setupRole(DEFAULT_ADMIN_ROLE, owners[i]);
         }
     }
 
+    /**
+     * @notice Add a new project
+     * @dev Only owner can do this operation
+     * @param _id ID of the new project
+     * @param _addrs addresses of tokens and owner
+     * @param _presaleParams Presale parameters
+     * @param _vestingParams Vesting paramsters
+     * @param _initialOwners Owners
+     * @return presale, whitelist, vesting contract addresses
+     */
     function addProject(
-        string calldata _id,
-        address[3] calldata _addrs, // FT, RT, PO
-        uint256[6] calldata _presaleParams, // 0:ER, 1:PT, 2:PP, 3:SF, 4:GF, 5: IDR
-        uint256[4] calldata _vestingParams, // 0:IU, 1:WI, 2:RR, 3:LP
-        address[] calldata _initialOwners
+        string memory _id,
+        ProjectParams memory _addrs,
+        Presale.PresaleParams memory _presaleParams,
+        Vesting.VestingParams memory _vestingParams,
+        address[] memory _initialOwners
     )
         external
         onlyOwner
@@ -49,34 +82,30 @@ contract Factory is AccessControlEnumerable {
             address
         )
     {
-        address[5] memory _params;
+        Whitelist whitelist = new Whitelist(_initialOwners);
+        Vesting vesting = new Vesting(_addrs.rewardToken, _vestingParams);
 
-        for (uint256 i = 0; i < 3; i++) {
-            _params[i] = _addrs[i];
-        }
+        Presale.AddressParams memory addrs = Presale.AddressParams({
+            fundToken: _addrs.fundToken,
+            rewardToken: _addrs.rewardToken,
+            projectOwner: _addrs.projectOwner,
+            whitelist: address(whitelist),
+            vesting: address(vesting)
+        });
 
-        Whitelist _CW = new Whitelist(_initialOwners);
-        _params[3] = address(_CW);
+        Presale presale = new Presale(addrs, _presaleParams, _initialOwners);
 
-        Vesting _CV = new Vesting(_addrs[1], _vestingParams);
-        _params[4] = address(_CV);
+        // Set the owner of vesting to presale contract
+        vesting.init(address(presale));
 
-        Presale _CP = new Presale(_params, _presaleParams, _initialOwners);
+        Project storage newProject = PL[_id];
+        newProject.projectOwner = _addrs.projectOwner;
+        newProject.presale = address(presale);
+        newProject.whitelist = address(whitelist);
+        newProject.vesting = address(vesting);
 
-        // For let presale to change the states of CV
-        _CV.init(address(_CP));
+        emit AddProject(msg.sender, _id, newProject, block.timestamp);
 
-        PL[_id].PO = _addrs[2];
-        PL[_id].CP = address(_CP);
-        PL[_id].CW = address(_CW);
-        PL[_id].CV = address(_CV);
-
-        address[4] memory _logs =
-            [_addrs[2], address(_CP), address(_CW), address(_CV)];
-
-        string memory logId = _id;
-        emit AddProject(msg.sender, logId, _logs, block.timestamp);
-
-        return (address(_CP), address(_CW), address(_CV));
+        return (address(presale), address(whitelist), address(vesting));
     }
 }

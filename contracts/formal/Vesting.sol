@@ -4,139 +4,222 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../interfaces/IERC20.sol";
 
+/// @title Firestarter Vesting Contract
+/// @author Michael, Daniel Lee
+/// @notice You can use this contract for token vesting
+/// @dev All function calls are currently implemented without side effects
 contract Vesting {
     using SafeMath for uint256;
 
-    address private owner;
-    struct VestingSchedule {
-        uint256 totalAmount; // Total amount of tokens to be vested.
-        uint256 amountWithdrawn; // The amount that has been withdrawn.
+    struct VestingParams {
+        // Percent of tokens initially unlocked
+        uint256 initalUnlock;
+        // Amount of time in seconds between withdrawal periods.
+        uint256 withdrawInterval;
+        // Release percent in each withdrawing interval
+        uint256 releaseRate;
+        // Number of periods before start release.
+        uint256 lockPeriod;
     }
 
-    mapping(address => VestingSchedule) public recipients;
+    struct VestingInfo {
+        // Total amount of tokens to be vested.
+        uint256 totalAmount;
+        // The amount that has been withdrawn.
+        uint256 amountWithdrawn;
+    }
 
-    uint256 constant MAX_UINT256 = type(uint256).max;
+    /// @notice Owner address(presale)
+    address private owner;
 
+    /// @notice Vesting schedule info for each user(presale)
+    mapping(address => VestingInfo) public recipients;
+
+    /// @notice Start time of vesting
     uint256 public startTime;
-    bool public isStartTimeSet;
-    uint256 public withdrawInterval; // Amount of time in seconds between withdrawal periods.
-    uint256 public releaseRate; // Release percent in each withdrawing interval
-    uint256 public initialUnlock; // Percent of tokens initially unlocked
-    uint256 public lockPeriod; // Number of periods before start release.
 
-    IERC20 public RT;
+    /// @notice Amount of time in seconds between withdrawal periods.
+    uint256 public withdrawInterval;
 
-    event VestingScheduleUpdated(
-        address registeredAddress,
-        uint256 totalAmount
-    );
+    /// @notice Release percent in each withdrawing interval
+    uint256 public releaseRate;
 
+    /// @notice Percent of tokens initially unlocked
+    uint256 public initialUnlock;
+
+    /// @notice Number of periods before start release.
+    uint256 public lockPeriod;
+
+    /// @notice Reward token of the project.
+    address public rewardToken;
+
+    /// @notice Sum of all user's vesting amount
+    uint256 public totalVestingAmount;
+
+    /// @notice An event emitted when the vesting schedule is updated.
+    event VestingInfoUpdated(address registeredAddress, uint256 totalAmount);
+
+    /// @notice An event emitted when withdraw happens
     event Withdraw(address registeredAddress, uint256 amountWithdrawn);
+
+    /// @notice An event emitted when startTime is set
     event StartTimeSet(uint256 startTime);
 
-    /********************** Modifiers ***********************/
     modifier onlyOwner() {
         require(owner == msg.sender, "Requires Owner Role");
         _;
     }
 
-    constructor(address _RT, uint256[4] memory _vestingParams) {
-        require(_vestingParams[1] > 0);
+    constructor(address _rewardToken, VestingParams memory _params) {
+        require(_params.withdrawInterval > 0);
 
         owner = msg.sender;
-        RT = IERC20(_RT);
+        rewardToken = _rewardToken;
 
-        initialUnlock = _vestingParams[0];
-        withdrawInterval = _vestingParams[1];
-        releaseRate = _vestingParams[2];
-        lockPeriod = _vestingParams[3];
-
-        isStartTimeSet = false;
+        initialUnlock = _params.initalUnlock;
+        withdrawInterval = _params.withdrawInterval;
+        releaseRate = _params.releaseRate;
+        lockPeriod = _params.lockPeriod;
     }
 
-    function init(address _CP) external onlyOwner {
-        owner = _CP;
-        RT.approve(_CP, MAX_UINT256);
+    /**
+     * @notice Init Presale contract
+     * @dev Thic changes the owner to presale
+     * @param presale Presale contract address
+     */
+    function init(address presale) external onlyOwner {
+        owner = presale;
+        IERC20(rewardToken).approve(presale, type(uint256).max);
     }
 
-    function updateRecipient(address _recipient, uint256 _amount)
-        external
-        onlyOwner
-    {
+    /**
+     * @notice Update user vesting information
+     * @dev This is called by presale contract
+     * @param recp Address of Recipient
+     * @param amount Amount of reward token
+     */
+    function updateRecipient(address recp, uint256 amount) external onlyOwner {
         require(
-            !isStartTimeSet || startTime > block.timestamp,
+            startTime == 0 || startTime >= block.timestamp,
             "updateRecipient: Cannot update the receipient after started"
         );
-        require(_amount > 0, "updateRecipient: Cannot vest 0");
-        recipients[_recipient].totalAmount = _amount;
-        emit VestingScheduleUpdated(_recipient, _amount);
+        require(amount > 0, "updateRecipient: Cannot vest 0");
+
+        // remove previous amount and add new amount
+        totalVestingAmount = totalVestingAmount
+        .sub(recipients[recp].totalAmount)
+        .add(amount);
+
+        uint256 depositedAmount = IERC20(rewardToken).balanceOf(address(this));
+        require(
+            depositedAmount >= totalVestingAmount,
+            "updateRecipient: Vesting amount exceeds current balance"
+        );
+
+        recipients[recp].totalAmount = amount;
+
+        emit VestingInfoUpdated(recp, amount);
     }
 
-    function setStartTime(uint256 _newStartTime) external onlyOwner {
+    /**
+     * @notice Set vesting start time
+     * @dev This should be called before vesting starts
+     * @param newStartTime New start time
+     */
+    function setStartTime(uint256 newStartTime) external onlyOwner {
         // Only allow to change start time before the counting starts
-        require(!isStartTimeSet || startTime > block.timestamp);
-        require(_newStartTime > block.timestamp);
+        require(
+            startTime == 0 || startTime >= block.timestamp,
+            "setStartTime: Already started"
+        );
+        require(
+            newStartTime > block.timestamp,
+            "setStartTime: Should be time in future"
+        );
 
-        startTime = _newStartTime;
-        isStartTimeSet = true;
+        startTime = newStartTime;
 
-        emit StartTimeSet(_newStartTime);
+        emit StartTimeSet(newStartTime);
     }
 
-    // Returns the amount of tokens you can withdraw
+    /**
+     * @notice Withdraw tokens when vesting is ended
+     * @dev Anyone can claim their tokens
+     */
+    function withdraw() external {
+        VestingInfo storage vestingInfo = recipients[msg.sender];
+        if (vestingInfo.totalAmount == 0) return;
+
+        uint256 _vested = vested(msg.sender);
+        uint256 _withdrawable = withdrawable(msg.sender);
+        vestingInfo.amountWithdrawn = _vested;
+
+        require(_withdrawable > 0, "Nothing to withdraw");
+        require(IERC20(rewardToken).transfer(msg.sender, _withdrawable));
+        emit Withdraw(msg.sender, _withdrawable);
+    }
+
+    /**
+     * @notice Returns the amount of vested reward tokens
+     * @dev Calculates available amount depending on vesting params
+     * @param beneficiary address of the beneficiary
+     * @return amount : Amount of vested tokens
+     */
     function vested(address beneficiary)
         public
         view
         virtual
-        returns (uint256 _amountVested)
+        returns (uint256 amount)
     {
-        VestingSchedule memory _vestingSchedule = recipients[beneficiary];
+        uint256 endTime = startTime.add(lockPeriod);
+        VestingInfo memory vestingInfo = recipients[beneficiary];
+
         if (
-            !isStartTimeSet ||
-            (_vestingSchedule.totalAmount == 0) ||
-            (block.timestamp < startTime) ||
-            (block.timestamp < startTime.add(lockPeriod))
+            startTime == 0 ||
+            vestingInfo.totalAmount == 0 ||
+            block.timestamp <= endTime
         ) {
             return 0;
         }
 
-        uint256 initialUnlockAmount =
-            _vestingSchedule.totalAmount.mul(initialUnlock).div(1e6);
+        uint256 initialUnlockAmount = vestingInfo
+        .totalAmount
+        .mul(initialUnlock)
+        .div(1e6);
 
-        uint256 unlockRate =
-            _vestingSchedule.totalAmount.mul(releaseRate).div(1e6).div(
-                withdrawInterval
-            );
+        uint256 unlockRate = vestingInfo
+        .totalAmount
+        .mul(releaseRate)
+        .div(1e6)
+        .div(withdrawInterval);
 
-        uint256 vestedAmount =
-            unlockRate.mul(block.timestamp.sub(startTime).sub(lockPeriod)).add(
-                initialUnlockAmount
-            );
+        uint256 vestedAmount = unlockRate.mul(block.timestamp.sub(endTime)).add(
+            initialUnlockAmount
+        );
 
-        if (vestedAmount > _vestingSchedule.totalAmount) {
-            return _vestingSchedule.totalAmount;
+        if (vestedAmount > vestingInfo.totalAmount) {
+            return vestingInfo.totalAmount;
         }
         return vestedAmount;
     }
 
+    /**
+     * @notice Return locked amount
+     * @return Locked reward token amount
+     */
     function locked(address beneficiary) public view returns (uint256) {
-        return recipients[beneficiary].totalAmount.sub(vested(beneficiary));
+        uint256 totalAmount = recipients[beneficiary].totalAmount;
+        uint256 vestedAmount = vested(beneficiary);
+        return totalAmount.sub(vestedAmount);
     }
 
+    /**
+     * @notice Return remaining withdrawable amount
+     * @return Remaining vested amount of reward token
+     */
     function withdrawable(address beneficiary) public view returns (uint256) {
-        return vested(beneficiary).sub(recipients[beneficiary].amountWithdrawn);
-    }
-
-    function withdraw() external {
-        VestingSchedule storage vestingSchedule = recipients[msg.sender];
-        if (vestingSchedule.totalAmount == 0) return;
-
-        uint256 _vested = vested(msg.sender);
-        uint256 _withdrawable = withdrawable(msg.sender);
-        vestingSchedule.amountWithdrawn = _vested;
-
-        require(_withdrawable > 0, "Nothing to withdraw");
-        require(RT.transfer(msg.sender, _withdrawable));
-        emit Withdraw(msg.sender, _withdrawable);
+        uint256 vestedAmount = vested(beneficiary);
+        uint256 withdrawnAmount = recipients[beneficiary].amountWithdrawn;
+        return vestedAmount.sub(withdrawnAmount);
     }
 }

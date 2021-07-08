@@ -7,115 +7,250 @@ import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "../interfaces/IWhiteList.sol";
 import "./Vesting.sol";
 
+/// @title Firestarter Presale Contract
+/// @author Michael, Daniel Lee
+/// @notice You can use this contract for presale of projects
+/// @dev All function calls are currently implemented without side effects
 contract Presale is AccessControlEnumerable {
     using SafeMath for uint256;
 
-    bool private isPresaleStarted = false;
-    bool private isPrivateSaleOver = false;
-    uint256 public publicSoldRTAmount;
-    uint256 private privateSoldRTAmount;
-
     struct Recipient {
-        uint256 amountDepositedFT; // Funds token amount per recipient.
-        uint256 amountRF; // Rewards token that needs to be vested.
+        // Deposited Funds token amount of the recipient
+        uint256 ftBalance;
+        // Rewards Token amount that needs to be vested
+        uint256 rtBalance;
     }
+
+    struct AddressParams {
+        // Fund token
+        address fundToken;
+        // Reward token(from the project)
+        address rewardToken;
+        // Owner of this project
+        address projectOwner;
+        // Contract that managers WL users
+        address whitelist;
+        // Presale Vesting Contract
+        address vesting;
+    }
+
+    struct PresaleParams {
+        // Exchange rate between the Fund token and Reward token
+        uint256 rate;
+        // Timestamp when presale starts
+        uint256 startTime;
+        // Presale period
+        uint256 period;
+        // Service Fee : eg 1e5 = 10% default is 5%
+        uint256 serviceFee;
+        // Funds amount to be raised. Amount * fundToken's Decimals
+        uint256 goalFunds;
+        // Initial Deposited rewardToken amount
+        uint256 initalRewardsAmount;
+    }
+
+    /********************** Address Infos ***********************/
+
+    /// @notice Token for funderside. (Maybe it will be the stable coin)
+    address public fundToken;
+
+    /// @notice Token for distribution as rewards.
+    address public rewardToken;
+
+    /// @notice Project Owner: The address where to withdraw funds token to after presale
+    address public projectOwner;
+
+    /// @notice WhiteList Contract: For checking if the user has passed the KYC
+    address private whitelist;
+
+    /// @notice Vesting Contract
+    address private vesting;
+
+    /// @notice Goal Funds : Funds amount to be raised. Amount * fundToken's Decimals
+    // uint256 public goalFunds;
+
+    /********************** Presale Params ***********************/
+
+    /// @notice Fixed Rate between fundToken vs rewardsToken = rewards/funds * 1e6
+    uint256 public exchangeRate;
+
+    /// @notice Presale Period
+    uint256 public presalePeriod;
+
+    /// @notice Presale Start Time
+    uint256 public startTime;
+
+    /// @notice Service Fee: eg 1e5 = 10% default is 5%
+    uint256 public serviceFee = 50000;
+
+    /// @notice Initial Deposited rewardToken amount
+    uint256 public initialRewardAmount;
+
+    /********************** Status Infos ***********************/
+
+    /// @notice Private sale status
+    bool private isPrivateSaleOver;
+
+    /// @notice Presale pause status
+    bool public isPresalePaused;
+
+    /// @notice Presale remaining time if paused
+    uint256 public currentPresalePeriod;
+
+    /// @notice Reward token amount sold by Private Sale
+    uint256 private privateSoldAmount;
+
+    /// @notice Reward token amount sold by Public Sale
+    uint256 public publicSoldAmount;
+
+    /// @notice Participants information
     mapping(address => Recipient) public recipients;
 
-    IERC20 public FT; // Funds Token : Token for funderside. (Maybe it will be the stable coin)
-    IERC20 public RT; // Rewards Token : Token for distribution as rewards.
-    IWhitelist private CW; // WhiteList Contract : For checking if the user has passed the KYC
-    IVesting private CV; // Vesting Contract
+    /// @notice An event emitted when the private sale is done
+    event PrivateSaleDone(string msg, uint256 timestamp);
 
-    address public PO; // Project Owner : The address where to withdraw funds token to after presale
-    // uint256 public GF; // Goal Funds : Funds amount to be raised. Amount * FT's Decimals
-    uint256 public ER; // Exchange Rate : Fixed Rate between FT vs rewardsToken = rewards/funds * 1e6
-    uint256 public PP; // Presale Period
-    uint256 public PT; // Presale Start Time
-    uint256 public SF = 50000; // Service Fee : eg 1e5 = 10% default is 5%
-    uint256 public IDR; // Initial Deposited RT amount
+    /// @notice An event emitted when presale is started
+    event PresaleStarted(string, uint256);
 
-    /********************** Events ***********************/
-    event PrivateSaleDone(string, uint256);
-    event Vested(address indexed, uint256, uint256);
-    event WithdrawUnsoldRT(address indexed, uint256, uint256);
-    event WithdrawFunds(address indexed, uint256, uint256);
-    event PreSaleStarted(string, uint256);
-    event PreSalePaused(string, uint256);
+    /// @notice An event emitted when presale is paused
+    event PresalePaused(string, uint256);
 
-    /********************** Modifiers ***********************/
+    /// @notice An event emitted when presale is started
+    event PresaleResumed(string, uint256);
+
+    /// @notice An event emitted when a user vested reward token
+    event Vested(address indexed user, uint256 amount, uint256 timestamp);
+
+    /// @notice An event emitted when the remaining reward token is withdrawn
+    event WithdrawUnsoldToken(
+        address indexed receiver,
+        uint256 amount,
+        uint256 timestamp
+    );
+
+    /// @notice An event emitted when funded token is withdrawn(project owner and service fee)
+    event WithdrawFunds(
+        address indexed receiver,
+        uint256 amount,
+        uint256 timestamp
+    );
+
+    /// @notice An event emitted when startTime is set
+    event StartTimeSet(uint256 startTime);
+
     modifier onlyOwner() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Requires Owner Role");
         _;
     }
 
     modifier whileOnGoing() {
-        require(block.timestamp >= PT, "Presale has been started yet");
-        require(block.timestamp <= PT + PP, "Presale has been ended");
-        require(isPresaleStarted == true, "Presale has been ended or paused");
+        require(isPresaleGoing(), "Presale is not in progress");
+        _;
+    }
+
+    modifier whilePaused() {
+        require(isPresalePaused, "Presale is not paused");
         _;
     }
 
     modifier whileFinished() {
-        require(block.timestamp > PT + PP, "Presale has not been ended yet!");
+        require(
+            block.timestamp > startTime + currentPresalePeriod,
+            "Presale has not been ended yet!"
+        );
         _;
     }
 
     modifier whileDeposited() {
         require(
-            getDepositiedRT() >= IDR,
-            "Deposit enough RT tokens to the vesting contract first!"
+            _getDepositedRewardTokenAmount() >= initialRewardAmount,
+            "Deposit enough rewardToken tokens to the vesting contract first!"
         );
         _;
     }
 
     constructor(
-        address[5] memory _addrs, // 0:FT, 1:RT, 2:PO, 3:CW, 4:CV
-        uint256[6] memory _presaleParams,
-        // 0:ER, 1:PT, 2:PP, 3:SF, 4:GF, 5: IDR
-        address[] memory _initialOwners
+        AddressParams memory _addrs,
+        PresaleParams memory _presale,
+        address[] memory owners
     ) {
         // msg.sender will be factory contract
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        // This initialOwner will grant admin role to others
-        for (uint256 i = 0; i < _initialOwners.length; i++) {
-            _setupRole(DEFAULT_ADMIN_ROLE, _initialOwners[i]);
+
+        // Grant admin role to owners
+        for (uint256 i = 0; i < owners.length; i++) {
+            _setupRole(DEFAULT_ADMIN_ROLE, owners[i]);
         }
 
-        FT = IERC20(_addrs[0]);
-        RT = IERC20(_addrs[1]);
-        PO = _addrs[2];
-        CW = IWhitelist(_addrs[3]);
-        CV = IVesting(_addrs[4]);
+        fundToken = _addrs.fundToken;
+        rewardToken = _addrs.rewardToken;
+        projectOwner = _addrs.projectOwner;
+        whitelist = _addrs.whitelist;
+        vesting = _addrs.vesting;
 
-        ER = _presaleParams[0];
-        PT = _presaleParams[1];
-        PP = _presaleParams[2];
-        SF = _presaleParams[3];
-        // GF = _presaleParams[4];
-        IDR = _presaleParams[5];
+        exchangeRate = _presale.rate;
+        startTime = _presale.startTime;
+        presalePeriod = _presale.period;
+        serviceFee = _presale.serviceFee;
+        // goalFunds = _presale.goalFunds;
+        initialRewardAmount = _presale.initalRewardsAmount;
+
+        currentPresalePeriod = presalePeriod;
     }
 
-    /********************** Internal ***********************/
-    /// Get the RT token amount of vesting contract
-    function getDepositiedRT() internal view returns (uint256) {
-        address addrVesting = address(CV);
-        return RT.balanceOf(addrVesting);
+    /**
+     * @notice Deposit reward token when private sale
+     * @dev Only owner can do this operation
+     * @param user address of the participant
+     * @param amount amount of reward token
+     */
+    function depositPrivateSale(address user, uint256 amount)
+        external
+        whileDeposited
+        onlyOwner
+    {
+        privateSoldAmount = privateSoldAmount.add(amount);
+
+        Recipient storage recp = recipients[user];
+        recp.rtBalance = recp.rtBalance.add(amount);
+        IVesting(vesting).updateRecipient(user, recp.rtBalance);
+
+        emit Vested(user, recp.rtBalance, block.timestamp);
     }
 
-    /********************** External ***********************/
-    function vestingContract() external view returns (address) {
-        return address(CV);
+    /**
+     * @notice Finish Private Sale
+     * @dev Only owner can end private sale
+     */
+    function endPrivateSale() external onlyOwner {
+        isPrivateSaleOver = true;
+        emit PrivateSaleDone("Private Sale is over", block.timestamp);
     }
 
-    function whitelistContract() external view returns (address) {
-        return address(CW);
+    /**
+     * @notice Set presale start time
+     * @dev This should be called before presale starts
+     * @param newStartTime New start time
+     */
+    function setStartTime(uint256 newStartTime) external onlyOwner {
+        require(
+            startTime >= block.timestamp,
+            "setStartTime: Presale already started"
+        );
+        require(
+            newStartTime > block.timestamp,
+            "setStartTime: Should be time in future"
+        );
+
+        startTime = newStartTime;
+
+        emit StartTimeSet(newStartTime);
     }
 
-    function isPresaleGoing() external view returns (bool) {
-        return block.timestamp > PT + PP;
-    }
-
-    /// startPresale by checking the pre-requirements.
+    /**
+     * @notice Start presale
+     * @dev Need to check if requirements are satisfied
+     */
     function startPresale() external whileDeposited onlyOwner {
         require(
             isPrivateSaleOver == true,
@@ -123,124 +258,165 @@ contract Presale is AccessControlEnumerable {
         );
 
         require(
-            isPresaleStarted == false,
+            startTime > block.timestamp,
             "startPresale: Presale has been already started!"
         );
 
         require(
-            getDepositiedRT() != 0,
-            "startPresale: Please deposit RT tokens to vesting contract first!"
+            _getDepositedRewardTokenAmount() != 0,
+            "startPresale: Please deposit rewardToken tokens to vesting contract first!"
         );
 
-        isPresaleStarted = true;
-        // TODO: Are we updating the initial PT?
-        PT = block.timestamp;
-        emit PreSaleStarted("Presale has been started", block.timestamp);
+        startTime = block.timestamp;
+
+        emit PresaleStarted("Presale has been started", block.timestamp);
     }
 
-    /// Pause the ongoing presale by mergency
-    function pausePresaleByEmergency() external onlyOwner {
-        isPresaleStarted = false;
+    /**
+     * @notice Pause the ongoing presale by mergency
+     * @dev Remaining time is not considered
+     */
+    function pausePresaleByEmergency() external whileOnGoing onlyOwner {
+        isPresalePaused = true;
+        currentPresalePeriod = startTime.add(currentPresalePeriod).sub(
+            block.timestamp
+        );
+        emit PresalePaused("Presale has been paused", block.timestamp);
     }
 
-    /// After presale ends, we withdraw funds to project owner by charging a service fee
-    function withdrawFunds(address treasury) external whileFinished onlyOwner {
-        require(
-            PO != address(0x00),
-            "withdraw: Project Owner address hasn't been set!"
-        );
-        require(treasury != address(0x00), "withdraw: Treasury can't be 0x00");
-
-        uint256 balance = FT.balanceOf(address(this));
-        uint256 serviceFee = balance.mul(SF).div(1e6);
-        uint256 actualFunds = balance.sub(serviceFee);
-
-        require(FT.transfer(PO, actualFunds), "withdraw: can't withdraw funds");
-        require(
-            FT.transfer(treasury, serviceFee),
-            "withdraw: can't withdraw service fee"
-        );
-
-        emit WithdrawFunds(PO, actualFunds, block.timestamp);
-        emit WithdrawFunds(treasury, serviceFee, block.timestamp);
+    /**
+     * @notice Start presale
+     * @dev Need to check if requirements are satisfied
+     */
+    function resumePresale() external whilePaused onlyOwner {
+        isPresalePaused = false;
+        startTime = block.timestamp;
+        emit PresaleResumed("Presale has been resumed", block.timestamp);
     }
 
-    /// After presale ends, we withdraw unsold RT token to project owner.
-    function withdrawUnsoldRT() external whileFinished onlyOwner {
-        require(
-            PO != address(0x00),
-            "withdraw: Project Owner address hasn't been set!"
-        );
-
-        uint256 totalDepositedRT = getDepositiedRT();
-        uint256 unsoldRT =
-            totalDepositedRT.sub(publicSoldRTAmount).sub(privateSoldRTAmount);
-
-        require(
-            RT.transferFrom(address(CV), PO, unsoldRT),
-            "withdraw: can't withdraw funds"
-        );
-
-        emit WithdrawUnsoldRT(PO, unsoldRT, block.timestamp);
-    }
-
-    /// Receive funds token from the participants with checking the requirements.
+    /**
+     * @notice Deposit fund token to the pool
+     * @dev Receive funds token from the participants with checking the requirements.
+     * @param amount amount of fund token
+     */
     function deposit(uint256 amount) external whileOnGoing {
-        uint256 newAmountDepositedFT =
-            recipients[msg.sender].amountDepositedFT.add(amount);
+        address sender = msg.sender;
 
-        (address user, , uint256 MAX_ALLOC) = CW.getUser(msg.sender);
+        (address user, , uint256 MAX_ALLOC) = IWhitelist(whitelist).getUser(
+            sender
+        );
 
-        require(user != address(0x00), "Deposit: Not exist on the whitelist");
+        require(user != address(0), "Deposit: Not exist on the whitelist");
+
+        Recipient storage recp = recipients[sender];
+        uint256 newFundBalance = recp.ftBalance.add(amount);
+
         require(
-            MAX_ALLOC >= newAmountDepositedFT,
+            MAX_ALLOC >= newFundBalance,
             "Deposit: Can't exceed the MAX_ALLOC!"
         );
         require(
-            FT.transferFrom(msg.sender, address(this), amount),
-            "Deposit: Transaction has been failed!"
+            IERC20(fundToken).transferFrom(sender, address(this), amount),
+            "Deposit: Can't transfer fund token!"
         );
 
-        uint256 newRTAmount =
-            amount.mul(1e6).mul(10**RT.decimals()).div(ER).div(
-                10**FT.decimals()
-            );
+        uint256 rtDecimals = IERC20(rewardToken).decimals();
+        uint256 ftDecimals = IERC20(fundToken).decimals();
+        uint256 rtAmount = amount
+        .mul(1e6)
+        .mul(10**rtDecimals)
+        .div(exchangeRate)
+        .div(10**ftDecimals);
 
-        recipients[msg.sender].amountDepositedFT = newAmountDepositedFT;
-        publicSoldRTAmount = publicSoldRTAmount.add(newRTAmount);
+        recp.ftBalance = newFundBalance;
+        recp.rtBalance = recp.rtBalance.add(rtAmount);
+        publicSoldAmount = publicSoldAmount.add(rtAmount);
 
-        recipients[msg.sender].amountRF = recipients[msg.sender].amountRF.add(
-            newRTAmount
-        );
+        IVesting(whitelist).updateRecipient(msg.sender, recp.rtBalance);
 
-        CV.updateRecipient(msg.sender, recipients[msg.sender].amountRF);
-
-        emit Vested(
-            msg.sender,
-            recipients[msg.sender].amountRF,
-            block.timestamp
-        );
+        emit Vested(msg.sender, recp.rtBalance, block.timestamp);
     }
 
-    function endPrivateSale() external onlyOwner {
-        isPrivateSaleOver = true;
-        emit PrivateSaleDone("Private Sale is over", block.timestamp);
+    /**
+     * @notice Withdraw fund tokens to the project owner / charge service fee
+     * @dev After presale ends, we withdraw funds to project owner by charging a service fee
+     * @param treasury address of the participant
+     */
+    function withdrawFunds(address treasury) external whileFinished onlyOwner {
+        require(
+            projectOwner != address(0),
+            "withdraw: Project Owner address hasn't been set!"
+        );
+        require(
+            treasury != address(0),
+            "withdraw: Treasury can't be zero address"
+        );
+
+        uint256 balance = IERC20(fundToken).balanceOf(address(this));
+        uint256 feeAmount = balance.mul(serviceFee).div(1e6);
+        uint256 actualFunds = balance.sub(feeAmount);
+
+        require(
+            IERC20(fundToken).transfer(projectOwner, actualFunds),
+            "withdraw: can't withdraw funds"
+        );
+        require(
+            IERC20(fundToken).transfer(treasury, feeAmount),
+            "withdraw: can't withdraw service fee"
+        );
+
+        emit WithdrawFunds(projectOwner, actualFunds, block.timestamp);
+        emit WithdrawFunds(treasury, feeAmount, block.timestamp);
     }
 
-    function depositPrivateSale(address _recipient, uint256 _amount)
-        external
-        whileDeposited
-        onlyOwner
-    {
-        privateSoldRTAmount = privateSoldRTAmount.add(_amount);
-        recipients[_recipient].amountRF = recipients[_recipient].amountRF.add(
-            _amount
+    /**
+     * @notice Withdraw Unsold reward token to the project owner
+     * @dev After presale ends, we withdraw unsold rewardToken token to project owner.
+     */
+    function withdrawUnsoldToken() external whileFinished onlyOwner {
+        require(
+            projectOwner != address(0),
+            "withdraw: Project Owner address hasn't been set!"
         );
-        CV.updateRecipient(_recipient, recipients[_recipient].amountRF);
-        emit Vested(
-            _recipient,
-            recipients[_recipient].amountRF,
-            block.timestamp
+
+        uint256 totalBalance = _getDepositedRewardTokenAmount();
+        uint256 totalSoldAmount = privateSoldAmount.add(publicSoldAmount);
+        uint256 unsoldAmount = totalBalance.sub(totalSoldAmount);
+
+        require(
+            IERC20(rewardToken).transferFrom(
+                address(vesting),
+                projectOwner,
+                unsoldAmount
+            ),
+            "withdraw: can't withdraw funds"
         );
+
+        emit WithdrawUnsoldToken(projectOwner, unsoldAmount, block.timestamp);
+    }
+
+    /**
+     * @notice Check if Presale is in progress
+     * @return True: in Presale, False: not started or already ended
+     */
+
+    // need to check if presale is paused
+    function isPresaleGoing() public view returns (bool) {
+        if (isPresalePaused) return false;
+
+        if (_getDepositedRewardTokenAmount() < initialRewardAmount)
+            return false;
+
+        uint256 endTime = startTime.add(currentPresalePeriod);
+        return block.timestamp >= startTime && block.timestamp <= endTime;
+    }
+
+    /**
+     * @notice Returns the total vested reward token amount
+     * @dev Get the rewardToken token amount of vesting contract
+     * @return Reward token balance of vesting contract
+     */
+    function _getDepositedRewardTokenAmount() internal view returns (uint256) {
+        return IERC20(rewardToken).balanceOf(vesting);
     }
 }
