@@ -30,7 +30,7 @@ contract Vesting {
     }
 
     /// @notice Owner address(presale)
-    address private owner;
+    address public owner;
 
     /// @notice Vesting schedule info for each user(presale)
     mapping(address => VestingInfo) public recipients;

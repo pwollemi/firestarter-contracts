@@ -60,11 +60,11 @@ contract Presale is AccessControlEnumerable {
     /// @notice Project Owner: The address where to withdraw funds token to after presale
     address public projectOwner;
 
-    /// @notice WhiteList Contract: For checking if the user has passed the KYC
+    /// @dev WhiteList Contract: For checking if the user has passed the KYC
     address private whitelist;
 
     /// @notice Vesting Contract
-    address private vesting;
+    address public vesting;
 
     /// @notice Goal Funds : Funds amount to be raised. Amount * fundToken's Decimals
     // uint256 public goalFunds;
@@ -88,7 +88,7 @@ contract Presale is AccessControlEnumerable {
 
     /********************** Status Infos ***********************/
 
-    /// @notice Private sale status
+    /// @dev Private sale status
     bool private isPrivateSaleOver;
 
     /// @notice Presale pause status
@@ -97,7 +97,7 @@ contract Presale is AccessControlEnumerable {
     /// @notice Presale remaining time if paused
     uint256 public currentPresalePeriod;
 
-    /// @notice Reward token amount sold by Private Sale
+    /// @dev Reward token amount sold by Private Sale
     uint256 private privateSoldAmount;
 
     /// @notice Reward token amount sold by Public Sale
@@ -300,33 +300,30 @@ contract Presale is AccessControlEnumerable {
      * @param amount amount of fund token
      */
     function deposit(uint256 amount) external whileOnGoing {
-        address sender = msg.sender;
-
+        // check if user is in white list
         (address user, , uint256 MAX_ALLOC) = IWhitelist(whitelist).getUser(
-            sender
+            msg.sender
         );
-
         require(user != address(0), "Deposit: Not exist on the whitelist");
 
-        Recipient storage recp = recipients[sender];
+        // calculate fund token balance after deposit
+        Recipient storage recp = recipients[msg.sender];
         uint256 newFundBalance = recp.ftBalance.add(amount);
-
         require(
             MAX_ALLOC >= newFundBalance,
             "Deposit: Can't exceed the MAX_ALLOC!"
         );
         require(
-            IERC20(fundToken).transferFrom(sender, address(this), amount),
+            IERC20(fundToken).transferFrom(msg.sender, address(this), amount),
             "Deposit: Can't transfer fund token!"
         );
 
-        uint256 rtDecimals = IERC20(rewardToken).decimals();
-        uint256 ftDecimals = IERC20(fundToken).decimals();
+        // calculate reward token amount from fund token amount
         uint256 rtAmount = amount
         .mul(1e6)
-        .mul(10**rtDecimals)
+        .mul(10**IERC20(rewardToken).decimals())
         .div(exchangeRate)
-        .div(10**ftDecimals);
+        .div(10**IERC20(fundToken).decimals());
 
         recp.ftBalance = newFundBalance;
         recp.rtBalance = recp.rtBalance.add(rtAmount);

@@ -23,7 +23,7 @@ contract Whitelist is AccessControlEnumerable {
     /// @notice Count of users participating in whitelisting
     uint256 public totalUsers;
 
-    /// @notice White List
+    /// @dev White List
     mapping(address => UserData) private WL;
 
     /// @notice An event emitted when a user is added or removed. True: Added, False: Removed
