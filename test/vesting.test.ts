@@ -2,7 +2,7 @@ import { ethers } from "hardhat";
 import { solidity } from "ethereum-waffle";
 import chai from 'chai';
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import { FlameToken, FlameTokenFactory, Vesting, VestingFactory } from "../typechain";
+import { CustomToken, CustomTokenFactory, Vesting, VestingFactory } from "../typechain";
 import { setNextBlockTimestamp, getLatestBlockTimestamp } from "./helpers";
 
 chai.use(solidity);
@@ -21,7 +21,7 @@ describe('Vesting', () => {
 }
 
   let vesting: Vesting;
-  let flameToken: FlameToken;
+  let flameToken: CustomToken;
   let signers: SignerWithAddress[];
 
   before(async () => {
@@ -29,8 +29,8 @@ describe('Vesting', () => {
   });
 
   beforeEach(async () => {
-    const flameTokenFactory = <FlameTokenFactory>await ethers.getContractFactory("FlameToken");
-    flameToken = await flameTokenFactory.deploy(totalSupply);
+    const flameTokenFactory = <CustomTokenFactory>await ethers.getContractFactory("CustomToken");
+    flameToken = await flameTokenFactory.deploy("Flame token", "FLAME", totalSupply);
     await flameToken.deployed();
 
     const vestingFactory = <VestingFactory>await ethers.getContractFactory("Vesting");
@@ -40,4 +40,16 @@ describe('Vesting', () => {
     await flameToken.transfer(vesting.address, totalAmount);
   });
 
+  describe("init", async () => {
+    it("Only owner can call this function", async () => {
+      await expect(vesting.connect(signers[2]).init(signers[1].address)).to.be.revertedWith("Requires Owner Role");
+      await vesting.connect(signers[0]).init(signers[1].address);
+    });
+
+    it("Init updates the owner", async () => {
+      await vesting.connect(signers[0]).init(signers[1].address);
+      expect(await vesting.owner()).to.be.equal(signers[1].address);
+      await vesting.connect(signers[1]).init(signers[2].address);
+    });
+  });
 });
