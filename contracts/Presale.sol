@@ -3,9 +3,9 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
-
-import "../interfaces/IWhiteList.sol";
-import "./Vesting.sol";
+import "./interfaces/IERC20.sol";
+import "./interfaces/IWhitelist.sol";
+import "./interfaces/IVesting.sol";
 
 /// @title Firestarter Presale Contract
 /// @author Michael, Daniel Lee

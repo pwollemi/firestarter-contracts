@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "../interfaces/IERC20.sol";
+import "./interfaces/IERC20.sol";
 
 /// @title Firestarter Vesting Contract
 /// @author Michael, Daniel Lee
@@ -12,6 +12,10 @@ contract Vesting {
     using SafeMath for uint256;
 
     struct VestingParams {
+        // Name of this tokenomics
+        string vestingName;
+        // Total amount to be vested
+        uint256 amountToBeVested;
         // Percent of tokens initially unlocked
         uint256 initalUnlock;
         // Amount of time in seconds between withdrawal periods.
@@ -29,11 +33,13 @@ contract Vesting {
         uint256 amountWithdrawn;
     }
 
-    /// @notice Owner address(presale)
-    address public owner;
+    /*************************** Vesting Params *************************/
 
-    /// @notice Vesting schedule info for each user(presale)
-    mapping(address => VestingInfo) public recipients;
+    /// @notice Total balance of this vesting contract
+    uint256 public amountToBeVested;
+
+    /// @notice Name of this vesting
+    string public vestingName;
 
     /// @notice Start time of vesting
     uint256 public startTime;
@@ -52,6 +58,14 @@ contract Vesting {
 
     /// @notice Reward token of the project.
     address public rewardToken;
+
+    /*************************** Status Info *************************/
+
+    /// @notice Owner address(presale)
+    address public owner;
+
+    /// @notice Vesting schedule info for each user(presale)
+    mapping(address => VestingInfo) public recipients;
 
     /// @notice Sum of all user's vesting amount
     uint256 public totalVestingAmount;
@@ -76,6 +90,8 @@ contract Vesting {
         owner = msg.sender;
         rewardToken = _rewardToken;
 
+        vestingName = _params.vestingName;
+        amountToBeVested = _params.amountToBeVested;
         initialUnlock = _params.initalUnlock;
         withdrawInterval = _params.withdrawInterval;
         releaseRate = _params.releaseRate;
@@ -127,6 +143,9 @@ contract Vesting {
      * @param newStartTime New start time
      */
     function setStartTime(uint256 newStartTime) external onlyOwner {
+        // Check if enough amount is deposited to this contract
+        require(IERC20(rewardToken).balanceOf(address(this)) >= amountToBeVested, "setStartTime: Enough amount of reward token should be vested.");
+
         // Only allow to change start time before the counting starts
         require(
             startTime == 0 || startTime >= block.timestamp,
@@ -145,6 +164,11 @@ contract Vesting {
     /**
      * @notice Withdraw tokens when vesting is ended
      * @dev Anyone can claim their tokens
+     * Warning: Take care of re-entrancy attack here.
+     * Reward tokens are from not our own, which means
+     * re-entrancy can happen when the transfer happens.
+     * For now, we do checks-effects-interactsions, but
+     * for absolute safety, we may use reentracny guard.
      */
     function withdraw() external {
         VestingInfo storage vestingInfo = recipients[msg.sender];

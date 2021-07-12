@@ -1,15 +1,22 @@
-/**
- * @type import('hardhat/config').HardhatUserConfig
- */
+import { HardhatUserConfig } from "hardhat/types";
+import "@nomiclabs/hardhat-waffle";
+import "@nomiclabs/hardhat-etherscan";
+import "hardhat-typechain";
+import "hardhat-deploy";
+import "hardhat-contract-sizer";
+import "solidity-coverage";
+import { config as dotEnvConfig } from "dotenv";
 
-require('@nomiclabs/hardhat-waffle');
+dotEnvConfig();
 
-const { mnemonic } = require('./secrets.json');
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
+const mnemonic = process.env.WORKER_SEED || "";
 
 const defaultConfig = {
-  accounts: { mnemonic: mnemonic },
+  accounts: { mnemonic },
 }
-module.exports = {
+
+const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.0",
     settings: {
@@ -52,10 +59,20 @@ module.exports = {
           "https://data-seed-prebsc-1-s1.binance.org:8545",
       },
       accounts: {
-        mnemonic: mnemonic,
+        mnemonic,
         accountsBalance: "10000000000000000000000",
       },
       chainId: 1337,
     },
   },
+  etherscan: {
+    apiKey: ETHERSCAN_API_KEY,
+  },
+  contractSizer: {
+    alphaSort: true,
+    runOnCompile: true,
+    disambiguatePaths: false,
+  }
 };
+
+export default config;

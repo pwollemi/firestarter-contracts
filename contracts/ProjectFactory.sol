@@ -7,11 +7,11 @@ import "./Presale.sol";
 import "./Whitelist.sol";
 import "./Vesting.sol";
 
-/// @title Firestarter Factory Contract
+/// @title Firestarter ProjectFactory Contract
 /// @author Michael, Daniel Lee
 /// @notice You can use this contract to add new projects
 /// @dev All function calls are currently implemented without side effects
-contract Factory is AccessControlEnumerable {
+contract ProjectFactory is AccessControlEnumerable {
     struct Project {
         // Project Owner
         address projectOwner;

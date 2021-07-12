@@ -3,9 +3,9 @@
 //
 // When running the script with `hardhat run <script>` you'll find the Hardhat
 // Runtime Environment's members available in the global scope.
-const hre = require('hardhat');
-const fs = require('fs');
-const deployments = require('../report.json');
+import { ethers } from 'hardhat';
+import { writeFileSync } from 'fs';
+import deployments, { flame as _flame, whitelist as _whitelist, vesting as _vesting, ft, presale as _presale, locking as _locking } from '../report.json';
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -15,21 +15,21 @@ async function main() {
   const initialOwners = ["0x152f2EF34a362E25E50509401CD0603a8187c2B2", "0x72a6201d1d6a64Dd722a9891B067E0be85Cd0D0d"];
 
   // Flame Contract
-  const Flame = await hre.ethers.getContractFactory('FlameToken');
+  const Flame = await _ethers.getContractFactory('FlameToken');
   const flame = await Flame.deploy();
   console.log('Flame deployed to:', flame.address);
 
-  deployments.flame = flame.address;
+  _flame = flame.address;
 
   // Whitelist Contract
-  const Whitelist = await hre.ethers.getContractFactory('Whitelist');
+  const Whitelist = await _ethers.getContractFactory('Whitelist');
   const whitelist = await Whitelist.deploy(initialOwners);
   console.log('Whitelist deployed to:', whitelist.address);
 
-  deployments.whitelist = whitelist.address;
+  _whitelist = whitelist.address;
 
   // Vesting Contract
-  const Vesting = await hre.ethers.getContractFactory('Vesting');
+  const Vesting = await _ethers.getContractFactory('Vesting');
   const _vestingParams = [
     100000, // initial unlock 10%
     30 * 86400, // withdraw interval 30days
@@ -39,12 +39,12 @@ async function main() {
   const vesting = await Vesting.deploy(flame.address, _vestingParams);
   console.log('Vesting deployed to:', vesting.address);
 
-  deployments.vesting = vesting.address;
+  _vesting = vesting.address;
 
   // Presale Contract
-  const Presale = await hre.ethers.getContractFactory('Presale');
+  const Presale = await _ethers.getContractFactory('Presale');
   const _addrs = [
-    deployments.ft, // FT
+    ft, // FT
     flame.address, // RT
     "0x152f2EF34a362E25E50509401CD0603a8187c2B2", // PO
     whitelist.address,  //CW
@@ -63,15 +63,15 @@ async function main() {
   console.log('Presale deployed to:', presale.address);
 
   await vesting.init(presale.address);
-  deployments.presale = presale.address;
+  _presale = presale.address;
 
   // FlameLocking
-  const Locking = await hre.ethers.getContractFactory('FlameLocking');
+  const Locking = await _ethers.getContractFactory('FlameLocking');
   const locking = await Locking.deploy(flame.address);
   console.log('Locking deployed to:', locking.address);
 
-  deployments.locking = locking.address
-  await fs.writeFileSync('report.json', JSON.stringify(deployments));
+  _locking = locking.address
+  await writeFileSync('report.json', JSON.stringify(deployments));
 }
 
 // We recommend this pattern to be able to use async/await everywhere
