@@ -2,18 +2,18 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+
 import "../interfaces/IWhiteList.sol";
 import "./Vesting.sol";
 
-contract Presale is Context, AccessControlEnumerable {
+contract Presale is AccessControlEnumerable {
     using SafeMath for uint256;
 
     bool private isPresaleStarted = false;
     bool private isPrivateSaleOver = false;
-    uint256 public totalSoldRTAmount;
+    uint256 public publicSoldRTAmount;
+    uint256 private privateSoldRTAmount;
 
     struct Recipient {
         uint256 amountDepositedFT; // Funds token amount per recipient.
@@ -23,15 +23,15 @@ contract Presale is Context, AccessControlEnumerable {
 
     IERC20 public FT; // Funds Token : Token for funderside. (Maybe it will be the stable coin)
     IERC20 public RT; // Rewards Token : Token for distribution as rewards.
-    IWhitelist public CW; // WhiteList Contract : For checking if the user has passed the KYC
-    Vesting public CV; // Vesting Contract
+    IWhitelist private CW; // WhiteList Contract : For checking if the user has passed the KYC
+    IVesting private CV; // Vesting Contract
 
     address public PO; // Project Owner : The address where to withdraw funds token to after presale
-    uint256 public goalFunds; // Funds amount to be raised. Amount * FT's Decimals
+    // uint256 public GF; // Goal Funds : Funds amount to be raised. Amount * FT's Decimals
     uint256 public ER; // Exchange Rate : Fixed Rate between FT vs rewardsToken = rewards/funds * 1e6
     uint256 public PP; // Presale Period
     uint256 public PT; // Presale Start Time
-    uint256 public SF = 50000; // Service Fee : eg 1e4 = 1% default is 5%
+    uint256 public SF = 50000; // Service Fee : eg 1e5 = 10% default is 5%
     uint256 public IDR; // Initial Deposited RT amount
 
     /********************** Events ***********************/
@@ -44,10 +44,7 @@ contract Presale is Context, AccessControlEnumerable {
 
     /********************** Modifiers ***********************/
     modifier onlyOwner() {
-        require(
-            hasRole(DEFAULT_ADMIN_ROLE, _msgSender()),
-            "Requires Owner Role"
-        );
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Requires Owner Role");
         _;
     }
 
@@ -72,57 +69,30 @@ contract Presale is Context, AccessControlEnumerable {
     }
 
     constructor(
-        address[4] memory _addrs, // CW, FT, RT, PO
-        uint256[10] memory _vals, // goalFunds : 0, ER : 1, PT : 2, PP : 3, SF : 4, IU : 5, WI : 6, RR : 7, LP : 8, IDR : 9
-        address _owner
+        address[5] memory _addrs, // 0:FT, 1:RT, 2:PO, 3:CW, 4:CV
+        uint256[6] memory _presaleParams,
+        // 0:ER, 1:PT, 2:PP, 3:SF, 4:GF, 5: IDR
+        address[] memory _initialOwners
     ) {
-        // _msgSender() will be factory contract in near future
-        _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _setupRole(DEFAULT_ADMIN_ROLE, _owner);
+        // msg.sender will be factory contract
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        // This initialOwner will grant admin role to others
+        for (uint256 i = 0; i < _initialOwners.length; i++) {
+            _setupRole(DEFAULT_ADMIN_ROLE, _initialOwners[i]);
+        }
 
-        CW = IWhitelist(_addrs[0]);
-        FT = IERC20(_addrs[1]);
-        RT = IERC20(_addrs[2]);
-        PO = _addrs[3];
+        FT = IERC20(_addrs[0]);
+        RT = IERC20(_addrs[1]);
+        PO = _addrs[2];
+        CW = IWhitelist(_addrs[3]);
+        CV = IVesting(_addrs[4]);
 
-        goalFunds = _vals[0];
-
-        ER = _vals[1];
-        PT = _vals[2];
-        PP = _vals[3];
-        SF = _vals[4];
-
-        // For vesting contract
-        // IU : Initual Unlock
-        // WI : Withdraw Interval
-        // RR : Release Rate
-        // LP : LockPeriod
-        CV = new Vesting(_addrs[2], _vals[5], _vals[6], _vals[7], _vals[8]);
-
-        IDR = _vals[9];
-    }
-
-    /********************** Setter ***********************/
-    function updateCW(address _CW) external onlyOwner {
-        CW = IWhitelist(_CW);
-    }
-
-    function updateER(uint256 _ER) external onlyOwner {
-        require(_ER > 0, "updateER: Exchnage Rate can't be ZERO!");
-        ER = _ER;
-    }
-
-    function updatePP(uint256 _PP) external onlyOwner {
-        require(_PP > 0, "updatePP: Presale Period can't be ZERO!");
-        PP = _PP;
-    }
-
-    function updatePO(address _PO) external onlyOwner {
-        require(
-            _PO != address(0x00),
-            "updatePO: Project Owner address can't be 0x00!"
-        );
-        PO = _PO;
+        ER = _presaleParams[0];
+        PT = _presaleParams[1];
+        PP = _presaleParams[2];
+        SF = _presaleParams[3];
+        // GF = _presaleParams[4];
+        IDR = _presaleParams[5];
     }
 
     /********************** Internal ***********************/
@@ -133,6 +103,14 @@ contract Presale is Context, AccessControlEnumerable {
     }
 
     /********************** External ***********************/
+    function vestingContract() external view returns (address) {
+        return address(CV);
+    }
+
+    function whitelistContract() external view returns (address) {
+        return address(CW);
+    }
+
     function isPresaleGoing() external view returns (bool) {
         return block.timestamp > PT + PP;
     }
@@ -195,7 +173,8 @@ contract Presale is Context, AccessControlEnumerable {
         );
 
         uint256 totalDepositedRT = getDepositiedRT();
-        uint256 unsoldRT = totalDepositedRT.sub(totalSoldRTAmount);
+        uint256 unsoldRT =
+            totalDepositedRT.sub(publicSoldRTAmount).sub(privateSoldRTAmount);
 
         require(
             RT.transferFrom(address(CV), PO, unsoldRT),
@@ -208,40 +187,37 @@ contract Presale is Context, AccessControlEnumerable {
     /// Receive funds token from the participants with checking the requirements.
     function deposit(uint256 amount) external whileOnGoing {
         uint256 newAmountDepositedFT =
-            recipients[_msgSender()].amountDepositedFT.add(amount);
+            recipients[msg.sender].amountDepositedFT.add(amount);
 
-        (, bool isKycPassed, uint256 MAX_ALLOC) = CW.getUser(_msgSender());
-        require(
-            CW.isUserInWL(_msgSender()),
-            "Deposit: Not exist on the whitelist"
-        );
+        (address user, , uint256 MAX_ALLOC) = CW.getUser(msg.sender);
+
+        require(user != address(0x00), "Deposit: Not exist on the whitelist");
         require(
             MAX_ALLOC >= newAmountDepositedFT,
             "Deposit: Can't exceed the MAX_ALLOC!"
         );
         require(
-            FT.balanceOf(_msgSender()) >= amount,
-            "Deposit: Insufficient balance on the user wallet!"
-        );
-        require(
-            FT.transferFrom(_msgSender(), address(this), amount),
+            FT.transferFrom(msg.sender, address(this), amount),
             "Deposit: Transaction has been failed!"
         );
 
-        uint256 newRTAmount = amount.mul(ER).div(1e6);
+        uint256 newRTAmount =
+            amount.mul(1e6).mul(10**RT.decimals()).div(ER).div(
+                10**FT.decimals()
+            );
 
-        recipients[_msgSender()].amountDepositedFT = newAmountDepositedFT;
-        totalSoldRTAmount = totalSoldRTAmount.add(newRTAmount);
+        recipients[msg.sender].amountDepositedFT = newAmountDepositedFT;
+        publicSoldRTAmount = publicSoldRTAmount.add(newRTAmount);
 
-        recipients[_msgSender()].amountRF = recipients[_msgSender()]
-            .amountRF
-            .add(newRTAmount);
+        recipients[msg.sender].amountRF = recipients[msg.sender].amountRF.add(
+            newRTAmount
+        );
 
-        CV.updateRecipient(_msgSender(), recipients[_msgSender()].amountRF);
+        CV.updateRecipient(msg.sender, recipients[msg.sender].amountRF);
 
         emit Vested(
-            _msgSender(),
-            recipients[_msgSender()].amountRF,
+            msg.sender,
+            recipients[msg.sender].amountRF,
             block.timestamp
         );
     }
@@ -251,13 +227,20 @@ contract Presale is Context, AccessControlEnumerable {
         emit PrivateSaleDone("Private Sale is over", block.timestamp);
     }
 
-    function addOrUpdateInfulencer(address _influencer, uint256 _amount)
+    function depositPrivateSale(address _recipient, uint256 _amount)
         external
         whileDeposited
         onlyOwner
     {
-        CV.updateRecipient(_influencer, _amount);
-
-        emit Vested(_influencer, _amount, block.timestamp);
+        privateSoldRTAmount = privateSoldRTAmount.add(_amount);
+        recipients[_recipient].amountRF = recipients[_recipient].amountRF.add(
+            _amount
+        );
+        CV.updateRecipient(_recipient, recipients[_recipient].amountRF);
+        emit Vested(
+            _recipient,
+            recipients[_recipient].amountRF,
+            block.timestamp
+        );
     }
 }

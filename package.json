@@ -5,9 +5,12 @@
   "main": "index.js",
   "scripts": {
     "test:local": "hardhat test --network localhost",
+    "deploy:factory:testnet": "hardhat run ./scripts/deployFactory.js --network mumbai --no-compile",
+    "deploy:flame:testnet": "hardhat run ./scripts/deployFlame.js --network mumbai --no-compile",
+    "deploy:testtoken:testnet": "hardhat run ./scripts/deployTestTokens.js --network mumbai --no-compile",
     "compile": "hardhat compile",
     "run:node": "hardhat node",
-    "merge": "sol-merger --export-plugin SPDXLicenseRemovePlugin \"./contracts/*.sol\" ./merged"
+    "merge": "sol-merger --export-plugin SPDXLicenseRemovePlugin \"./contracts/**/*.sol\" ./merged"
   },
   "keywords": [],
   "author": "",
@@ -24,5 +27,6 @@
     "ethers": "^5.1.0",
     "prettier": "^2.3.2",
     "prettier-plugin-solidity": "^1.0.0-beta.15"
+    "fs": "^0.0.1-security"
   }
 }

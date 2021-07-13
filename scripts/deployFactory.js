@@ -10,19 +10,10 @@ async function main() {
 
   console.log('Deploying contracts with the account:', deployer.address);
 
-  console.log('Account balance:', (await deployer.getBalance()).toString());
-
-  // const FlameToken = await hre.ethers.getContractFactory('FlameToken');
-  // const flameToken = await FlameToken.deploy();
-  // console.log('FlameToken deployed to:', flameToken.address);
-
-  const PresaleVesting = await hre.ethers.getContractFactory('PresaleVesting');
-  //   const presaleVesting = await PresaleVesting.deploy(flameToken.address);
-  const presaleVesting = await PresaleVesting.deploy(
-    '0x79068a4D63997cC4b553B3aa230026885135E128'
-  );
-
-  console.log('PresaleVesting deployed to:', presaleVesting.address);
+  const initialOwners = ["0x152f2EF34a362E25E50509401CD0603a8187c2B2"];
+  const Factory = await hre.ethers.getContractFactory('Factory');
+  const factory = await Factory.deploy(initialOwners);
+  console.log('Factory deployed to:', factory.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

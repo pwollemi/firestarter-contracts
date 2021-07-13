@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../interfaces/IERC20.sol";
 
-contract Vesting is Context, Ownable {
+contract Vesting {
     using SafeMath for uint256;
 
+    address private owner;
     struct VestingSchedule {
         uint256 totalAmount; // Total amount of tokens to be vested.
         uint256 amountWithdrawn; // The amount that has been withdrawn.
     }
 
     mapping(address => VestingSchedule) public recipients;
+
+    uint256 constant MAX_UINT256 = type(uint256).max;
 
     uint256 public startTime;
     bool public isStartTimeSet;
@@ -33,23 +34,29 @@ contract Vesting is Context, Ownable {
     event Withdraw(address registeredAddress, uint256 amountWithdrawn);
     event StartTimeSet(uint256 startTime);
 
-    constructor(
-        address _RT,
-        uint256 _initialUnlock,
-        uint256 _withdrawInterval,
-        uint256 _releaseRate,
-        uint256 _lockPeriod
-    ) {
-        require(_withdrawInterval > 0);
+    /********************** Modifiers ***********************/
+    modifier onlyOwner() {
+        require(owner == msg.sender, "Requires Owner Role");
+        _;
+    }
 
+    constructor(address _RT, uint256[4] memory _vestingParams) {
+        require(_vestingParams[1] > 0);
+
+        owner = msg.sender;
         RT = IERC20(_RT);
 
-        initialUnlock = _initialUnlock;
-        withdrawInterval = _withdrawInterval;
-        releaseRate = _releaseRate;
-        lockPeriod = _lockPeriod;
+        initialUnlock = _vestingParams[0];
+        withdrawInterval = _vestingParams[1];
+        releaseRate = _vestingParams[2];
+        lockPeriod = _vestingParams[3];
 
         isStartTimeSet = false;
+    }
+
+    function init(address _CP) external onlyOwner {
+        owner = _CP;
+        RT.approve(_CP, MAX_UINT256);
     }
 
     function updateRecipient(address _recipient, uint256 _amount)
@@ -112,28 +119,24 @@ contract Vesting is Context, Ownable {
         return vestedAmount;
     }
 
-    function locked(address beneficiary) public view returns (uint256 amount) {
+    function locked(address beneficiary) public view returns (uint256) {
         return recipients[beneficiary].totalAmount.sub(vested(beneficiary));
     }
 
-    function withdrawable(address beneficiary)
-        public
-        view
-        returns (uint256 amount)
-    {
+    function withdrawable(address beneficiary) public view returns (uint256) {
         return vested(beneficiary).sub(recipients[beneficiary].amountWithdrawn);
     }
 
     function withdraw() external {
-        VestingSchedule storage vestingSchedule = recipients[_msgSender()];
+        VestingSchedule storage vestingSchedule = recipients[msg.sender];
         if (vestingSchedule.totalAmount == 0) return;
 
-        uint256 _vested = vested(_msgSender());
-        uint256 _withdrawable = withdrawable(_msgSender());
+        uint256 _vested = vested(msg.sender);
+        uint256 _withdrawable = withdrawable(msg.sender);
         vestingSchedule.amountWithdrawn = _vested;
 
         require(_withdrawable > 0, "Nothing to withdraw");
-        require(RT.transfer(_msgSender(), _withdrawable));
-        emit Withdraw(_msgSender(), _withdrawable);
+        require(RT.transfer(msg.sender, _withdrawable));
+        emit Withdraw(msg.sender, _withdrawable);
     }
 }

@@ -2,11 +2,9 @@ pragma experimental ABIEncoderV2;
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "hardhat/console.sol";
 
-contract Whitelist is Context, AccessControlEnumerable {
+contract Whitelist is AccessControlEnumerable {
     using SafeMath for uint256;
     struct UserData {
         address wallet;
@@ -16,19 +14,19 @@ contract Whitelist is Context, AccessControlEnumerable {
 
     uint256 public totalUsers;
     mapping(address => UserData) private WL; //White List
+
     event AddedOrRemoved(bool, address, uint256); // 1: Added, 0: Removed
 
     modifier onlyOwner() {
-        require(
-            hasRole(DEFAULT_ADMIN_ROLE, _msgSender()),
-            "Requires Owner Role"
-        );
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Requires Owner Role");
         _;
     }
 
-    constructor(address _owner) {
-        _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _setupRole(DEFAULT_ADMIN_ROLE, _owner);
+    constructor(address[] memory _initialOwners) {
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        for (uint256 i = 0; i < _initialOwners.length; i++) {
+            _setupRole(DEFAULT_ADMIN_ROLE, _initialOwners[i]);
+        }
     }
 
     function addToWhitelist(UserData[] memory _users) external onlyOwner {
@@ -48,10 +46,6 @@ contract Whitelist is Context, AccessControlEnumerable {
 
             totalUsers = totalUsers.sub(1);
         }
-    }
-
-    function isUserInWL(address _user) external view returns (bool) {
-        return WL[_user].wallet != address(0x0);
     }
 
     function getUser(address _user)
