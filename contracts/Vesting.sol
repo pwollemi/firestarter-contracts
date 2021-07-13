@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
+pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./interfaces/IERC20.sol";
@@ -32,6 +33,9 @@ contract Vesting {
         // The amount that has been withdrawn.
         uint256 amountWithdrawn;
     }
+
+    /// @notice 100%
+    uint256 public constant maxPercent = 1e10;
 
     /*************************** Vesting Params *************************/
 
@@ -144,7 +148,7 @@ contract Vesting {
      */
     function setStartTime(uint256 newStartTime) external onlyOwner {
         // Check if enough amount is deposited to this contract
-        require(IERC20(rewardToken).balanceOf(address(this)) >= amountToBeVested, "setStartTime: Enough amount of reward token should be vested.");
+        // require(IERC20(rewardToken).balanceOf(address(this)) >= amountToBeVested, "setStartTime: Enough amount of reward token should be vested.");
 
         // Only allow to change start time before the counting starts
         require(
@@ -209,12 +213,12 @@ contract Vesting {
         uint256 initialUnlockAmount = vestingInfo
         .totalAmount
         .mul(initialUnlock)
-        .div(1e6);
+        .div(maxPercent);
 
         uint256 unlockRate = vestingInfo
         .totalAmount
         .mul(releaseRate)
-        .div(1e6)
+        .div(maxPercent)
         .div(withdrawInterval);
 
         uint256 vestedAmount = unlockRate.mul(block.timestamp.sub(endTime)).add(

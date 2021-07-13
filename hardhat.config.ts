@@ -44,7 +44,7 @@ const config: HardhatUserConfig = {
       ...defaultConfig
     },
     mumbai: {
-      url: 'https://rpc-mumbai.matic.today',
+      url: 'https://rpc-mumbai.maticvigil.com/v1/6f270be03821c413f67b6a21826d4048ce33114c',
       chainId: 80001,
       ...defaultConfig
     },

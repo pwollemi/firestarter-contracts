@@ -18,7 +18,7 @@ describe('Vesting', () => {
     withdrawInterval: 365 * 24 * 3600,
     releaseRate: 100,
     lockPeriod: 180 * 24 * 3600
-}
+  }
 
   let vesting: Vesting;
   let flameToken: CustomToken;
@@ -51,5 +51,20 @@ describe('Vesting', () => {
       expect(await vesting.owner()).to.be.equal(signers[1].address);
       await vesting.connect(signers[1]).init(signers[2].address);
     });
+  });
+
+  describe("updateRecipient", async () => {
+    it("Only owner can call this function", async () => {
+      await expect(vesting.connect(signers[2]).updateRecipient(signers[1].address, "1")).to.be.revertedWith("Requires Owner Role");
+      await vesting.connect(signers[0]).updateRecipient(signers[1].address, "1");
+    });
+
+    it("Cannot vest 0", async () => {
+      await expect(vesting.updateRecipient(signers[1].address, "0")).to.be.revertedWith("Requires Owner Role");
+    });
+
+    it("Cannot update the recipient after started", async () => {
+    });
+
   });
 });
