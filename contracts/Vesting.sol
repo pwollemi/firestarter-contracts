@@ -5,6 +5,8 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./interfaces/IERC20.sol";
 
+import "hardhat/console.sol";
+
 /// @title Firestarter Vesting Contract
 /// @author Michael, Daniel Lee
 /// @notice You can use this contract for token vesting
@@ -35,7 +37,7 @@ contract Vesting {
     }
 
     /// @notice 100%
-    uint256 public constant maxPercent = 1e10;
+    uint256 public constant accuracy = 1e10;
 
     /*************************** Vesting Params *************************/
 
@@ -213,15 +215,14 @@ contract Vesting {
         uint256 initialUnlockAmount = vestingInfo
         .totalAmount
         .mul(initialUnlock)
-        .div(maxPercent);
+        .div(accuracy);
 
-        uint256 unlockRate = vestingInfo
+        uint256 unlockAmountPerInterval = vestingInfo
         .totalAmount
         .mul(releaseRate)
-        .div(maxPercent)
-        .div(withdrawInterval);
+        .div(accuracy);
 
-        uint256 vestedAmount = unlockRate.mul(block.timestamp.sub(endTime)).add(
+        uint256 vestedAmount = block.timestamp.sub(endTime).div(withdrawInterval).mul(unlockAmountPerInterval).add(
             initialUnlockAmount
         );
 

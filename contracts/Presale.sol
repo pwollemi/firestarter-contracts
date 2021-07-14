@@ -8,6 +8,8 @@ import "./interfaces/IERC20.sol";
 import "./interfaces/IWhitelist.sol";
 import "./interfaces/IVesting.sol";
 
+import "hardhat/console.sol";
+
 /// @title Firestarter Presale Contract
 /// @author Michael, Daniel Lee
 /// @notice You can use this contract for presale of projects
@@ -108,16 +110,16 @@ contract Presale is AccessControlEnumerable {
     mapping(address => Recipient) public recipients;
 
     /// @notice An event emitted when the private sale is done
-    event PrivateSaleDone(string msg, uint256 timestamp);
+    event PrivateSaleDone(uint256);
 
     /// @notice An event emitted when presale is started
-    event PresaleStarted(string, uint256);
+    event PresaleStarted(uint256);
 
     /// @notice An event emitted when presale is paused
-    event PresalePaused(string, uint256);
+    event PresalePaused(uint256);
 
     /// @notice An event emitted when presale is started
-    event PresaleResumed(string, uint256);
+    event PresaleResumed(uint256);
 
     /// @notice An event emitted when a user vested reward token
     event Vested(address indexed user, uint256 amount, uint256 timestamp);
@@ -225,7 +227,7 @@ contract Presale is AccessControlEnumerable {
      */
     function endPrivateSale() external onlyOwner {
         isPrivateSaleOver = true;
-        emit PrivateSaleDone("Private Sale is over", block.timestamp);
+        emit PrivateSaleDone(block.timestamp);
     }
 
     /**
@@ -270,7 +272,7 @@ contract Presale is AccessControlEnumerable {
 
         startTime = block.timestamp;
 
-        emit PresaleStarted("Presale has been started", block.timestamp);
+        emit PresaleStarted(block.timestamp);
     }
 
     /**
@@ -282,7 +284,7 @@ contract Presale is AccessControlEnumerable {
         currentPresalePeriod = startTime.add(currentPresalePeriod).sub(
             block.timestamp
         );
-        emit PresalePaused("Presale has been paused", block.timestamp);
+        emit PresalePaused(block.timestamp);
     }
 
     /**
@@ -292,7 +294,7 @@ contract Presale is AccessControlEnumerable {
     function resumePresale() external whilePaused onlyOwner {
         isPresalePaused = false;
         startTime = block.timestamp;
-        emit PresaleResumed("Presale has been resumed", block.timestamp);
+        emit PresaleResumed(block.timestamp);
     }
 
     /**
@@ -321,16 +323,16 @@ contract Presale is AccessControlEnumerable {
 
         // calculate reward token amount from fund token amount
         uint256 rtAmount = amount
-        .mul(1e6)
         .mul(10**IERC20(rewardToken).decimals())
-        .div(exchangeRate)
+        .mul(exchangeRate)
+        .div(1e6)
         .div(10**IERC20(fundToken).decimals());
 
         recp.ftBalance = newFundBalance;
         recp.rtBalance = recp.rtBalance.add(rtAmount);
         publicSoldAmount = publicSoldAmount.add(rtAmount);
 
-        IVesting(whitelist).updateRecipient(msg.sender, recp.rtBalance);
+        IVesting(vesting).updateRecipient(msg.sender, recp.rtBalance);
 
         emit Vested(msg.sender, recp.rtBalance, block.timestamp);
     }

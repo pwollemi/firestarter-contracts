@@ -21,6 +21,12 @@ export async function setNextBlockTimestamp(timestamp: number) {
     );
 }
 
+export async function mineBlock() {
+    await hre.network.provider.request({
+        method: "evm_mine"
+    });
+}
+
 export async function getLatestBlockTimestamp() {
     return (await ethers.provider.getBlock("latest")).timestamp;
 }

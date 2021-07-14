@@ -79,8 +79,8 @@ async function main() {
     const vestingParams = {
         vestingName: "FireStarter Presale",
         amountToBeVested: totalTokenSupply.div(5),
-        initalUnlock: 200000000, // 20%
-        withdrawInterval: 60, // 30 days
+        initalUnlock: 2000000000, // 20%
+        withdrawInterval: 60, // 1 min
         releaseRate: 372000, // release 10% every interval
         lockPeriod: 86400 * 7 * 2 // 2 weeks
     }

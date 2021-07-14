@@ -68,6 +68,9 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: ETHERSCAN_API_KEY,
   },
+  mocha: {
+    timeout: "1000000s"
+  },
   contractSizer: {
     alphaSort: true,
     runOnCompile: true,
