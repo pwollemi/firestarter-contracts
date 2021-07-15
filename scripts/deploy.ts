@@ -48,7 +48,7 @@ async function deployProject(owners: string[], vestingParams: any, rewardToken: 
 
     addToVerifyQueue(whitelist.address, [ [...owners] ]);
     addToVerifyQueue(vesting.address, [ rewardToken.address, { ...vestingParams} ]);
-    addToVerifyQueue(presale.address, [ {...addresses}, {...presaleParams}, [...owners] ]);
+    addToVerifyQueue(presale.address, [ {...addresses, whitelist: whitelist.address, vesting: vesting.address}, {...presaleParams}, [...owners] ]);
 
     return { whitelist, vesting, presale }
 }
@@ -60,7 +60,13 @@ async function main() {
     
     const testFlameAmount = ethers.utils.parseUnits("1000000", 18);
     const testRewardAmount = ethers.utils.parseUnits("10000000", 18);
-    
+
+    // const mockUSDC = <CustomToken>await ethers.getContractAt("CustomToken", "0x956bD13917b5D09d14F1158bb57E56BF5154fe66");
+    // const flameToken = <CustomToken>await ethers.getContractAt("CustomToken", "0x10b51f80Caa52e55EE34194a9336D809df680983");
+    // const rewardToken1 = <CustomToken>await ethers.getContractAt("CustomToken", "0xD5D9Bc42CEE2E60290646bac3258567F33014FA4");
+    // const rewardToken2 = <CustomToken>await ethers.getContractAt("CustomToken", "0x4443E5a8Bac5B07A4b53DFD7bddeeE60F0E22903");
+    // const rewardToken3 = <CustomToken>await ethers.getContractAt("CustomToken", "0x409BB04a8D7d958b88B53Ac304b097Aadd267b41");
+
     const mockUSDC = await deployCustomToken("Mock USDC", "USDC", totalUSDCSupply);
     const flameToken = await deployCustomToken("Flame token", "FLAME", totalTokenSupply);
     const rewardToken1 = await deployCustomToken("Reward token 1", "RToken1", totalTokenSupply);
@@ -79,8 +85,8 @@ async function main() {
     const vestingParams = {
         vestingName: "FireStarter Presale",
         amountToBeVested: totalTokenSupply.div(5),
-        initalUnlock: 200000000, // 20%
-        withdrawInterval: 60, // 30 days
+        initalUnlock: 2000000000, // 20%
+        withdrawInterval: 60, // 1 min
         releaseRate: 372000, // release 10% every interval
         lockPeriod: 86400 * 7 * 2 // 2 weeks
     }
@@ -90,38 +96,41 @@ async function main() {
         projectOwner: "0x70c2D3864b280748ac06c164608013D12CE1d574",
     };
     const presaleParams = {
-        rate: "45000", // 1 Flame = 0.045 USD
+        rate: "4500000000", // 1 Flame = 0.045 USD
         startTime: timestamp + 86400, // tomorrow
         period: 86400 * 7, // 1 week,
-        serviceFee: "50000", // 5%,
-        goalFunds: "10000000", // just placholder we can ignore for now,
+        serviceFee: "5000000000", // 5%,
+        goalFunds: "10000000000", // just placholder we can ignore for now,
         initalRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
     };
-    const firestarter = await deployProject(initialOwners, vestingParams, rewardToken1, addresses, presaleParams);
+    const firestarter = await deployProject(initialOwners, vestingParams, flameToken, addresses, presaleParams);
     await flameToken.transfer(firestarter.vesting.address, totalTokenSupply.div(5));
 
     vestingParams.vestingName = "Presale";
     addresses.rewardToken = rewardToken1.address;
     presaleParams.startTime = timestamp + 86400;
-    const project1 = await deployProject(initialOwners, vestingParams, flameToken, addresses, presaleParams);
+    const project1 = await deployProject(initialOwners, vestingParams, rewardToken1, addresses, presaleParams);
     await project1.whitelist.addToWhitelist([{
         wallet: "0x4FB2bb19Df86feF113b2016E051898065f963CC5",
         isKycPassed: true,
         MAX_ALLOC: ethers.utils.parseUnits("10000000", 18)
     }])
+    await rewardToken1.transfer(project1.vesting.address, totalTokenSupply.div(5));
 
     addresses.rewardToken = rewardToken2.address;
     presaleParams.startTime = timestamp;
-    const project2 = await deployProject(initialOwners, vestingParams, flameToken, addresses, presaleParams);
+    const project2 = await deployProject(initialOwners, vestingParams, rewardToken2, addresses, presaleParams);
     await project2.whitelist.addToWhitelist([{
         wallet: "0x4FB2bb19Df86feF113b2016E051898065f963CC5",
         isKycPassed: true,
         MAX_ALLOC: ethers.utils.parseUnits("10000000", 18)
     }])
+    await rewardToken2.transfer(project2.vesting.address, totalTokenSupply.div(5));
 
     addresses.rewardToken = rewardToken3.address;
     presaleParams.startTime = timestamp + 86400;
-    const project3 = await deployProject(initialOwners, vestingParams, flameToken, addresses, presaleParams);
+    const project3 = await deployProject(initialOwners, vestingParams, rewardToken3, addresses, presaleParams);
+    await rewardToken3.transfer(project3.vesting.address, totalTokenSupply.div(5));
 
     console.log("USDC:", mockUSDC.address);
     console.log("FLAME:", flameToken.address);
@@ -158,7 +167,7 @@ async function main() {
 main()
   .then(() => process.exit(0))
   .catch((error) => {
-      console.log(verifyQueue);
+    console.log(verifyQueue);
     console.error(error);
     process.exit(1);
   });

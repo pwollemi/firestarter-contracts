@@ -34,8 +34,8 @@ contract Vesting {
         uint256 amountWithdrawn;
     }
 
-    /// @notice 100%
-    uint256 public constant maxPercent = 1e10;
+    /// @notice General decimal values accuracy unless specified differently (e.g. fees, exchange rates)
+    uint256 public constant accuracy = 1e10;
 
     /*************************** Vesting Params *************************/
 
@@ -213,15 +213,14 @@ contract Vesting {
         uint256 initialUnlockAmount = vestingInfo
         .totalAmount
         .mul(initialUnlock)
-        .div(maxPercent);
+        .div(accuracy);
 
-        uint256 unlockRate = vestingInfo
+        uint256 unlockAmountPerInterval = vestingInfo
         .totalAmount
         .mul(releaseRate)
-        .div(maxPercent)
-        .div(withdrawInterval);
+        .div(accuracy);
 
-        uint256 vestedAmount = unlockRate.mul(block.timestamp.sub(endTime)).add(
+        uint256 vestedAmount = block.timestamp.sub(endTime).div(withdrawInterval).mul(unlockAmountPerInterval).add(
             initialUnlockAmount
         );
 

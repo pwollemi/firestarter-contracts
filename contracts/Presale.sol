@@ -50,6 +50,9 @@ contract Presale is AccessControlEnumerable {
         uint256 initalRewardsAmount;
     }
 
+    /// @notice General decimal values accuracy unless specified differently (e.g. fees, exchange rates)
+    uint256 public constant accuracy = 1e10;
+
     /********************** Address Infos ***********************/
 
     /// @notice Token for funderside. (Maybe it will be the stable coin)
@@ -72,7 +75,7 @@ contract Presale is AccessControlEnumerable {
 
     /********************** Presale Params ***********************/
 
-    /// @notice Fixed Rate between fundToken vs rewardsToken = rewards/funds * 1e6
+    /// @notice Fixed Rate between fundToken vs rewardsToken = rewards/funds * accuracy
     uint256 public exchangeRate;
 
     /// @notice Presale Period
@@ -90,7 +93,7 @@ contract Presale is AccessControlEnumerable {
     /********************** Status Infos ***********************/
 
     /// @dev Private sale status
-    bool private isPrivateSaleOver;
+    bool public isPrivateSaleOver;
 
     /// @notice Presale pause status
     bool public isPresalePaused;
@@ -99,7 +102,7 @@ contract Presale is AccessControlEnumerable {
     uint256 public currentPresalePeriod;
 
     /// @dev Reward token amount sold by Private Sale
-    uint256 private privateSoldAmount;
+    uint256 public privateSoldAmount;
 
     /// @notice Reward token amount sold by Public Sale
     uint256 public publicSoldAmount;
@@ -108,16 +111,16 @@ contract Presale is AccessControlEnumerable {
     mapping(address => Recipient) public recipients;
 
     /// @notice An event emitted when the private sale is done
-    event PrivateSaleDone(string msg, uint256 timestamp);
+    event PrivateSaleDone(uint256);
 
     /// @notice An event emitted when presale is started
-    event PresaleStarted(string, uint256);
+    event PresaleStarted(uint256);
 
     /// @notice An event emitted when presale is paused
-    event PresalePaused(string, uint256);
+    event PresalePaused(uint256);
 
     /// @notice An event emitted when presale is started
-    event PresaleResumed(string, uint256);
+    event PresaleResumed(uint256);
 
     /// @notice An event emitted when a user vested reward token
     event Vested(address indexed user, uint256 amount, uint256 timestamp);
@@ -225,7 +228,7 @@ contract Presale is AccessControlEnumerable {
      */
     function endPrivateSale() external onlyOwner {
         isPrivateSaleOver = true;
-        emit PrivateSaleDone("Private Sale is over", block.timestamp);
+        emit PrivateSaleDone(block.timestamp);
     }
 
     /**
@@ -270,7 +273,7 @@ contract Presale is AccessControlEnumerable {
 
         startTime = block.timestamp;
 
-        emit PresaleStarted("Presale has been started", block.timestamp);
+        emit PresaleStarted(block.timestamp);
     }
 
     /**
@@ -282,7 +285,7 @@ contract Presale is AccessControlEnumerable {
         currentPresalePeriod = startTime.add(currentPresalePeriod).sub(
             block.timestamp
         );
-        emit PresalePaused("Presale has been paused", block.timestamp);
+        emit PresalePaused(block.timestamp);
     }
 
     /**
@@ -292,7 +295,7 @@ contract Presale is AccessControlEnumerable {
     function resumePresale() external whilePaused onlyOwner {
         isPresalePaused = false;
         startTime = block.timestamp;
-        emit PresaleResumed("Presale has been resumed", block.timestamp);
+        emit PresaleResumed(block.timestamp);
     }
 
     /**
@@ -321,8 +324,8 @@ contract Presale is AccessControlEnumerable {
 
         // calculate reward token amount from fund token amount
         uint256 rtAmount = amount
-        .mul(1e6)
         .mul(10**IERC20(rewardToken).decimals())
+        .mul(accuracy)
         .div(exchangeRate)
         .div(10**IERC20(fundToken).decimals());
 
@@ -330,7 +333,7 @@ contract Presale is AccessControlEnumerable {
         recp.rtBalance = recp.rtBalance.add(rtAmount);
         publicSoldAmount = publicSoldAmount.add(rtAmount);
 
-        IVesting(whitelist).updateRecipient(msg.sender, recp.rtBalance);
+        IVesting(vesting).updateRecipient(msg.sender, recp.rtBalance);
 
         emit Vested(msg.sender, recp.rtBalance, block.timestamp);
     }
@@ -351,7 +354,7 @@ contract Presale is AccessControlEnumerable {
         );
 
         uint256 balance = IERC20(fundToken).balanceOf(address(this));
-        uint256 feeAmount = balance.mul(serviceFee).div(1e6);
+        uint256 feeAmount = balance.mul(serviceFee).div(accuracy);
         uint256 actualFunds = balance.sub(feeAmount);
 
         require(
