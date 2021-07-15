@@ -5,8 +5,6 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./interfaces/IERC20.sol";
 
-import "hardhat/console.sol";
-
 /// @title Firestarter Vesting Contract
 /// @author Michael, Daniel Lee
 /// @notice You can use this contract for token vesting
@@ -36,7 +34,7 @@ contract Vesting {
         uint256 amountWithdrawn;
     }
 
-    /// @notice 100%
+   /// @notice General decimal values accuracy unless specified differently (e.g. fees, exchange rates)
     uint256 public constant accuracy = 1e10;
 
     /*************************** Vesting Params *************************/

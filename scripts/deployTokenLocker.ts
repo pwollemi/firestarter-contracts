@@ -2,7 +2,7 @@ import hre, { ethers } from "hardhat";
 import { TokenLockFactory } from "../typechain";
 
 async function main() {
-    const flameAddress = "0x10b51f80Caa52e55EE34194a9336D809df680983";
+    const flameAddress = "0x2144c0d70aEF70D0B176Ab09D113b8eAb12372d3";
 
     const tokenLockerFactory = <TokenLockFactory>await ethers.getContractFactory("TokenLock");
     const tokenLock = await tokenLockerFactory.deploy(flameAddress);

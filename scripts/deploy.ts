@@ -96,11 +96,11 @@ async function main() {
         projectOwner: "0x70c2D3864b280748ac06c164608013D12CE1d574",
     };
     const presaleParams = {
-        rate: "45000", // 1 Flame = 0.045 USD
+        rate: "4500000000", // 1 Flame = 0.045 USD
         startTime: timestamp + 86400, // tomorrow
         period: 86400 * 7, // 1 week,
-        serviceFee: "50000", // 5%,
-        goalFunds: "10000000", // just placholder we can ignore for now,
+        serviceFee: "5000000000", // 5%,
+        goalFunds: "10000000000", // just placholder we can ignore for now,
         initalRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
     };
     const firestarter = await deployProject(initialOwners, vestingParams, flameToken, addresses, presaleParams);

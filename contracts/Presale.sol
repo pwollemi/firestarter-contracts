@@ -8,8 +8,6 @@ import "./interfaces/IERC20.sol";
 import "./interfaces/IWhitelist.sol";
 import "./interfaces/IVesting.sol";
 
-import "hardhat/console.sol";
-
 /// @title Firestarter Presale Contract
 /// @author Michael, Daniel Lee
 /// @notice You can use this contract for presale of projects
@@ -52,7 +50,7 @@ contract Presale is AccessControlEnumerable {
         uint256 initalRewardsAmount;
     }
 
-   /// @notice 100%
+   /// @notice General decimal values accuracy unless specified differently (e.g. fees, exchange rates)
     uint256 public constant accuracy = 1e10;
 
     /********************** Address Infos ***********************/
