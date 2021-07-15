@@ -115,6 +115,7 @@ async function main() {
         isKycPassed: true,
         MAX_ALLOC: ethers.utils.parseUnits("10000000", 18)
     }])
+    await rewardToken1.transfer(project1.vesting.address, totalTokenSupply.div(5));
 
     addresses.rewardToken = rewardToken2.address;
     presaleParams.startTime = timestamp;
@@ -124,10 +125,12 @@ async function main() {
         isKycPassed: true,
         MAX_ALLOC: ethers.utils.parseUnits("10000000", 18)
     }])
+    await rewardToken2.transfer(project2.vesting.address, totalTokenSupply.div(5));
 
     addresses.rewardToken = rewardToken3.address;
     presaleParams.startTime = timestamp + 86400;
     const project3 = await deployProject(initialOwners, vestingParams, rewardToken3, addresses, presaleParams);
+    await rewardToken3.transfer(project3.vesting.address, totalTokenSupply.div(5));
 
     console.log("USDC:", mockUSDC.address);
     console.log("FLAME:", flameToken.address);

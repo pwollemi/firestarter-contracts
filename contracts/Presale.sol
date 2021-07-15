@@ -52,6 +52,9 @@ contract Presale is AccessControlEnumerable {
         uint256 initalRewardsAmount;
     }
 
+   /// @notice 100%
+    uint256 public constant accuracy = 1e10;
+
     /********************** Address Infos ***********************/
 
     /// @notice Token for funderside. (Maybe it will be the stable coin)
@@ -74,7 +77,7 @@ contract Presale is AccessControlEnumerable {
 
     /********************** Presale Params ***********************/
 
-    /// @notice Fixed Rate between fundToken vs rewardsToken = rewards/funds * 1e6
+    /// @notice Fixed Rate between fundToken vs rewardsToken = rewards/funds * accuracy
     uint256 public exchangeRate;
 
     /// @notice Presale Period
@@ -92,7 +95,7 @@ contract Presale is AccessControlEnumerable {
     /********************** Status Infos ***********************/
 
     /// @dev Private sale status
-    bool private isPrivateSaleOver;
+    bool public isPrivateSaleOver;
 
     /// @notice Presale pause status
     bool public isPresalePaused;
@@ -101,7 +104,7 @@ contract Presale is AccessControlEnumerable {
     uint256 public currentPresalePeriod;
 
     /// @dev Reward token amount sold by Private Sale
-    uint256 private privateSoldAmount;
+    uint256 public privateSoldAmount;
 
     /// @notice Reward token amount sold by Public Sale
     uint256 public publicSoldAmount;
@@ -325,7 +328,7 @@ contract Presale is AccessControlEnumerable {
         uint256 rtAmount = amount
         .mul(10**IERC20(rewardToken).decimals())
         .mul(exchangeRate)
-        .div(1e6)
+        .div(accuracy)
         .div(10**IERC20(fundToken).decimals());
 
         recp.ftBalance = newFundBalance;
@@ -353,7 +356,7 @@ contract Presale is AccessControlEnumerable {
         );
 
         uint256 balance = IERC20(fundToken).balanceOf(address(this));
-        uint256 feeAmount = balance.mul(serviceFee).div(1e6);
+        uint256 feeAmount = balance.mul(serviceFee).div(accuracy);
         uint256 actualFunds = balance.sub(feeAmount);
 
         require(
