@@ -34,7 +34,7 @@ contract Vesting {
         uint256 amountWithdrawn;
     }
 
-   /// @notice General decimal values accuracy unless specified differently (e.g. fees, exchange rates)
+    /// @notice General decimal values accuracy unless specified differently (e.g. fees, exchange rates)
     uint256 public constant accuracy = 1e10;
 
     /*************************** Vesting Params *************************/
