@@ -2,9 +2,9 @@ import { ethers } from "hardhat";
 import { solidity } from "ethereum-waffle";
 import chai from 'chai';
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
+import { BigNumber } from "ethers";
 import { CustomToken, CustomTokenFactory, Presale, PresaleFactory, Vesting, VestingFactory, Whitelist, WhitelistFactory } from "../typechain";
 import { setNextBlockTimestamp, getLatestBlockTimestamp, mineBlock } from "./helpers";
-import { BigNumber } from "ethers";
 
 chai.use(solidity);
 const { assert, expect } = chai;
@@ -58,6 +58,7 @@ describe('Presale', () => {
     let addresses: any;
     let presaleParams: any;
     let fakeUsers: { wallet: string; isKycPassed: boolean; MAX_ALLOC: BigNumber; }[] = [];
+    let accuracy: BigNumber;
 
     before(async () => {
         signers = await ethers.getSigners();
@@ -86,11 +87,11 @@ describe('Presale', () => {
             projectOwner: signers[2].address,
         };
         presaleParams = {
-            rate: "45000", // 1 Flame = 0.045 USD
+            rate: "450000000", // 1 Flame = 0.045 USD
             startTime: timestamp + 86400, // tomorrow
             period: 86400 * 7, // 1 week,
-            serviceFee: "50000", // 5%,
-            goalFunds: "10000000", // just placholder we can ignore for now,
+            serviceFee: "5000000000", // 5%,
+            goalFunds: "1000000000000", // just placholder we can ignore for now,
             initalRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
         };
 
@@ -112,9 +113,11 @@ describe('Presale', () => {
         fakeUsers = signers.slice(0, 5).map((signer, i) => ({
             wallet: signer.address,
             isKycPassed: i % 2 === 0,
-            MAX_ALLOC: totalTokenSupply.div(100)
+            MAX_ALLOC: totalTokenSupply.div(10000)
           }));
         await whitelist.addToWhitelist(fakeUsers);
+
+        accuracy = await presale.accuracy();
     });
 
     describe("depositPrivateSale", async () => {
@@ -464,7 +467,7 @@ describe('Presale', () => {
             const depositAmount = fakeUsers[1].MAX_ALLOC.div(2);
             await presale.connect(signers[1]).deposit(depositAmount);
 
-            const expRwdBalance = depositAmount.mul(presaleParams.rate).div(1e6);
+            const expRwdBalance = depositAmount.mul(accuracy).div(presaleParams.rate);
             const recpInfo = await presale.recipients(signers[1].address);
             expect(recpInfo.ftBalance).to.be.equal(depositAmount);
             expect(recpInfo.rtBalance).to.be.equal(expRwdBalance);
@@ -486,7 +489,7 @@ describe('Presale', () => {
             const depositAmount1 = fakeUsers[1].MAX_ALLOC.div(2);
             await presale.connect(signers[1]).deposit(depositAmount1);
 
-            const expRwdBalance1 = depositAmount1.mul(presaleParams.rate).div(1e6);
+            const expRwdBalance1 = depositAmount1.mul(accuracy).div(presaleParams.rate);
             const recpInfo1 = await presale.recipients(signers[1].address);
             expect(recpInfo1.ftBalance).to.be.equal(depositAmount1);
             expect(recpInfo1.rtBalance).to.be.equal(expRwdBalance1);
@@ -500,7 +503,7 @@ describe('Presale', () => {
             const depositAmount2 = fakeUsers[1].MAX_ALLOC.div(4);
             await presale.connect(signers[1]).deposit(depositAmount2);
 
-            const expRwdBalance2 = depositAmount2.mul(presaleParams.rate).div(1e6);
+            const expRwdBalance2 = depositAmount2.mul(accuracy).div(presaleParams.rate);
             const recpInfo2 = await presale.recipients(signers[1].address);
             expect(recpInfo2.ftBalance).to.be.equal(depositAmount1.add(depositAmount2));
             expect(recpInfo2.rtBalance).to.be.equal(expRwdBalance1.add(expRwdBalance2));
@@ -519,7 +522,7 @@ describe('Presale', () => {
             await presale.startPresale();
 
             const depositAmount = fakeUsers[1].MAX_ALLOC.div(2);
-            const expRwdBalance = depositAmount.mul(presaleParams.rate).div(1e6);
+            const expRwdBalance = depositAmount.mul(accuracy).div(presaleParams.rate);
             const nextTimestamp = await getLatestBlockTimestamp() + 10;
             await setNextBlockTimestamp(nextTimestamp);
             await expect(presale.connect(signers[1]).deposit(depositAmount))
@@ -572,7 +575,7 @@ describe('Presale', () => {
             await presale.connect(signers[4]).deposit(depositAmount);
 
             const totalAmount = depositAmount.mul(4);           
-            const feeAmount = totalAmount.mul(presaleParams.serviceFee).div(1e6);
+            const feeAmount = totalAmount.mul(presaleParams.serviceFee).div(accuracy);
 
             const treasury = signers[9].address;
             
@@ -603,7 +606,7 @@ describe('Presale', () => {
             await presale.connect(signers[4]).deposit(depositAmount);
 
             const totalAmount = depositAmount.mul(4);           
-            const feeAmount = totalAmount.mul(presaleParams.serviceFee).div(1e6);
+            const feeAmount = totalAmount.mul(presaleParams.serviceFee).div(accuracy);
 
             const treasury = signers[9].address;
             const withdrawTime = startTime + presaleParams.period + 1;
@@ -663,7 +666,7 @@ describe('Presale', () => {
             await presale.connect(signers[4]).deposit(depositAmount);
 
             const totalAmount = depositAmount.mul(4);
-            const soldAmount = totalAmount.mul(presaleParams.rate).div(1e6);
+            const soldAmount = totalAmount.mul(accuracy).div(presaleParams.rate);
             const unsoldAmount = presaleParams.initalRewardsAmount.sub(soldAmount);
             
             const ownerBalance0 = await rewardToken.balanceOf(addresses.projectOwner);
@@ -690,7 +693,7 @@ describe('Presale', () => {
             await presale.connect(signers[4]).deposit(depositAmount);
 
             const totalAmount = depositAmount.mul(4);
-            const soldAmount = totalAmount.mul(presaleParams.rate).div(1e6);
+            const soldAmount = totalAmount.mul(accuracy).div(presaleParams.rate);
             const unsoldAmount = presaleParams.initalRewardsAmount.sub(soldAmount);
             
             const withdrawTime = startTime + presaleParams.period + 1;

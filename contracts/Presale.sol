@@ -327,8 +327,8 @@ contract Presale is AccessControlEnumerable {
         // calculate reward token amount from fund token amount
         uint256 rtAmount = amount
         .mul(10**IERC20(rewardToken).decimals())
-        .mul(exchangeRate)
-        .div(accuracy)
+        .mul(accuracy)
+        .div(exchangeRate)
         .div(10**IERC20(fundToken).decimals());
 
         recp.ftBalance = newFundBalance;
