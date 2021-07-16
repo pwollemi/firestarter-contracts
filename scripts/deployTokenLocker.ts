@@ -1,18 +1,10 @@
-import hre, { ethers } from "hardhat";
-import { TokenLockFactory } from "../typechain";
+import { deployContract, verifyContract } from "../helper/deployer";
 
 async function main() {
     const flameAddress = "0x2144c0d70aEF70D0B176Ab09D113b8eAb12372d3";
-
-    const tokenLockerFactory = <TokenLockFactory>await ethers.getContractFactory("TokenLock");
-    const tokenLock = await tokenLockerFactory.deploy(flameAddress);
-    await tokenLock.deployed();
+    const tokenLock = await deployContract("TokenLock", flameAddress);
+    await verifyContract(tokenLock.address, flameAddress);
     console.log(tokenLock.address);
-
-    await hre.run("verify:verify", {
-        address: tokenLock.address,
-        constructorArguments: [flameAddress]
-    });
 }
 
 // We recommend this pattern to be able to use async/await everywhere

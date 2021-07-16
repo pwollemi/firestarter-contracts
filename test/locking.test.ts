@@ -4,7 +4,8 @@ import { solidity } from "ethereum-waffle";
 import chai from 'chai';
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { CustomToken, CustomTokenFactory, TokenLock, TokenLockFactory } from "../typechain";
-import { setNextBlockTimestamp, getLatestBlockTimestamp, mineBlock } from "./helpers";
+import { setNextBlockTimestamp, getLatestBlockTimestamp, mineBlock } from "../helper/utils";
+import { deployContract } from "../helper/deployer";
 
 chai.use(solidity);
 const { expect } = chai;
@@ -22,13 +23,8 @@ describe('Locking', () => {
   });
 
   beforeEach(async () => {
-    const flameTokenFactory = <CustomTokenFactory>await ethers.getContractFactory("CustomToken");
-    flameToken = await flameTokenFactory.deploy("Flame token", "FLAME", totalSupply);
-    await flameToken.deployed();
-
-    const tokenLockFactory = <TokenLockFactory>await ethers.getContractFactory("TokenLock");
-    tokenLock = await tokenLockFactory.deploy(flameToken.address);
-    await tokenLock.deployed();
+    flameToken = <CustomToken>await deployContract("CustomToken", "Flame token", "FLAME", totalSupply);
+    tokenLock = <TokenLock>await deployContract("TokenLock", flameToken.address);
 
     await flameToken.transfer(signers[1].address, totalAmount.div(5));
     await flameToken.transfer(signers[2].address, totalAmount.div(5));

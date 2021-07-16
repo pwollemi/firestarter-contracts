@@ -12,6 +12,8 @@ interface IWhitelist {
         returns (
             address,
             bool,
+            uint256,
+            bool,
             uint256
         );
 

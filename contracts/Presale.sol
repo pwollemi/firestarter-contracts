@@ -65,7 +65,7 @@ contract Presale is AccessControlEnumerable {
     address public projectOwner;
 
     /// @dev WhiteList Contract: For checking if the user has passed the KYC
-    address private whitelist;
+    address internal whitelist;
 
     /// @notice Vesting Contract
     address public vesting;
@@ -109,6 +109,9 @@ contract Presale is AccessControlEnumerable {
 
     /// @notice Participants information
     mapping(address => Recipient) public recipients;
+
+    /// @notice Sold amount per user in Private Presale;
+    mapping(address => uint256) public privateSold;
 
     /// @notice An event emitted when the private sale is done
     event PrivateSaleDone(uint256);
@@ -203,26 +206,6 @@ contract Presale is AccessControlEnumerable {
     }
 
     /**
-     * @notice Deposit reward token when private sale
-     * @dev Only owner can do this operation
-     * @param user address of the participant
-     * @param amount amount of reward token
-     */
-    function depositPrivateSale(address user, uint256 amount)
-        external
-        whileDeposited
-        onlyOwner
-    {
-        privateSoldAmount = privateSoldAmount.add(amount);
-
-        Recipient storage recp = recipients[user];
-        recp.rtBalance = recp.rtBalance.add(amount);
-        IVesting(vesting).updateRecipient(user, recp.rtBalance);
-
-        emit Vested(user, recp.rtBalance, block.timestamp);
-    }
-
-    /**
      * @notice Finish Private Sale
      * @dev Only owner can end private sale
      */
@@ -246,6 +229,7 @@ contract Presale is AccessControlEnumerable {
             "setStartTime: Should be time in future"
         );
 
+        isPrivateSaleOver = true;
         startTime = newStartTime;
 
         emit StartTimeSet(newStartTime);
@@ -305,7 +289,7 @@ contract Presale is AccessControlEnumerable {
      */
     function deposit(uint256 amount) external whileOnGoing {
         // check if user is in white list
-        (address user, , uint256 MAX_ALLOC) = IWhitelist(whitelist).getUser(
+        (address user, , uint256 maxAlloc, ,) = IWhitelist(whitelist).getUser(
             msg.sender
         );
         require(user != address(0), "Deposit: Not exist on the whitelist");
@@ -314,8 +298,8 @@ contract Presale is AccessControlEnumerable {
         Recipient storage recp = recipients[msg.sender];
         uint256 newFundBalance = recp.ftBalance.add(amount);
         require(
-            MAX_ALLOC >= newFundBalance,
-            "Deposit: Can't exceed the MAX_ALLOC!"
+            maxAlloc + privateSold[user] >= newFundBalance,
+            "Deposit: Can't exceed the maxAlloc!"
         );
         require(
             IERC20(fundToken).transferFrom(msg.sender, address(this), amount),
@@ -398,10 +382,16 @@ contract Presale is AccessControlEnumerable {
 
     /**
      * @notice Check if Presale is in progress
+     * @dev Check if presale is finished
+     */
+    function startVesting() external whileFinished onlyOwner {
+        IVesting(vesting).setStartTime(block.timestamp + 1);
+    }
+
+    /**
+     * @notice Check if Presale is in progress
      * @return True: in Presale, False: not started or already ended
      */
-
-    // need to check if presale is paused
     function isPresaleGoing() public view returns (bool) {
         if (isPresalePaused) return false;
 
