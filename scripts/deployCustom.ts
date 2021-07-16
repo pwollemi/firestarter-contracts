@@ -110,7 +110,7 @@ async function main() {
     await verifyContract(project.whitelist.address, initialOwners);
     await verifyContract(project.vesting.address, addresses1.rewardToken, vestingParams1);
     await verifyContract(project.presale.address, {
-        ...addresses,
+        ...addresses1,
         whitelist: project.whitelist.address,
         vesting: project.vesting.address
     }, presaleParams1, initialOwners);
