@@ -15,10 +15,13 @@ async function main() {
     const mockUSDC = <CustomToken>await deployContract("CustomToken", "Mock USDC", "USDC", totalUSDCSupply);
     const flameToken = <CustomToken>await deployContract("CustomToken", "Flame token", "FLAME", totalTokenSupply);
     const rewardToken = <CustomToken>await deployContract("CustomToken", "Reward token", "RToken", totalTokenSupply);
+
+    const tokenLock = await deployContract("TokenLock", flameToken.address);
     
     console.log("USDC:", mockUSDC.address);
     console.log("FLAME:", flameToken.address);
     console.log("RToken:", rewardToken.address);
+    console.log("TokenLock:", tokenLock.address);
 
     // add also some test tokens to `0x4FB2bb19Df86feF113b2016E051898065f963CC5` and `0x4FB2bb19Df86feF113b2016E051898065f963CC5`
     await mockUSDC.transfer("0x4FB2bb19Df86feF113b2016E051898065f963CC5", testFlameAmount);
@@ -94,6 +97,7 @@ async function main() {
     await verifyContract(mockUSDC.address, "Mock USDC", "USDC", totalUSDCSupply);
     await verifyContract(flameToken.address, "Flame token", "FLAME", totalTokenSupply);
     await verifyContract(rewardToken.address, "Reward token", "RToken", totalTokenSupply);
+    await verifyContract(tokenLock.address, flameToken.address);
 
     await verifyContract(firestarter.whitelist.address, initialOwners);
     await verifyContract(firestarter.vesting.address, addresses.rewardToken, vestingParams);
