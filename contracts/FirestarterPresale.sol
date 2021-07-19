@@ -41,6 +41,6 @@ contract FirestarterPresale is Presale {
         recp.rtBalance = recp.rtBalance.add(amount);
         IVesting(vesting).updateRecipient(user, recp.rtBalance);
 
-        emit Vested(user, recp.rtBalance, block.timestamp);
+        emit Vested(user, recp.rtBalance, true, block.timestamp);
     }
 }

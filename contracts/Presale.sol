@@ -126,7 +126,7 @@ contract Presale is AccessControlEnumerable {
     event PresaleResumed(uint256);
 
     /// @notice An event emitted when a user vested reward token
-    event Vested(address indexed user, uint256 amount, uint256 timestamp);
+    event Vested(address indexed user, uint256 amount, bool isPrivate, uint256 timestamp);
 
     /// @notice An event emitted when the remaining reward token is withdrawn
     event WithdrawUnsoldToken(
@@ -319,7 +319,7 @@ contract Presale is AccessControlEnumerable {
 
         IVesting(vesting).updateRecipient(msg.sender, recp.rtBalance);
 
-        emit Vested(msg.sender, recp.rtBalance, block.timestamp);
+        emit Vested(msg.sender, recp.rtBalance, false, block.timestamp);
     }
 
     /**

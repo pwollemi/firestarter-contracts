@@ -69,6 +69,6 @@ contract ProjectPresale is Presale {
 
         IVesting(vesting).updateRecipient(msg.sender, recp.rtBalance);
 
-        emit Vested(msg.sender, recp.rtBalance, block.timestamp);
+        emit Vested(msg.sender, recp.rtBalance, true, block.timestamp);
     }
 }
