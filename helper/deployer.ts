@@ -2,7 +2,7 @@ import { Contract } from "ethers";
 import hre, { ethers, upgrades } from "hardhat";
 import { FirestarterPresale, Presale, ProjectPresale, Vesting, Whitelist, } from "../typechain";
 
-declare type ContractName = "CustomToken" | "Whitelist" | "Vesting" | "TokenLock" | "FirestarterPresale" | "ProjectPresale" | "Presale"
+declare type ContractName = "CustomToken" | "Whitelist" | "Vesting" | "TokenLock" | "FirestarterPresale" | "ProjectPresale" | "Presale" | "StakingPool"
 declare type CampaignType = "FirestarterPresale" | "ProjectPresale" | "Presale";
 
 async function verifyContract(address: string, ...constructorArguments: any[]) : Promise<void> {
