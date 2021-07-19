@@ -302,7 +302,7 @@ contract Presale is AccessControlEnumerable {
         .div(10**IERC20(fundToken).decimals());
 
         // calculate reward token balance after deposit
-        // we assume private sale is already done
+        // we assume private sale is always finished before public sale starts
         // thus rtBalance includes the private sale amount as well
         Recipient storage recp = recipients[msg.sender];
         uint256 newRewardBalance = recp.rtBalance.add(rtAmount);
