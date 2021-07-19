@@ -37,7 +37,7 @@ contract ProjectPresale is Presale {
         );
 
         // check if user is in white list
-        (address user, , , bool allowedPrivateSale, uint256 maxAlloc) = IWhitelist(whitelist).getUser(
+        (address user, , , bool allowedPrivateSale, uint256 privateMaxAlloc) = IWhitelist(whitelist).getUser(
             msg.sender
         );
         require(user != address(0), "depositPrivateSale: Not exist on the whitelist");
@@ -47,8 +47,8 @@ contract ProjectPresale is Presale {
         Recipient storage recp = recipients[msg.sender];
         uint256 newFundBalance = recp.ftBalance.add(amount);
         require(
-            maxAlloc >= newFundBalance,
-            "Deposit: Can't exceed the maxAlloc!"
+            privateMaxAlloc >= newFundBalance,
+            "Deposit: Can't exceed the privateMaxAlloc!"
         );
         require(
             IERC20(fundToken).transferFrom(msg.sender, address(this), amount),
