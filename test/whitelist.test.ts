@@ -2,8 +2,10 @@ import { ethers } from "hardhat";
 import { solidity } from "ethereum-waffle";
 import chai from 'chai';
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import { Whitelist, WhitelistFactory } from "../typechain";
-import { setNextBlockTimestamp, getLatestBlockTimestamp } from "./helpers";
+import { BigNumber } from "ethers";
+import { Whitelist } from "../typechain";
+import { setNextBlockTimestamp, getLatestBlockTimestamp } from "../helper/utils";
+import { deployContract } from "../helper/deployer";
 
 chai.use(solidity);
 const { assert, expect } = chai;
@@ -11,22 +13,24 @@ const { assert, expect } = chai;
 describe('Whitelist', () => {
   let whitelist: Whitelist;
   let signers: SignerWithAddress[];
-  let fakeUsers: { wallet: string; isKycPassed: boolean; MAX_ALLOC: number; }[] = [];
+  let owners: string[];
+  let fakeUsers: { wallet: string; isKycPassed: boolean; maxAlloc: BigNumber; allowedPrivateSale: boolean, privateMaxAlloc: BigNumber;}[] = [];
 
   before(async () => {
     signers = await ethers.getSigners();
+    owners = [signers[0].address, signers[1].address];
 
     fakeUsers = signers.map((signer, i) => ({
       wallet: signer.address,
       isKycPassed: i % 2 === 0,
-      MAX_ALLOC: (i + 1) * 10000000000
+      maxAlloc: BigNumber.from((i + 1) * 10000000000),
+      allowedPrivateSale: false,
+      privateMaxAlloc: BigNumber.from("0")
     }));
   });
 
   beforeEach(async () => {
-    const whitelistFactory = <WhitelistFactory>await ethers.getContractFactory('Whitelist');
-    whitelist = await whitelistFactory.deploy([signers[0].address, signers[1].address]);
-    await whitelist.deployed();
+    whitelist = <Whitelist>await deployContract("Whitelist", owners)
   });
 
   describe("addToWhitelist", () => {
@@ -43,7 +47,9 @@ describe('Whitelist', () => {
       const fakeUser = {
         wallet: "0x4FB2bb19Df86feF113b2016E051898065f963CC5",
         isKycPassed: true,
-        MAX_ALLOC: "100000000000"
+        maxAlloc: "100000000000",
+        allowedPrivateSale: false,
+        privateMaxAlloc: 0
       }
   
       await setNextBlockTimestamp(nextTimestamp);
@@ -56,7 +62,9 @@ describe('Whitelist', () => {
       const userInfo = await whitelist.getUser(fakeUser.wallet);
       assert(userInfo[0] === fakeUser.wallet, "Wallet address should be matched.")
       assert(userInfo[1] === fakeUser.isKycPassed, "KYC passed status should be matched.")
-      assert(userInfo[2].eq(fakeUser.MAX_ALLOC), "Max allocation should be matched.")
+      assert(userInfo[2].eq(fakeUser.maxAlloc), "Max allocation should be matched.")
+      assert(userInfo[3] === fakeUser.allowedPrivateSale, "Max allocation should be matched.")
+      assert(userInfo[4].eq(fakeUser.privateMaxAlloc), "Max allocation should be matched.")
     });
 
   
@@ -72,8 +80,10 @@ describe('Whitelist', () => {
         const userInfo = await whitelist.getUser(fakeUser.wallet);
         assert(userInfo[0] === fakeUser.wallet, "Wallet address should be matched.")
         assert(userInfo[1] === fakeUser.isKycPassed, "KYC passed status should be matched.")
-        assert(userInfo[2].eq(fakeUser.MAX_ALLOC), "Max allocation should be matched.")
-
+        assert(userInfo[2].eq(fakeUser.maxAlloc), "Max allocation should be matched.")
+        assert(userInfo[3] === fakeUser.allowedPrivateSale, "Max allocation should be matched.")
+        assert(userInfo[4].eq(fakeUser.privateMaxAlloc), "Max allocation should be matched.")
+  
         const event = receipt.events?.[i];
         assert(event?.event === "AddedOrRemoved");
         assert(event?.args?.added === true, "Should be added event.")
@@ -97,7 +107,9 @@ describe('Whitelist', () => {
       const fakeUser = {
         wallet: "0x4FB2bb19Df86feF113b2016E051898065f963CC5",
         isKycPassed: true,
-        MAX_ALLOC: "100000000000"
+        maxAlloc: "100000000000",
+        allowedPrivateSale: false,
+        privateMaxAlloc: 0
       }
       await whitelist.addToWhitelist([fakeUser]);
   
@@ -112,7 +124,9 @@ describe('Whitelist', () => {
       assert(userInfo[0] === ethers.constants.AddressZero, "Wallet address should be zero.")
       assert(userInfo[1] === false, "KYC passed status should be false.")
       assert(userInfo[2].eq(0), "Max allocation should be zero.")
-    });
+      assert(userInfo[3] === false, "Max allocation should be matched.")
+      assert(userInfo[4].eq(0), "Max allocation should be matched.")
+  });
 
   
     it("Attempt to remove multiple users. AddedOrRemoved event is emitted.", async () => {
@@ -132,6 +146,8 @@ describe('Whitelist', () => {
         assert(userInfo[0] === ethers.constants.AddressZero, "Wallet address should be zero.")
         assert(userInfo[1] === false, "KYC passed status should be false.")
         assert(userInfo[2].eq(0), "Max allocation should be zero.")
+        assert(userInfo[3] === false, "Max allocation should be matched.")
+        assert(userInfo[4].eq(0), "Max allocation should be matched.")
 
         const event = receipt.events?.[i];
         assert(event?.event === "AddedOrRemoved");

@@ -2,48 +2,14 @@ import { ethers } from "hardhat";
 import { solidity } from "ethereum-waffle";
 import chai from 'chai';
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import { BigNumber } from "ethers";
+import { BigNumber, BigNumberish } from "ethers";
 import { CustomToken, CustomTokenFactory, Presale, PresaleFactory, Vesting, VestingFactory, Whitelist, WhitelistFactory } from "../typechain";
-import { setNextBlockTimestamp, getLatestBlockTimestamp, mineBlock } from "./helpers";
+import { setNextBlockTimestamp, getLatestBlockTimestamp, mineBlock } from "../helper/utils";
+import { deployContract, deployCampaign } from "../helper/deployer";
 
 chai.use(solidity);
 const { assert, expect } = chai;
 
-async function deployCustomToken(name: string, symbol: string, totalSupply: BigNumber) {
-    const customTokenFactory = <CustomTokenFactory>await ethers.getContractFactory("CustomToken");
-    const customToken = await customTokenFactory.deploy(name, symbol, totalSupply);
-    await customToken.deployed();
-    return customToken;
-}
-
-async function deployProject(owners: string[], vestingParams: any, rewardToken: CustomToken, addresses: any, presaleParams: any) {
-    // whitelist
-    const whitelistFactory = <WhitelistFactory>await ethers.getContractFactory("Whitelist");
-    const whitelist = await whitelistFactory.deploy(owners);
-    await whitelist.deployed();
-
-    // vesting
-    const vestingFactory = <VestingFactory>await ethers.getContractFactory("Vesting");
-    const vesting = await vestingFactory.deploy(rewardToken.address, vestingParams);
-    await vesting.deployed();
-
-    // presale
-    const presaleFactory = <PresaleFactory>await ethers.getContractFactory("Presale");
-    const presale = await presaleFactory.deploy({
-        ...addresses,
-        whitelist: whitelist.address,
-        vesting: vesting.address
-    }, presaleParams, owners);
-    await presale.deployed();
-
-    // vesting starts after presale ends
-    const vestingStartTime = presaleParams.startTime + presaleParams.period;
-    await vesting.setStartTime(vestingStartTime);
-
-    await vesting.init(presale.address);
-
-    return { whitelist, vesting, presale }
-}
 
 const totalTokenSupply = ethers.utils.parseUnits("1000000000000", 18);
 
@@ -57,7 +23,7 @@ describe('Presale', () => {
     let vestingParams: any;
     let addresses: any;
     let presaleParams: any;
-    let fakeUsers: { wallet: string; isKycPassed: boolean; MAX_ALLOC: BigNumber; }[] = [];
+    let fakeUsers: { wallet: string; isKycPassed: boolean; maxAlloc: BigNumber; allowedPrivateSale: boolean, privateMaxAlloc: BigNumberish;}[] = [];
     let accuracy: BigNumber;
 
     before(async () => {
@@ -69,8 +35,8 @@ describe('Presale', () => {
     beforeEach(async () => {
         const initialOwners = [signers[0].address, signers[1].address];
 
-        fundToken = await deployCustomToken("Fund Token", "FT", totalTokenSupply);
-        rewardToken = await deployCustomToken("Reward Token", "RT", totalTokenSupply);
+        fundToken = <CustomToken>await deployContract("CustomToken", "Fund Token", "FT", totalTokenSupply);
+        rewardToken = <CustomToken>await deployContract("CustomToken", "Reward Token", "RT", totalTokenSupply);
 
         const timestamp = await getLatestBlockTimestamp();
         vestingParams = {
@@ -95,10 +61,10 @@ describe('Presale', () => {
             initalRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
         };
 
-        const project = await deployProject(initialOwners, vestingParams, rewardToken, addresses, presaleParams);
+        const project = await deployCampaign("Presale", initialOwners, vestingParams, addresses, presaleParams);
         whitelist = project.whitelist;
         vesting = project.vesting;
-        presale = project.presale;
+        presale = <Presale>project.presale;
 
         await fundToken.transfer(signers[1].address, totalTokenSupply.div(10));
         await fundToken.transfer(signers[2].address, totalTokenSupply.div(10));
@@ -113,50 +79,13 @@ describe('Presale', () => {
         fakeUsers = signers.slice(0, 5).map((signer, i) => ({
             wallet: signer.address,
             isKycPassed: i % 2 === 0,
-            MAX_ALLOC: totalTokenSupply.div(10000)
+            maxAlloc: totalTokenSupply.div(10000),
+            allowedPrivateSale: false,
+            privateMaxAlloc: 0
           }));
         await whitelist.addToWhitelist(fakeUsers);
 
         accuracy = await presale.accuracy();
-    });
-
-    describe("depositPrivateSale", async () => {
-        it("Only owners can do this operation", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
-
-            await expect(presale.connect(signers[2]).depositPrivateSale(signers[2].address, 1)).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[3]).depositPrivateSale(signers[2].address, 1)).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[4]).depositPrivateSale(signers[2].address, 1)).to.be.revertedWith("Requires Owner Role");
-
-            await presale.connect(signers[0]).depositPrivateSale(signers[2].address, 1);
-            await presale.connect(signers[1]).depositPrivateSale(signers[2].address, 1);
-        });
-
-        it("Can do this only when enough amount is deposited", async () => {
-            await expect(presale.depositPrivateSale(signers[2].address, 1)).to.be.revertedWith("Deposit enough rewardToken tokens to the vesting contract first!");
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
-            await presale.depositPrivateSale(signers[2].address, 1);
-        });
-
-        it("Recipient info is updated", async () => {
-            const amount = ethers.utils.parseUnits("1", 18);
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
-            await presale.depositPrivateSale(signers[2].address, amount);
-            const recpInfo = await presale.recipients(signers[2].address);
-            const vestInfo = await vesting.recipients(signers[2].address);
-            expect(recpInfo.rtBalance).to.be.equal(amount);
-            expect(vestInfo.totalAmount).to.be.equal(amount);
-        });
-
-        it("Vested event is emmitted with correct params", async () => {
-            const amount = ethers.utils.parseUnits("1", 18);
-            const nextTimestamp = await getLatestBlockTimestamp() + 100;
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
-            await setNextBlockTimestamp(nextTimestamp);
-            await expect(presale.depositPrivateSale(signers[2].address, amount))
-                .to.emit(presale, "Vested")
-                .withArgs(signers[2].address, amount, nextTimestamp);
-        });
     });
 
     describe("endPrivateSale", async () => {
@@ -195,12 +124,18 @@ describe('Presale', () => {
             await setNextBlockTimestamp(startTime + 10);
             await expect(presale.setStartTime(startTime)).to.be.revertedWith("setStartTime: Presale already started");
         });
-    
+
         it("Must set future time", async () => {
             const startTime = await getLatestBlockTimestamp();
             await expect(presale.setStartTime(startTime)).to.be.revertedWith("setStartTime: Should be time in future");
         });
-    
+
+        it("Must end private slae", async () => {
+            const startTime = await getLatestBlockTimestamp() + 100;
+            await presale.setStartTime(startTime);
+            expect(await presale.isPrivateSaleOver()).to.be.equal(true);
+        });
+        
         it("Time is set/event emitted", async () => {
             const startTime = await getLatestBlockTimestamp() + 100;
             await expect(presale.setStartTime(startTime))
@@ -448,13 +383,18 @@ describe('Presale', () => {
             await expect(presale.connect(signers[7]).deposit("1")).to.be.revertedWith("Deposit: Not exist on the whitelist");
         });
 
-        it("Can't exceed MAX_ALLOC", async () => { 
+        it("Can't exceed maxAlloc", async () => { 
             await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
             await presale.startPresale();
-            await expect(presale.connect(signers[1]).deposit(fakeUsers[1].MAX_ALLOC.add(1))).to.be.revertedWith("Deposit: Can't exceed the MAX_ALLOC!");
+
+            const fundBalance = fakeUsers[1].maxAlloc.mul(presaleParams.rate).div(accuracy);
+            await expect(presale.connect(signers[1]).deposit(fundBalance.add(1))).to.be.revertedWith("Deposit: Can't exceed the maxAlloc!");
+
+            // but succeeds with max allocation
+            await presale.connect(signers[1]).deposit(fundBalance);
         });
 
         it("Deposit updates correct states", async () => { 
@@ -464,18 +404,18 @@ describe('Presale', () => {
             await presale.setStartTime(startTime);
             await presale.startPresale();
 
-            const depositAmount = fakeUsers[1].MAX_ALLOC.div(2);
+            const rewardAmount = fakeUsers[1].maxAlloc.div(2);
+            const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
             await presale.connect(signers[1]).deposit(depositAmount);
 
-            const expRwdBalance = depositAmount.mul(accuracy).div(presaleParams.rate);
             const recpInfo = await presale.recipients(signers[1].address);
             expect(recpInfo.ftBalance).to.be.equal(depositAmount);
-            expect(recpInfo.rtBalance).to.be.equal(expRwdBalance);
+            expect(recpInfo.rtBalance).to.be.equal(rewardAmount);
 
-            expect(await presale.publicSoldAmount()).to.be.equal(expRwdBalance);
+            expect(await presale.publicSoldAmount()).to.be.equal(rewardAmount);
 
             const vestInfo = await vesting.recipients(signers[1].address);
-            expect(vestInfo.totalAmount).to.be.equal(expRwdBalance);
+            expect(vestInfo.totalAmount).to.be.equal(rewardAmount);
         });
 
         it("deposit amount is stacked", async () => {
@@ -486,32 +426,32 @@ describe('Presale', () => {
             await presale.startPresale();
 
             // 1st
-            const depositAmount1 = fakeUsers[1].MAX_ALLOC.div(2);
+            const rewardAmount1 = fakeUsers[1].maxAlloc.div(2);
+            const depositAmount1 = rewardAmount1.mul(presaleParams.rate).div(accuracy);
             await presale.connect(signers[1]).deposit(depositAmount1);
 
-            const expRwdBalance1 = depositAmount1.mul(accuracy).div(presaleParams.rate);
             const recpInfo1 = await presale.recipients(signers[1].address);
             expect(recpInfo1.ftBalance).to.be.equal(depositAmount1);
-            expect(recpInfo1.rtBalance).to.be.equal(expRwdBalance1);
+            expect(recpInfo1.rtBalance).to.be.equal(rewardAmount1);
 
-            expect(await presale.publicSoldAmount()).to.be.equal(expRwdBalance1);
+            expect(await presale.publicSoldAmount()).to.be.equal(rewardAmount1);
 
             const vestInfo1 = await vesting.recipients(signers[1].address);
-            expect(vestInfo1.totalAmount).to.be.equal(expRwdBalance1);
+            expect(vestInfo1.totalAmount).to.be.equal(rewardAmount1);
 
             // 2nd
-            const depositAmount2 = fakeUsers[1].MAX_ALLOC.div(4);
+            const rewardAmount2 = fakeUsers[1].maxAlloc.div(4);
+            const depositAmount2 = rewardAmount2.mul(presaleParams.rate).div(accuracy);
             await presale.connect(signers[1]).deposit(depositAmount2);
 
-            const expRwdBalance2 = depositAmount2.mul(accuracy).div(presaleParams.rate);
             const recpInfo2 = await presale.recipients(signers[1].address);
             expect(recpInfo2.ftBalance).to.be.equal(depositAmount1.add(depositAmount2));
-            expect(recpInfo2.rtBalance).to.be.equal(expRwdBalance1.add(expRwdBalance2));
+            expect(recpInfo2.rtBalance).to.be.equal(rewardAmount1.add(rewardAmount2));
 
-            expect(await presale.publicSoldAmount()).to.be.equal(expRwdBalance1.add(expRwdBalance2));
+            expect(await presale.publicSoldAmount()).to.be.equal(rewardAmount1.add(rewardAmount2));
 
             const vestInfo2 = await vesting.recipients(signers[1].address);
-            expect(vestInfo2.totalAmount).to.be.equal(expRwdBalance1.add(expRwdBalance2));
+            expect(vestInfo2.totalAmount).to.be.equal(rewardAmount1.add(rewardAmount2));
         });
 
         it("Vested event is emitted with correct params", async () => {
@@ -521,13 +461,55 @@ describe('Presale', () => {
             await presale.setStartTime(startTime);
             await presale.startPresale();
 
-            const depositAmount = fakeUsers[1].MAX_ALLOC.div(2);
-            const expRwdBalance = depositAmount.mul(accuracy).div(presaleParams.rate);
+            const rewardAmount = fakeUsers[1].maxAlloc.div(2);
+            const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
             const nextTimestamp = await getLatestBlockTimestamp() + 10;
             await setNextBlockTimestamp(nextTimestamp);
             await expect(presale.connect(signers[1]).deposit(depositAmount))
                 .to.emit(presale, "Vested")
-                .withArgs(signers[1].address, expRwdBalance, nextTimestamp);
+                .withArgs(signers[1].address, rewardAmount, false, nextTimestamp);
+        });
+    });
+
+    describe("Start vesting", async () => {
+        it("Only owners can do this operation", async () => {
+            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await presale.endPrivateSale();
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.startPresale();
+            await setNextBlockTimestamp(startTime + presaleParams.period + 1);
+
+            await expect(presale.connect(signers[2]).startVesting()).to.be.revertedWith("Requires Owner Role");
+            await expect(presale.connect(signers[3]).startVesting()).to.be.revertedWith("Requires Owner Role");
+            await expect(presale.connect(signers[4]).startVesting()).to.be.revertedWith("Requires Owner Role");
+            await presale.startVesting();
+        });
+
+        it("Can only be called when finished", async () => {
+            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await presale.endPrivateSale();
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.startPresale();
+            await setNextBlockTimestamp(startTime + 1);
+
+            await expect(presale.startVesting()).to.be.revertedWith("Presale has not been ended yet!");
+            await setNextBlockTimestamp(startTime + presaleParams.period + 1);
+            await presale.startVesting();
+        });
+
+        it("Vesting starts correctly", async () => {
+            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await presale.endPrivateSale();
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.startPresale();
+            await setNextBlockTimestamp(startTime + presaleParams.period + 1);
+            await presale.startVesting();
+
+            const curtime = await getLatestBlockTimestamp();
+            expect(await vesting.startTime()).to.be.gte(curtime);
         });
     });
 
@@ -568,7 +550,8 @@ describe('Presale', () => {
             await presale.setStartTime(startTime);
             await presale.startPresale();
 
-            const depositAmount = fakeUsers[1].MAX_ALLOC.div(2);
+            const rewardAmount = fakeUsers[1].maxAlloc.div(2);
+            const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
             await presale.connect(signers[1]).deposit(depositAmount);
             await presale.connect(signers[2]).deposit(depositAmount);
             await presale.connect(signers[3]).deposit(depositAmount);
@@ -599,7 +582,8 @@ describe('Presale', () => {
             await presale.setStartTime(startTime);
             await presale.startPresale();
 
-            const depositAmount = fakeUsers[1].MAX_ALLOC.div(2);
+            const rewardAmount = fakeUsers[1].maxAlloc.div(2);
+            const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
             await presale.connect(signers[1]).deposit(depositAmount);
             await presale.connect(signers[2]).deposit(depositAmount);
             await presale.connect(signers[3]).deposit(depositAmount);
@@ -659,7 +643,8 @@ describe('Presale', () => {
             await presale.setStartTime(startTime);
             await presale.startPresale();
 
-            const depositAmount = fakeUsers[1].MAX_ALLOC.div(2);
+            const rewardAmount = fakeUsers[1].maxAlloc.div(2);
+            const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
             await presale.connect(signers[1]).deposit(depositAmount);
             await presale.connect(signers[2]).deposit(depositAmount);
             await presale.connect(signers[3]).deposit(depositAmount);
@@ -686,7 +671,8 @@ describe('Presale', () => {
             await presale.setStartTime(startTime);
             await presale.startPresale();
 
-            const depositAmount = fakeUsers[1].MAX_ALLOC.div(2);
+            const rewardAmount = fakeUsers[1].maxAlloc.div(2);
+            const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
             await presale.connect(signers[1]).deposit(depositAmount);
             await presale.connect(signers[2]).deposit(depositAmount);
             await presale.connect(signers[3]).deposit(depositAmount);

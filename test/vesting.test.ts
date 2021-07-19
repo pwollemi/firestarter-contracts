@@ -4,7 +4,8 @@ import { solidity } from "ethereum-waffle";
 import chai from 'chai';
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { CustomToken, CustomTokenFactory, Vesting, VestingFactory } from "../typechain";
-import { setNextBlockTimestamp, getLatestBlockTimestamp, mineBlock } from "./helpers";
+import { setNextBlockTimestamp, getLatestBlockTimestamp, mineBlock } from "../helper/utils";
+import { deployContract } from "../helper/deployer";
 
 chai.use(solidity);
 const { assert, expect } = chai;
@@ -30,13 +31,8 @@ describe('Vesting', () => {
   });
 
   beforeEach(async () => {
-    const flameTokenFactory = <CustomTokenFactory>await ethers.getContractFactory("CustomToken");
-    flameToken = await flameTokenFactory.deploy("Flame token", "FLAME", totalSupply);
-    await flameToken.deployed();
-
-    const vestingFactory = <VestingFactory>await ethers.getContractFactory("Vesting");
-    vesting = await vestingFactory.deploy(flameToken.address, vestingParams);
-    await vesting.deployed();
+    flameToken = <CustomToken>await deployContract("CustomToken", "Flame token", "FLAME", totalSupply);
+    vesting = <Vesting>await deployContract("Vesting", flameToken.address, vestingParams);
 
     await flameToken.transfer(vesting.address, totalAmount);
   });

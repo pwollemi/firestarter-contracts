@@ -18,7 +18,11 @@ contract Whitelist is AccessControlEnumerable {
         // Flag for KYC status
         bool isKycPassed;
         // Max allocation for this user
-        uint256 MAX_ALLOC;
+        uint256 maxAlloc;
+        // Flag if this user is allowed to participate in private presale
+        bool allowedPrivateSale;
+        // Max allocation for this user in private presale
+        uint256 privateMaxAlloc;
     }
 
     /// @notice Count of users participating in whitelisting
@@ -85,9 +89,11 @@ contract Whitelist is AccessControlEnumerable {
         returns (
             address,
             bool,
+            uint256,
+            bool,
             uint256
         )
     {
-        return (WL[_user].wallet, WL[_user].isKycPassed, WL[_user].MAX_ALLOC);
+        return (WL[_user].wallet, WL[_user].isKycPassed, WL[_user].maxAlloc, WL[_user].allowedPrivateSale, WL[_user].privateMaxAlloc);
     }
 }
