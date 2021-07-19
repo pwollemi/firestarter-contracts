@@ -295,6 +295,8 @@ contract Presale is AccessControlEnumerable {
         require(user != address(0), "Deposit: Not exist on the whitelist");
 
         // calculate fund token balance after deposit
+        // we assume private sale is already done
+        // thus ftBalance includes the private sale amount as well
         Recipient storage recp = recipients[msg.sender];
         uint256 newFundBalance = recp.ftBalance.add(amount);
         require(
