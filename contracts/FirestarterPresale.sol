@@ -35,10 +35,12 @@ contract FirestarterPresale is Presale {
             "depositPrivateSale: Private Sale is ended!"
         );
 
-        privateSoldAmount = privateSoldAmount.add(amount);
 
         Recipient storage recp = recipients[user];
         recp.rtBalance = recp.rtBalance.add(amount);
+        privateSoldAmount = privateSoldAmount.add(amount);
+        privateSold[user] = privateSold[user].add(amount);
+
         IVesting(vesting).updateRecipient(user, recp.rtBalance);
 
         emit Vested(user, recp.rtBalance, true, block.timestamp);

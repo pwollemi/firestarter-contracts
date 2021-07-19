@@ -294,20 +294,6 @@ contract Presale is AccessControlEnumerable {
         );
         require(user != address(0), "Deposit: Not exist on the whitelist");
 
-        // calculate fund token balance after deposit
-        // we assume private sale is already done
-        // thus ftBalance includes the private sale amount as well
-        Recipient storage recp = recipients[msg.sender];
-        uint256 newFundBalance = recp.ftBalance.add(amount);
-        require(
-            maxAlloc + privateSold[user] >= newFundBalance,
-            "Deposit: Can't exceed the maxAlloc!"
-        );
-        require(
-            IERC20(fundToken).transferFrom(msg.sender, address(this), amount),
-            "Deposit: Can't transfer fund token!"
-        );
-
         // calculate reward token amount from fund token amount
         uint256 rtAmount = amount
         .mul(10**IERC20(rewardToken).decimals())
@@ -315,8 +301,22 @@ contract Presale is AccessControlEnumerable {
         .div(exchangeRate)
         .div(10**IERC20(fundToken).decimals());
 
-        recp.ftBalance = newFundBalance;
-        recp.rtBalance = recp.rtBalance.add(rtAmount);
+        // calculate reward token balance after deposit
+        // we assume private sale is already done
+        // thus rtBalance includes the private sale amount as well
+        Recipient storage recp = recipients[msg.sender];
+        uint256 newRewardBalance = recp.rtBalance.add(rtAmount);
+        require(
+            maxAlloc + privateSold[user] >= newRewardBalance,
+            "Deposit: Can't exceed the maxAlloc!"
+        );
+        require(
+            IERC20(fundToken).transferFrom(msg.sender, address(this), amount),
+            "Deposit: Can't transfer fund token!"
+        );
+
+        recp.ftBalance = recp.ftBalance.add(amount);
+        recp.rtBalance = newRewardBalance;
         publicSoldAmount = publicSoldAmount.add(rtAmount);
 
         IVesting(vesting).updateRecipient(msg.sender, recp.rtBalance);

@@ -43,18 +43,6 @@ contract ProjectPresale is Presale {
         require(user != address(0), "depositPrivateSale: Not exist on the whitelist");
         require(allowedPrivateSale == true, "depositPrivateSale: Not allowed to participate in private sale");
 
-        // calculate fund token balance after deposit
-        Recipient storage recp = recipients[msg.sender];
-        uint256 newFundBalance = recp.ftBalance.add(amount);
-        require(
-            privateMaxAlloc >= newFundBalance,
-            "Deposit: Can't exceed the privateMaxAlloc!"
-        );
-        require(
-            IERC20(fundToken).transferFrom(msg.sender, address(this), amount),
-            "Deposit: Can't transfer fund token!"
-        );
-
         // calculate reward token amount from fund token amount
         uint256 rtAmount = amount
         .mul(10**IERC20(rewardToken).decimals())
@@ -62,8 +50,20 @@ contract ProjectPresale is Presale {
         .div(exchangeRate)
         .div(10**IERC20(fundToken).decimals());
 
-        recp.ftBalance = newFundBalance;
-        recp.rtBalance = recp.rtBalance.add(rtAmount);
+        // calculate fund token balance after deposit
+        Recipient storage recp = recipients[msg.sender];
+        uint256 newRewardBalance = recp.rtBalance.add(rtAmount);
+        require(
+            privateMaxAlloc >= newRewardBalance,
+            "Deposit: Can't exceed the privateMaxAlloc!"
+        );
+        require(
+            IERC20(fundToken).transferFrom(msg.sender, address(this), amount),
+            "Deposit: Can't transfer fund token!"
+        );
+
+        recp.ftBalance = recp.ftBalance.add(amount);
+        recp.rtBalance = newRewardBalance;
         privateSoldAmount = privateSoldAmount.add(rtAmount);
         privateSold[user] = privateSold[user].add(rtAmount);
 

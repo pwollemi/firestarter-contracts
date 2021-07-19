@@ -122,6 +122,31 @@ describe('Firestarter Presale', () => {
             expect(vestInfo.totalAmount).to.be.equal(amount);
         });
 
+        it("Can deposit full allocation amount in private and public sale", async () => { 
+            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+
+            const rewardAmount = fakeUsers[1].maxAlloc;
+            const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
+
+            // deposit public max allocation amount in private sale
+            await presale.depositPrivateSale(signers[1].address, rewardAmount);
+            await presale.endPrivateSale();
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.startPresale();
+
+            // deposit public max allocation amount in public sale
+            await presale.connect(signers[1]).deposit(depositAmount);
+
+            const totalRwdAmount = rewardAmount.mul(2);
+            const recpInfo = await presale.recipients(signers[1].address);
+            expect(recpInfo.ftBalance).to.be.equal(depositAmount); // deposited amount only in public sale
+            expect(recpInfo.rtBalance).to.be.equal(totalRwdAmount);
+
+            const vestInfo = await vesting.recipients(signers[1].address);
+            expect(vestInfo.totalAmount).to.be.equal(totalRwdAmount);
+        });
+
         it("Vested event is emmitted with correct params", async () => {
             const amount = ethers.utils.parseUnits("1", 18);
             const nextTimestamp = await getLatestBlockTimestamp() + 100;
@@ -129,7 +154,7 @@ describe('Firestarter Presale', () => {
             await setNextBlockTimestamp(nextTimestamp);
             await expect(presale.depositPrivateSale(signers[2].address, amount))
                 .to.emit(presale, "Vested")
-                .withArgs(signers[2].address, amount, nextTimestamp);
+                .withArgs(signers[2].address, amount, true, nextTimestamp);
         });
     });
 
