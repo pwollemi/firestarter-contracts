@@ -2,14 +2,15 @@
 pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /// @title Firestarter WhiteList Contract
 /// @author Michael, Daniel Lee
 /// @notice You can use this contract to manage WL users
 /// @dev All function calls are currently implemented without side effects
-contract Whitelist is AccessControlEnumerable {
+contract Whitelist is Initializable, AccessControlEnumerableUpgradeable {
     using SafeMath for uint256;
 
     struct UserData {
@@ -39,7 +40,9 @@ contract Whitelist is AccessControlEnumerable {
         _;
     }
 
-    constructor(address[] memory owners) {
+    function initialize(address[] memory owners) external initializer {
+        __AccessControlEnumerable_init();
+
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         for (uint256 i = 0; i < owners.length; i++) {
             _setupRole(DEFAULT_ADMIN_ROLE, owners[i]);

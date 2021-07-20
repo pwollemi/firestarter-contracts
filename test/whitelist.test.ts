@@ -5,7 +5,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { BigNumber } from "ethers";
 import { Whitelist } from "../typechain";
 import { setNextBlockTimestamp, getLatestBlockTimestamp } from "../helper/utils";
-import { deployContract } from "../helper/deployer";
+import { deployProxy } from "../helper/deployer";
 
 chai.use(solidity);
 const { assert, expect } = chai;
@@ -30,7 +30,7 @@ describe('Whitelist', () => {
   });
 
   beforeEach(async () => {
-    whitelist = <Whitelist>await deployContract("Whitelist", owners)
+    whitelist = <Whitelist>await deployProxy("Whitelist", owners)
   });
 
   describe("addToWhitelist", () => {

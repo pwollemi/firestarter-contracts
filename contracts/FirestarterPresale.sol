@@ -13,12 +13,6 @@ import "./Presale.sol";
 contract FirestarterPresale is Presale {
     using SafeMath for uint256;
 
-    constructor(
-        AddressParams memory _addrs,
-        PresaleParams memory _presale,
-        address[] memory owners
-    ) Presale(_addrs, _presale, owners) {}
-
     /**
      * @notice Deposit reward token when private sale
      * @dev Only owner can do this operation
@@ -34,7 +28,6 @@ contract FirestarterPresale is Presale {
             isPrivateSaleOver == false,
             "depositPrivateSale: Private Sale is ended!"
         );
-
 
         Recipient storage recp = recipients[user];
         recp.rtBalance = recp.rtBalance.add(amount);

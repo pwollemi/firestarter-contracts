@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IWhitelist.sol";
 import "./interfaces/IVesting.sol";
@@ -15,12 +14,6 @@ import "./Presale.sol";
 /// @dev All function calls are currently implemented without side effects
 contract ProjectPresale is Presale {
     using SafeMath for uint256;
-
-    constructor(
-        AddressParams memory _addrs,
-        PresaleParams memory _presale,
-        address[] memory owners
-    ) Presale(_addrs, _presale, owners) {}
 
     /**
      * @notice Deposit fund token to the pool in private presale

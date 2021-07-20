@@ -3,12 +3,12 @@ import { ethers } from "hardhat";
 import { solidity } from "ethereum-waffle";
 import chai from 'chai';
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import { CustomToken, CustomTokenFactory, Vesting, VestingFactory } from "../typechain";
+import { CustomToken, Vesting } from "../typechain";
 import { setNextBlockTimestamp, getLatestBlockTimestamp, mineBlock } from "../helper/utils";
-import { deployContract } from "../helper/deployer";
+import { deployContract, deployProxy } from "../helper/deployer";
 
 chai.use(solidity);
-const { assert, expect } = chai;
+const { expect } = chai;
 
 describe('Vesting', () => {
   const totalSupply = ethers.utils.parseUnits("100000000", 18);
@@ -32,7 +32,7 @@ describe('Vesting', () => {
 
   beforeEach(async () => {
     flameToken = <CustomToken>await deployContract("CustomToken", "Flame token", "FLAME", totalSupply);
-    vesting = <Vesting>await deployContract("Vesting", flameToken.address, vestingParams);
+    vesting = <Vesting>await deployProxy("Vesting", flameToken.address, vestingParams);
 
     await flameToken.transfer(vesting.address, totalAmount);
   });

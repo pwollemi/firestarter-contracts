@@ -2,15 +2,15 @@
 pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /// @title Token locking contract
 /// @author Michael, Daniel Lee
 /// @notice You can use this contract to apply locking to any ERC20 token
 /// @dev All function calls are currently implemented without side effects
-contract TokenLock is Context {
+contract TokenLock is Initializable {
     using SafeMath for uint256;
 
     struct LockInfo {
@@ -35,7 +35,7 @@ contract TokenLock is Context {
     /// @notice An event emitted when token is unlocked
     event Unlocked(address locker, uint256 amount);
 
-    constructor(address _token) {
+    function initialize(address _token) external initializer {
         token = _token;
     }
 
@@ -80,23 +80,23 @@ contract TokenLock is Context {
      */
     function lock(uint256 _amount) external {
         require(
-            IERC20(token).transferFrom(_msgSender(), address(this), _amount),
+            IERC20(token).transferFrom(msg.sender, address(this), _amount),
             "TokenLock: IERC20(token).TransferFrom: Failed to lock!"
         );
 
-        LockInfo storage lockInfo = lockedBalance[_msgSender()];
+        LockInfo storage lockInfo = lockedBalance[msg.sender];
         lockInfo.amount = lockInfo.amount.add(_amount);
         lockInfo.lastLockedTime = block.timestamp;
         totalLocked = totalLocked.add(_amount);
 
-        emit Locked(_msgSender(), _amount);
+        emit Locked(msg.sender, _amount);
     }
 
     /**
      * @notice unlock current tokens
      */
     function unlock(uint256 _amount) external {
-        LockInfo storage lockInfo = lockedBalance[_msgSender()];
+        LockInfo storage lockInfo = lockedBalance[msg.sender];
 
         require(lockInfo.amount > 0, "Not locked");
         require(lockInfo.amount >= _amount, "Exceeds locked amount");
@@ -107,7 +107,7 @@ contract TokenLock is Context {
 
         // transfer unlocked amount to user
         require(
-            IERC20(token).transfer(_msgSender(), unlocked),
+            IERC20(token).transfer(msg.sender, unlocked),
             "TokenLock: IERC20(token).Transfer: Failed to unlock!"
         );
 
@@ -122,7 +122,7 @@ contract TokenLock is Context {
         totalLocked = totalLocked.sub(_amount);
         lockInfo.amount = lockInfo.amount.sub(_amount);
 
-        emit Unlocked(_msgSender(), _amount);
+        emit Unlocked(msg.sender, _amount);
     }
 
     /**
