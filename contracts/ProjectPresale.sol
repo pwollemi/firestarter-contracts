@@ -16,12 +16,6 @@ import "./Presale.sol";
 contract ProjectPresale is Presale {
     using SafeMath for uint256;
 
-    constructor(
-        AddressParams memory _addrs,
-        PresaleParams memory _presale,
-        address[] memory owners
-    ) Presale(_addrs, _presale, owners) {}
-
     /**
      * @notice Deposit fund token to the pool in private presale
      * @dev Only allowed users can do this operation.

@@ -3,13 +3,14 @@ pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./interfaces/IERC20.sol";
 
 /// @title Firestarter Vesting Contract
 /// @author Michael, Daniel Lee
 /// @notice You can use this contract for token vesting
 /// @dev All function calls are currently implemented without side effects
-contract Vesting {
+contract Vesting is Initializable {
     using SafeMath for uint256;
 
     struct VestingParams {
@@ -88,7 +89,7 @@ contract Vesting {
         _;
     }
 
-    constructor(address _rewardToken, VestingParams memory _params) {
+    function initialize(address _rewardToken, VestingParams memory _params) external initializer {
         require(_params.withdrawInterval > 0);
 
         owner = msg.sender;

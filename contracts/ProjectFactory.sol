@@ -82,8 +82,10 @@ contract ProjectFactory is AccessControlEnumerable {
             address
         )
     {
-        Whitelist whitelist = new Whitelist(_initialOwners);
-        Vesting vesting = new Vesting(_addrs.rewardToken, _vestingParams);
+        Whitelist whitelist = new Whitelist();
+        whitelist.initialize(_initialOwners);
+        Vesting vesting = new Vesting();
+        vesting.initialize(_addrs.rewardToken, _vestingParams);
 
         Presale.AddressParams memory addrs = Presale.AddressParams({
             fundToken: _addrs.fundToken,
@@ -93,7 +95,8 @@ contract ProjectFactory is AccessControlEnumerable {
             vesting: address(vesting)
         });
 
-        Presale presale = new Presale(addrs, _presaleParams, _initialOwners);
+        Presale presale = new Presale();
+        presale.initialize(addrs, _presaleParams, _initialOwners);
 
         // Set the owner of vesting to presale contract
         vesting.init(address(presale));

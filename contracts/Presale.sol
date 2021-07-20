@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IWhitelist.sol";
 import "./interfaces/IVesting.sol";
@@ -12,7 +12,7 @@ import "./interfaces/IVesting.sol";
 /// @author Michael, Daniel Lee
 /// @notice You can use this contract for presale of projects
 /// @dev All function calls are currently implemented without side effects
-contract Presale is AccessControlEnumerable {
+contract Presale is AccessControlEnumerableUpgradeable {
     using SafeMath for uint256;
 
     struct Recipient {
@@ -85,7 +85,7 @@ contract Presale is AccessControlEnumerable {
     uint256 public startTime;
 
     /// @notice Service Fee: eg 1e5 = 10% default is 5%
-    uint256 public serviceFee = 50000;
+    uint256 public serviceFee;
 
     /// @notice Initial Deposited rewardToken amount
     uint256 public initialRewardAmount;
@@ -176,11 +176,13 @@ contract Presale is AccessControlEnumerable {
         _;
     }
 
-    constructor(
+    function initialize(
         AddressParams memory _addrs,
         PresaleParams memory _presale,
         address[] memory owners
-    ) {
+    ) external initializer {
+        __AccessControlEnumerable_init();
+
         // msg.sender will be factory contract
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
 

@@ -5,6 +5,8 @@ artifacts
 cache
 typechain
 
+.openzeppelin
+
 .env
 .env.local
 

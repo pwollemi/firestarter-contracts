@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 import { CustomToken } from "../typechain";
 import { getLatestBlockTimestamp } from "../helper/utils";
-import { deployCampaign, deployContract, verifyContract } from "../helper/deployer";
+import { deployCampaign, deployContract, deployProxy, verifyContract } from "../helper/deployer";
 
 async function main() {
     const initialOwners = ["0x70c2D3864b280748ac06c164608013D12CE1d574", "0xaC280999C0a97D7Ceb5407b6A35e424A2DeDeD94"];
@@ -16,7 +16,7 @@ async function main() {
     const flameToken = <CustomToken>await deployContract("CustomToken", "Flame token", "FLAME", totalTokenSupply);
     const rewardToken = <CustomToken>await deployContract("CustomToken", "Reward token", "RToken", totalTokenSupply);
 
-    const tokenLock = await deployContract("TokenLock", flameToken.address);
+    const tokenLock = await deployProxy("TokenLock", flameToken.address);
     
     console.log("USDC:", mockUSDC.address);
     console.log("FLAME:", flameToken.address);
@@ -37,7 +37,7 @@ async function main() {
         initalUnlock: 2000000000, // 20%
         withdrawInterval: 60, // 1 min
         releaseRate: 372000, // release 10% every interval
-        lockPeriod: 86400 * 7 * 2 // 2 weeks
+        lockPeriod:  60 // 1min //  86400 * 7 * 2 // 2 weeks
     }
     const addresses = {
         fundToken: mockUSDC.address,
@@ -46,8 +46,8 @@ async function main() {
     };
     const presaleParams = {
         rate: "4500000000", // 1 Flame = 0.045 USD
-        startTime: timestamp + 86400, // tomorrow
-        period: 86400 * 7, // 1 week,
+        startTime: timestamp + 300, // in 10 mins // timestamp + 86400, // tomorrow
+        period: 7200, // 2 hours , // 1 week,
         serviceFee: "5000000000", // 5%,
         goalFunds: "10000000000", // just placholder we can ignore for now,
         initalRewardsAmount: testVestingAmount // 10k tokens will be deposited to vesting
@@ -97,23 +97,24 @@ async function main() {
     await verifyContract(mockUSDC.address, "Mock USDC", "USDC", totalUSDCSupply);
     await verifyContract(flameToken.address, "Flame token", "FLAME", totalTokenSupply);
     await verifyContract(rewardToken.address, "Reward token", "RToken", totalTokenSupply);
-    await verifyContract(tokenLock.address, flameToken.address);
 
-    await verifyContract(firestarter.whitelist.address, initialOwners);
-    await verifyContract(firestarter.vesting.address, addresses.rewardToken, vestingParams);
-    await verifyContract(firestarter.presale.address, {
-        ...addresses,
-        whitelist: firestarter.whitelist.address,
-        vesting: firestarter.vesting.address
-    }, presaleParams, initialOwners);
+    // await verifyContract(tokenLock.address, flameToken.address);
 
-    await verifyContract(project.whitelist.address, initialOwners);
-    await verifyContract(project.vesting.address, addresses1.rewardToken, vestingParams1);
-    await verifyContract(project.presale.address, {
-        ...addresses1,
-        whitelist: project.whitelist.address,
-        vesting: project.vesting.address
-    }, presaleParams1, initialOwners);
+    // await verifyContract(firestarter.whitelist.address, initialOwners);
+    // await verifyContract(firestarter.vesting.address, addresses.rewardToken, vestingParams);
+    // await verifyContract(firestarter.presale.address, {
+    //     ...addresses,
+    //     whitelist: firestarter.whitelist.address,
+    //     vesting: firestarter.vesting.address
+    // }, presaleParams, initialOwners);
+
+    // await verifyContract(project.whitelist.address, initialOwners);
+    // await verifyContract(project.vesting.address, addresses1.rewardToken, vestingParams1);
+    // await verifyContract(project.presale.address, {
+    //     ...addresses1,
+    //     whitelist: project.whitelist.address,
+    //     vesting: project.vesting.address
+    // }, presaleParams1, initialOwners);
 }
 
 main()
