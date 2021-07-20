@@ -4,6 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IWhitelist.sol";
 import "./interfaces/IVesting.sol";
@@ -12,7 +13,7 @@ import "./interfaces/IVesting.sol";
 /// @author Michael, Daniel Lee
 /// @notice You can use this contract for presale of projects
 /// @dev All function calls are currently implemented without side effects
-contract Presale is AccessControlEnumerableUpgradeable {
+contract Presale is Initializable, AccessControlEnumerableUpgradeable {
     using SafeMath for uint256;
 
     struct Recipient {
