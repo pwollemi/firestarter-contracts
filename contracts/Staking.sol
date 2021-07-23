@@ -71,7 +71,7 @@ contract Staking is Initializable, OwnableUpgradeable {
 
     event LogUpdatePool(uint256 lastRewardTime, uint256 lpSupply, uint256 accFlamePerShare);
     event LogFlamePerSecond(uint256 flamePerSecond);
-    event LogStakingPeriod(uint256 stakingPeriod);
+    event LogStakingInfo(uint256 startTime, uint256 stakingPeriod);
     event LogEarlyWithdrawal(uint256 earlyWithdrawal);
 
     /**
@@ -117,17 +117,17 @@ contract Staking is Initializable, OwnableUpgradeable {
     function setStakingInfo(uint256 _startTime, uint256 _stakingPeriod) external onlyOwner {
         require(
             !isStakingInProgress(),
-            "setStartTime: Staking is in progress"
+            "setStakingInfo: Staking is in progress"
         );
         require(
             _startTime > block.timestamp,
-            "setStartTime: Should be time in future"
+            "setStakingInfo: Should be time in future"
         );
         updatePool();
         startTime = _startTime;
         stakingPeriod = _stakingPeriod;
         lastRewardTime = _startTime;
-        emit LogFlamePerSecond(_stakingPeriod);
+        emit LogStakingInfo(_startTime, _stakingPeriod);
     }
 
     /**
@@ -144,6 +144,9 @@ contract Staking is Initializable, OwnableUpgradeable {
     /**
      * @notice View function to see pending FLAME on frontend.
      * @dev It doens't update accFlamePerShare, it's just a view function.
+     *
+     *  pending flame = (user.amount * pool.accFlamePerShare) - user.rewardDebt
+     *
      * @param _user Address of user.
      * @return pending FLAME reward for a given user.
      */
@@ -151,8 +154,11 @@ contract Staking is Initializable, OwnableUpgradeable {
         UserInfo storage user = userInfo[_user];
         uint256 lpSupply = lpToken.balanceOf(address(this));
         uint256 accFlamePerShare_ = accFlamePerShare;
-        if (block.timestamp > lastRewardTime && lpSupply != 0) {
-            uint256 time = block.timestamp.sub(lastRewardTime);
+
+        uint256 stakingEndTime = startTime + stakingPeriod; 
+        uint256 rewardTime = stakingEndTime < block.timestamp ? stakingEndTime : block.timestamp;
+        if (rewardTime > lastRewardTime && lpSupply != 0) {
+            uint256 time = rewardTime.sub(lastRewardTime);
             uint256 flameReward = time.mul(flamePerSecond);
             accFlamePerShare_ = accFlamePerShare_.add(flameReward.mul(ACC_FLAME_PRECISION) / lpSupply);
         }
@@ -318,9 +324,9 @@ contract Staking is Initializable, OwnableUpgradeable {
 
     /**
      * @notice check if user in penalty period
-     * @return isEarlyWithdrawl
+     * @return isEarly
      */
-    function isEarlyWithdrawl(uint256 lastDepositedTime) internal view returns (bool isEarlyWithdrawl) {
-        isEarlyWithdrawl = block.timestamp <= lastDepositedTime + earlyWithdrawal;
+    function isEarlyWithdrawl(uint256 lastDepositedTime) internal view returns (bool isEarly) {
+        isEarly = block.timestamp <= lastDepositedTime + earlyWithdrawal;
     }
 }
