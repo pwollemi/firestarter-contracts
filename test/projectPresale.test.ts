@@ -41,7 +41,7 @@ describe('Project Presale', () => {
         vestingParams = {
             vestingName: "FireStarter Presale",
             amountToBeVested: totalTokenSupply.div(5),
-            initalUnlock: 2000000000, // 20%
+            initialUnlock: 2000000000, // 20%
             withdrawInterval: 60, // 1 min
             releaseRate: 372000, // release 10% every interval
             lockPeriod: 86400 * 7 * 2 // 2 weeks
@@ -57,7 +57,7 @@ describe('Project Presale', () => {
             period: 86400 * 7, // 1 week,
             serviceFee: "5000000000", // 5%,
             goalFunds: "1000000000000", // just placholder we can ignore for now,
-            initalRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
+            initialRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
         };
 
         const project = await deployCampaign("ProjectPresale", initialOwners, vestingParams, addresses, presaleParams);
@@ -93,30 +93,30 @@ describe('Project Presale', () => {
     describe("Deposit PrivateSale", async () => {
         it("Can do this only when enough amount is deposited", async () => {
             await expect(presale.depositPrivateSale(1)).to.be.revertedWith("Deposit enough rewardToken tokens to the vesting contract first!");
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.depositPrivateSale(1);
         });
 
         it("Can't deposit if private sale is over", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.depositPrivateSale(1);
             await presale.endPrivateSale();
             await expect(presale.depositPrivateSale(1)).to.be.revertedWith("depositPrivateSale: Private Sale is ended!");
         });
 
         it("Must be whitelisted user", async () => { 
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await expect(presale.connect(signers[7]).depositPrivateSale("1")).to.be.revertedWith("depositPrivateSale: Not exist on the whitelist");
         });
 
         it("Must be private sale allowed user", async () => { 
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await expect(presale.connect(signers[3]).depositPrivateSale("1")).to.be.revertedWith("depositPrivateSale: Not allowed to participate in private sale");
             await expect(presale.connect(signers[4]).depositPrivateSale("1")).to.be.revertedWith("depositPrivateSale: Not allowed to participate in private sale");
         });
 
         it("Can't exceed maxAlloc", async () => { 
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             const rewardAmount = BigNumber.from(fakeUsers[1].privateMaxAlloc);
             const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
             await expect(presale.connect(signers[1]).depositPrivateSale(depositAmount.add(1))).to.be.revertedWith("Deposit: Can't exceed the privateMaxAlloc!");
@@ -126,7 +126,7 @@ describe('Project Presale', () => {
         });
 
         it("Deposit updates correct states", async () => { 
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
 
             const rewardAmount = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(2);
             const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
@@ -144,7 +144,7 @@ describe('Project Presale', () => {
         });
 
         it("Can deposit full allocation amount in private and public sale", async () => { 
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
 
             const rewardAmount1 = BigNumber.from(fakeUsers[1].privateMaxAlloc);
             const rewardAmount2 = fakeUsers[1].maxAlloc;
@@ -169,7 +169,7 @@ describe('Project Presale', () => {
         });
 
         it("deposit amount is stacked", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
 
             // 1st
             const rewardAmount1 = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(2);
@@ -203,7 +203,7 @@ describe('Project Presale', () => {
         });
 
         it("Vested event is emitted with correct params", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
 
             const rewardAmount = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(2);
             const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);

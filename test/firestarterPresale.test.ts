@@ -41,7 +41,7 @@ describe('Firestarter Presale', () => {
         vestingParams = {
             vestingName: "FireStarter Presale",
             amountToBeVested: totalTokenSupply.div(5),
-            initalUnlock: 2000000000, // 20%
+            initialUnlock: 2000000000, // 20%
             withdrawInterval: 60, // 1 min
             releaseRate: 372000, // release 10% every interval
             lockPeriod: 86400 * 7 * 2 // 2 weeks
@@ -57,7 +57,7 @@ describe('Firestarter Presale', () => {
             period: 86400 * 7, // 1 week,
             serviceFee: "5000000000", // 5%,
             goalFunds: "1000000000000", // just placholder we can ignore for now,
-            initalRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
+            initialRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
         };
 
         const project = await deployCampaign("FirestarterPresale", initialOwners, vestingParams, addresses, presaleParams);
@@ -89,7 +89,7 @@ describe('Firestarter Presale', () => {
 
     describe("depositPrivateSale", async () => {
         it("Only owners can do this operation", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
 
             await expect(presale.connect(signers[2]).depositPrivateSale(signers[2].address, 1)).to.be.revertedWith("Requires Owner Role");
             await expect(presale.connect(signers[3]).depositPrivateSale(signers[2].address, 1)).to.be.revertedWith("Requires Owner Role");
@@ -101,12 +101,12 @@ describe('Firestarter Presale', () => {
 
         it("Can do this only when enough amount is deposited", async () => {
             await expect(presale.depositPrivateSale(signers[2].address, 1)).to.be.revertedWith("Deposit enough rewardToken tokens to the vesting contract first!");
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.depositPrivateSale(signers[2].address, 1);
         });
 
         it("Can't deposit if private sale is over", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.depositPrivateSale(signers[2].address, 1);
             await presale.endPrivateSale();
             await expect(presale.depositPrivateSale(signers[2].address, 1)).to.be.revertedWith("depositPrivateSale: Private Sale is ended!");
@@ -114,7 +114,7 @@ describe('Firestarter Presale', () => {
 
         it("Recipient info is updated", async () => {
             const amount = ethers.utils.parseUnits("1", 18);
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.depositPrivateSale(signers[2].address, amount);
             const recpInfo = await presale.recipients(signers[2].address);
             const vestInfo = await vesting.recipients(signers[2].address);
@@ -123,7 +123,7 @@ describe('Firestarter Presale', () => {
         });
 
         it("Can deposit full allocation amount in private and public sale", async () => { 
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
 
             const rewardAmount = fakeUsers[1].maxAlloc;
             const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
@@ -150,7 +150,7 @@ describe('Firestarter Presale', () => {
         it("Vested event is emmitted with correct params", async () => {
             const amount = ethers.utils.parseUnits("1", 18);
             const nextTimestamp = await getLatestBlockTimestamp() + 100;
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await setNextBlockTimestamp(nextTimestamp);
             await expect(presale.depositPrivateSale(signers[2].address, amount))
                 .to.emit(presale, "Vested")
