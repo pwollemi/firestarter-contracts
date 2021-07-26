@@ -280,4 +280,109 @@ describe('Staking Pool', () => {
       expect(pendingFlame).to.be.equal(expectedFlame);
     });
   });
+
+  describe("Update Pool", () => {
+    it("LogUpdatePool event is emitted", async () => {
+      await setNextBlockTimestamp(startTime + 100);
+      await staking.deposit(getBigNumber(1), alice.address);
+      await expect(staking.updatePool())
+        .to.emit(staking, "LogUpdatePool")
+        .withArgs(await staking.lastRewardTime(), await lpToken.balanceOf(staking.address), await staking.accFlamePerShare());
+    });
+  });
+
+  describe("Harvest", () => {
+    it("Should give back the correct amount of FLAME", async () => {
+      const period = duration.days(31).toNumber();
+      const expectedFlame = flamePerSecond.mul(period);
+
+      await setNextBlockTimestamp(startTime);
+      await staking.deposit(getBigNumber(1), alice.address);
+      await advanceTime(period);
+      await staking.connect(alice).harvest(alice.address);
+
+      expect(await flameToken.balanceOf(alice.address)).to.be.equal(expectedFlame);
+      expect((await staking.userInfo(alice.address)).rewardDebt).to.be.equal(expectedFlame);
+      expect(await staking.pendingFlame(alice.address)).to.be.equal(0);
+    });
+
+    it("Should receive half in case of penalty", async () => {
+      const period = duration.days(30).toNumber();
+      const expectedFlame = flamePerSecond.mul(period);
+
+      await setNextBlockTimestamp(startTime);
+      await staking.deposit(getBigNumber(1), alice.address);
+      await advanceTime(period);
+      await staking.connect(alice).harvest(alice.address);
+
+      expect(await flameToken.balanceOf(alice.address)).to.be.equal(await flameToken.balanceOf("0x000000000000000000000000000000000000dEaD")).to.be.equal(expectedFlame.div(2));
+      expect((await staking.userInfo(alice.address)).rewardDebt).to.be.equal(expectedFlame);
+      expect(await staking.pendingFlame(alice.address)).to.be.equal(0);
+    });
+
+    it("Harvest with empty user balance", async () => {
+      await staking.connect(alice).harvest(alice.address);
+    })
+  });
+
+  describe("Withdraw", () => {
+    it("Should give back the correct amount of lp token and harvest rewards(withdraw whole amount)", async () => {
+      const depositAmount = getBigNumber(1);
+      const period = duration.days(31).toNumber();
+      const expectedFlame = flamePerSecond.mul(period);
+
+      await setNextBlockTimestamp(startTime);
+      await staking.deposit(depositAmount, alice.address);
+      await advanceTime(period);
+      const balance0 = await lpToken.balanceOf(alice.address);
+      await staking.connect(alice).withdraw(depositAmount, alice.address);
+      const balance1 = await lpToken.balanceOf(alice.address);
+
+      expect(depositAmount).to.be.equal(balance1.sub(balance0));
+      expect(await flameToken.balanceOf(alice.address)).to.be.equal(expectedFlame);
+
+      // remainging flame should be zero
+      expect(await staking.pendingFlame(alice.address)).to.be.equal(0);
+      // remaing debt should be zero
+      expect((await staking.userInfo(alice.address)).rewardDebt).to.be.equal(0);
+    });
+
+    it("Should receive half in case of penalty(withdraw 1/4 amount)", async () => {
+      const depositAmount = getBigNumber(1);
+      const withdrawAmount = depositAmount.div(4);
+      const period = duration.days(30).toNumber();
+      const expectedFlame = flamePerSecond.mul(period);
+
+      await setNextBlockTimestamp(startTime);
+      await staking.deposit(depositAmount, alice.address);
+      await advanceTime(period);
+      const balance0 = await lpToken.balanceOf(alice.address);
+      await staking.connect(alice).withdraw(withdrawAmount, alice.address);
+      const balance1 = await lpToken.balanceOf(alice.address);
+
+      expect(withdrawAmount).to.be.equal(balance1.sub(balance0));
+      expect(await flameToken.balanceOf(alice.address)).to.be.equal(await flameToken.balanceOf("0x000000000000000000000000000000000000dEaD")).to.be.equal(expectedFlame.div(2));
+
+      // remaing reward should be zero
+      expect(await staking.pendingFlame(alice.address)).to.be.equal(0);
+      // 3/4 reward should be debt
+      expect((await staking.userInfo(alice.address)).rewardDebt).to.be.equal(expectedFlame.mul(3).div(4));
+    });
+
+    it("Withraw 0", async () => {
+      await expect(staking.connect(alice).withdraw(0, bob.address))
+        .to.emit(staking, "Withdraw")
+        .withArgs(alice.address, 0, bob.address);
+    })
+  });
+
+  describe("EmergencyWithdraw", () => {
+    it("Should emit event EmergencyWithdraw", async () => {
+      await setNextBlockTimestamp(startTime);
+      await staking.deposit(getBigNumber(1), bob.address);
+      await expect(staking.connect(bob).emergencyWithdraw(bob.address))
+        .to.emit(staking, "EmergencyWithdraw")
+        .withArgs(bob.address, getBigNumber(1), bob.address);
+    });
+  });
 });
