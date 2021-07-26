@@ -42,7 +42,7 @@ describe('Presale', () => {
         vestingParams = {
             vestingName: "FireStarter Presale",
             amountToBeVested: totalTokenSupply.div(5),
-            initalUnlock: 2000000000, // 20%
+            initialUnlock: 2000000000, // 20%
             withdrawInterval: 60, // 1 min
             releaseRate: 372000, // release 10% every interval
             lockPeriod: 86400 * 7 * 2 // 2 weeks
@@ -58,7 +58,7 @@ describe('Presale', () => {
             period: 86400 * 7, // 1 week,
             serviceFee: "5000000000", // 5%,
             goalFunds: "1000000000000", // just placholder we can ignore for now,
-            initalRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
+            initialRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
         };
 
         const project = await deployCampaign("Presale", initialOwners, vestingParams, addresses, presaleParams);
@@ -147,7 +147,7 @@ describe('Presale', () => {
 
     describe("startPresale", async () => {
         it("Only owners can do this operation", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -165,17 +165,17 @@ describe('Presale', () => {
             await presale.endPrivateSale();
 
             await expect(presale.startPresale()).to.be.revertedWith("Deposit enough rewardToken tokens to the vesting contract first!");
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.startPresale();
         });
 
         it("Private presale must have ended", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await expect(presale.startPresale()).to.be.revertedWith("startPresale: Private Sale has not been done yet!");
         });
 
         it("Can't be called if already started", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
             await presale.endPrivateSale();
@@ -185,7 +185,7 @@ describe('Presale', () => {
         });
 
         it("PresaleStarted event is emitted with correct params", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -196,7 +196,7 @@ describe('Presale', () => {
         });
 
         it("startTime is reset to that timestamp", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -208,7 +208,7 @@ describe('Presale', () => {
 
     describe("Pause", async () => {
         it("Only owners can do this operation", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -221,7 +221,7 @@ describe('Presale', () => {
         });
 
         it("Can only be called while on going", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -234,7 +234,7 @@ describe('Presale', () => {
         });
 
         it("Status variables are correctly set", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -248,7 +248,7 @@ describe('Presale', () => {
         });
 
         it("PresalePaused event is emitted with correct params", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -264,7 +264,7 @@ describe('Presale', () => {
 
     describe("Resume", async () => {
         it("Only owners can do this operation", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -277,7 +277,7 @@ describe('Presale', () => {
         });
 
         it("Can only be called while paused", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -289,7 +289,7 @@ describe('Presale', () => {
         });
 
         it("Status variables are correctly set", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -302,7 +302,7 @@ describe('Presale', () => {
         });
 
         it("PresaleResumed event is emitted with correct params", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -320,7 +320,7 @@ describe('Presale', () => {
     describe("isPresaleOnGoing", async () => {
         it("Ongoing by manual start", async () => {
             expect(await presale.isPresaleGoing()).to.be.equal(false);
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             expect(await presale.isPresaleGoing()).to.be.equal(false);
             await presale.endPrivateSale();
             expect(await presale.isPresaleGoing()).to.be.equal(false);
@@ -333,7 +333,7 @@ describe('Presale', () => {
 
         it("Ongoing auto start and end", async () => {
             expect(await presale.isPresaleGoing()).to.be.equal(false);
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -349,7 +349,7 @@ describe('Presale', () => {
 
         it("Pause and resume", async () => {
             expect(await presale.isPresaleGoing()).to.be.equal(false);
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -367,7 +367,7 @@ describe('Presale', () => {
 
     describe("Deposit", async () => {
         it("Can only be called when ongoing", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -375,7 +375,7 @@ describe('Presale', () => {
         });
 
         it("Must be whitelisted user", async () => { 
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -384,7 +384,7 @@ describe('Presale', () => {
         });
 
         it("Can't exceed maxAlloc", async () => { 
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -398,7 +398,7 @@ describe('Presale', () => {
         });
 
         it("Deposit updates correct states", async () => { 
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -419,7 +419,7 @@ describe('Presale', () => {
         });
 
         it("deposit amount is stacked", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -455,7 +455,7 @@ describe('Presale', () => {
         });
 
         it("Vested event is emitted with correct params", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -473,7 +473,7 @@ describe('Presale', () => {
 
     describe("Start vesting", async () => {
         it("Only owners can do this operation", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -487,7 +487,7 @@ describe('Presale', () => {
         });
 
         it("Can only be called when finished", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -500,7 +500,7 @@ describe('Presale', () => {
         });
 
         it("Vesting starts correctly", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -515,7 +515,7 @@ describe('Presale', () => {
 
     describe("Withdraw funds", async () => {
         it("Only owners can do this operation", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -530,7 +530,7 @@ describe('Presale', () => {
         });
 
         it("Can only be called when finished", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -544,7 +544,7 @@ describe('Presale', () => {
         });
 
         it("Correct amount is withdrawn", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -576,7 +576,7 @@ describe('Presale', () => {
         });
 
         it("WithdrawFunds event emitted with correct params", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -610,7 +610,7 @@ describe('Presale', () => {
 
     describe("Withdraw Unsold tokens", async () => {
         it("Only owners can do this operation", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -624,7 +624,7 @@ describe('Presale', () => {
         });
 
         it("Can only be called when finished", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -637,7 +637,7 @@ describe('Presale', () => {
         });
 
         it("Correct amount is withdrawn", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -652,7 +652,7 @@ describe('Presale', () => {
 
             const totalAmount = depositAmount.mul(4);
             const soldAmount = totalAmount.mul(accuracy).div(presaleParams.rate);
-            const unsoldAmount = presaleParams.initalRewardsAmount.sub(soldAmount);
+            const unsoldAmount = presaleParams.initialRewardsAmount.sub(soldAmount);
             
             const ownerBalance0 = await rewardToken.balanceOf(addresses.projectOwner);
 
@@ -665,7 +665,7 @@ describe('Presale', () => {
         });
 
         it("WithdrawUnsoldToken event emitted with correct params", async () => {
-            await rewardToken.transfer(vesting.address, presaleParams.initalRewardsAmount);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
@@ -680,7 +680,7 @@ describe('Presale', () => {
 
             const totalAmount = depositAmount.mul(4);
             const soldAmount = totalAmount.mul(accuracy).div(presaleParams.rate);
-            const unsoldAmount = presaleParams.initalRewardsAmount.sub(soldAmount);
+            const unsoldAmount = presaleParams.initialRewardsAmount.sub(soldAmount);
             
             const withdrawTime = startTime + presaleParams.period + 1;
             await setNextBlockTimestamp(withdrawTime);

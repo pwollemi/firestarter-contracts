@@ -19,7 +19,7 @@ contract Vesting is Initializable {
         // Total amount to be vested
         uint256 amountToBeVested;
         // Percent of tokens initially unlocked
-        uint256 initalUnlock;
+        uint256 initialUnlock;
         // Amount of time in seconds between withdrawal periods.
         uint256 withdrawInterval;
         // Release percent in each withdrawing interval
@@ -97,7 +97,7 @@ contract Vesting is Initializable {
 
         vestingName = _params.vestingName;
         amountToBeVested = _params.amountToBeVested;
-        initialUnlock = _params.initalUnlock;
+        initialUnlock = _params.initialUnlock;
         withdrawInterval = _params.withdrawInterval;
         releaseRate = _params.releaseRate;
         lockPeriod = _params.lockPeriod;

@@ -48,7 +48,7 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
         // Funds amount to be raised. Amount * fundToken's Decimals
         uint256 goalFunds;
         // Initial Deposited rewardToken amount
-        uint256 initalRewardsAmount;
+        uint256 initialRewardsAmount;
     }
 
     /// @notice General decimal values accuracy unless specified differently (e.g. fees, exchange rates)
@@ -203,7 +203,7 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
         presalePeriod = _presale.period;
         serviceFee = _presale.serviceFee;
         // goalFunds = _presale.goalFunds;
-        initialRewardAmount = _presale.initalRewardsAmount;
+        initialRewardAmount = _presale.initialRewardsAmount;
 
         currentPresalePeriod = presalePeriod;
     }

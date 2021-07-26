@@ -34,7 +34,7 @@ async function main() {
     const vestingParams = {
         vestingName: "FireStarter Presale",
         amountToBeVested: testVestingAmount,
-        initalUnlock: 2000000000, // 20%
+        initialUnlock: 2000000000, // 20%
         withdrawInterval: 60, // 1 min
         releaseRate: 372000, // release 10% every interval
         lockPeriod:  60 // 1min //  86400 * 7 * 2 // 2 weeks
@@ -45,12 +45,12 @@ async function main() {
         projectOwner: "0x70c2D3864b280748ac06c164608013D12CE1d574",
     };
     const presaleParams = {
-        rate: "4500000000", // 1 Flame = 0.045 USD
+        rate: "450000000", // 1 Flame = 0.045 USD
         startTime: timestamp + 300, // in 10 mins // timestamp + 86400, // tomorrow
         period: 7200, // 2 hours , // 1 week,
-        serviceFee: "5000000000", // 5%,
+        serviceFee: "500000000", // 5%,
         goalFunds: "10000000000", // just placholder we can ignore for now,
-        initalRewardsAmount: testVestingAmount // 10k tokens will be deposited to vesting
+        initialRewardsAmount: testVestingAmount // 10k tokens will be deposited to vesting
     };
 
     const firestarter = await deployCampaign("FirestarterPresale", initialOwners, vestingParams, addresses, presaleParams);
