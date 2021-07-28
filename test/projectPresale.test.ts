@@ -117,8 +117,7 @@ describe('Project Presale', () => {
 
         it("Can't exceed maxAlloc", async () => { 
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
-            const rewardAmount = BigNumber.from(fakeUsers[1].privateMaxAlloc);
-            const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
+            const depositAmount = BigNumber.from(fakeUsers[1].privateMaxAlloc);
             await expect(presale.connect(signers[1]).depositPrivateSale(depositAmount.add(1))).to.be.revertedWith("Deposit: Can't exceed the privateMaxAlloc!");
 
             // but succeeds with max allocation
@@ -128,8 +127,8 @@ describe('Project Presale', () => {
         it("Deposit updates correct states", async () => { 
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
 
-            const rewardAmount = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(2);
-            const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
+            const depositAmount = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(2);
+            const rewardAmount = depositAmount.mul(accuracy).div(presaleParams.rate);
             await presale.connect(signers[1]).depositPrivateSale(depositAmount);
 
             const recpInfo = await presale.recipients(signers[1].address);
@@ -137,7 +136,7 @@ describe('Project Presale', () => {
             expect(recpInfo.rtBalance).to.be.equal(rewardAmount);
 
             expect(await presale.privateSoldAmount()).to.be.equal(rewardAmount);
-            expect(await presale.privateSold(signers[1].address)).to.be.equal(rewardAmount);
+            expect(await presale.privateSoldFunds(signers[1].address)).to.be.equal(depositAmount);
 
             const vestInfo = await vesting.recipients(signers[1].address);
             expect(vestInfo.totalAmount).to.be.equal(rewardAmount);
@@ -146,10 +145,10 @@ describe('Project Presale', () => {
         it("Can deposit full allocation amount in private and public sale", async () => { 
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
 
-            const rewardAmount1 = BigNumber.from(fakeUsers[1].privateMaxAlloc);
-            const rewardAmount2 = fakeUsers[1].maxAlloc;
-            const depositAmount1 = rewardAmount1.mul(presaleParams.rate).div(accuracy);
-            const depositAmount2 = rewardAmount2.mul(presaleParams.rate).div(accuracy);
+            const depositAmount1 = BigNumber.from(fakeUsers[1].privateMaxAlloc);
+            const depositAmount2 = fakeUsers[1].maxAlloc;
+            const rewardAmount1 = depositAmount1.mul(accuracy).div(presaleParams.rate);
+            const rewardAmount2 = depositAmount2.mul(accuracy).div(presaleParams.rate);
 
             await presale.connect(signers[1]).depositPrivateSale(depositAmount1);
             await presale.endPrivateSale();
@@ -158,8 +157,8 @@ describe('Project Presale', () => {
             await presale.startPresale();
             await presale.connect(signers[1]).deposit(depositAmount2);
 
-            const totalRwdAmount = rewardAmount1.add(rewardAmount2);
-            const totalDepositAmount = totalRwdAmount.mul(presaleParams.rate).div(accuracy);
+            const totalDepositAmount = depositAmount1.add(depositAmount2);
+            const totalRwdAmount = totalDepositAmount.mul(accuracy).div(presaleParams.rate);
             const recpInfo = await presale.recipients(signers[1].address);
             expect(recpInfo.ftBalance).to.be.equal(totalDepositAmount);
             expect(recpInfo.rtBalance).to.be.equal(totalRwdAmount);
@@ -172,8 +171,8 @@ describe('Project Presale', () => {
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
 
             // 1st
-            const rewardAmount1 = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(2);
-            const depositAmount1 = rewardAmount1.mul(presaleParams.rate).div(accuracy);
+            const depositAmount1 = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(2);
+            const rewardAmount1 = depositAmount1.mul(accuracy).div(presaleParams.rate);
             await presale.connect(signers[1]).depositPrivateSale(depositAmount1);
 
             const recpInfo1 = await presale.recipients(signers[1].address);
@@ -181,14 +180,14 @@ describe('Project Presale', () => {
             expect(recpInfo1.rtBalance).to.be.equal(rewardAmount1);
 
             expect(await presale.privateSoldAmount()).to.be.equal(rewardAmount1);
-            expect(await presale.privateSold(signers[1].address)).to.be.equal(rewardAmount1);
+            expect(await presale.privateSoldFunds(signers[1].address)).to.be.equal(depositAmount1);
 
             const vestInfo1 = await vesting.recipients(signers[1].address);
             expect(vestInfo1.totalAmount).to.be.equal(rewardAmount1);
 
             // 2nd
-            const rewardAmount2 = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(4);
-            const depositAmount2 = rewardAmount2.mul(presaleParams.rate).div(accuracy);
+            const depositAmount2 = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(4);
+            const rewardAmount2 = depositAmount2.mul(accuracy).div(presaleParams.rate);
             await presale.connect(signers[1]).depositPrivateSale(depositAmount2);
 
             const recpInfo2 = await presale.recipients(signers[1].address);
@@ -196,7 +195,7 @@ describe('Project Presale', () => {
             expect(recpInfo2.rtBalance).to.be.equal(rewardAmount1.add(rewardAmount2));
 
             expect(await presale.privateSoldAmount()).to.be.equal(rewardAmount1.add(rewardAmount2));
-            expect(await presale.privateSold(signers[1].address)).to.be.equal(rewardAmount1.add(rewardAmount2));
+            expect(await presale.privateSoldFunds(signers[1].address)).to.be.equal(depositAmount1.add(depositAmount2));
 
             const vestInfo2 = await vesting.recipients(signers[1].address);
             expect(vestInfo2.totalAmount).to.be.equal(rewardAmount1.add(rewardAmount2));
@@ -205,8 +204,8 @@ describe('Project Presale', () => {
         it("Vested event is emitted with correct params", async () => {
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
 
-            const rewardAmount = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(2);
-            const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
+            const depositAmount = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(2);
+            const rewardAmount = depositAmount.mul(accuracy).div(presaleParams.rate);
             const nextTimestamp = await getLatestBlockTimestamp() + 10;
             await setNextBlockTimestamp(nextTimestamp);
             await expect(presale.connect(signers[1]).depositPrivateSale(depositAmount))

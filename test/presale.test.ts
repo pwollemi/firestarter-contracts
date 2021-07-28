@@ -184,14 +184,14 @@ describe('Presale', () => {
             await expect(presale.startPresale()).to.be.revertedWith("startPresale: Presale has been already started!");
         });
 
-        it("PresaleStarted event is emitted with correct params", async () => {
+        it("PresaleManuallyStarted event is emitted with correct params", async () => {
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
             await setNextBlockTimestamp(startTime - 100);
             await expect(presale.startPresale())
-                .to.emit(presale, "PresaleStarted")
+                .to.emit(presale, "PresaleManuallyStarted")
                 .withArgs(startTime - 100);
         });
 
@@ -390,11 +390,10 @@ describe('Presale', () => {
             await presale.setStartTime(startTime);
             await presale.startPresale();
 
-            const fundBalance = fakeUsers[1].maxAlloc.mul(presaleParams.rate).div(accuracy);
-            await expect(presale.connect(signers[1]).deposit(fundBalance.add(1))).to.be.revertedWith("Deposit: Can't exceed the maxAlloc!");
+            await expect(presale.connect(signers[1]).deposit(fakeUsers[1].maxAlloc.add(1))).to.be.revertedWith("Deposit: Can't exceed the maxAlloc!");
 
             // but succeeds with max allocation
-            await presale.connect(signers[1]).deposit(fundBalance);
+            await presale.connect(signers[1]).deposit(fakeUsers[1].maxAlloc);
         });
 
         it("Deposit updates correct states", async () => { 
@@ -404,8 +403,8 @@ describe('Presale', () => {
             await presale.setStartTime(startTime);
             await presale.startPresale();
 
-            const rewardAmount = fakeUsers[1].maxAlloc.div(2);
-            const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
+            const depositAmount = fakeUsers[1].maxAlloc.div(2);
+            const rewardAmount = depositAmount.mul(accuracy).div(presaleParams.rate);
             await presale.connect(signers[1]).deposit(depositAmount);
 
             const recpInfo = await presale.recipients(signers[1].address);
@@ -426,8 +425,8 @@ describe('Presale', () => {
             await presale.startPresale();
 
             // 1st
-            const rewardAmount1 = fakeUsers[1].maxAlloc.div(2);
-            const depositAmount1 = rewardAmount1.mul(presaleParams.rate).div(accuracy);
+            const depositAmount1 = fakeUsers[1].maxAlloc.div(2);
+            const rewardAmount1 = depositAmount1.mul(accuracy).div(presaleParams.rate);
             await presale.connect(signers[1]).deposit(depositAmount1);
 
             const recpInfo1 = await presale.recipients(signers[1].address);
@@ -440,8 +439,8 @@ describe('Presale', () => {
             expect(vestInfo1.totalAmount).to.be.equal(rewardAmount1);
 
             // 2nd
-            const rewardAmount2 = fakeUsers[1].maxAlloc.div(4);
-            const depositAmount2 = rewardAmount2.mul(presaleParams.rate).div(accuracy);
+            const depositAmount2 = fakeUsers[1].maxAlloc.div(4);
+            const rewardAmount2 = depositAmount2.mul(accuracy).div(presaleParams.rate);
             await presale.connect(signers[1]).deposit(depositAmount2);
 
             const recpInfo2 = await presale.recipients(signers[1].address);
@@ -461,8 +460,8 @@ describe('Presale', () => {
             await presale.setStartTime(startTime);
             await presale.startPresale();
 
-            const rewardAmount = fakeUsers[1].maxAlloc.div(2);
-            const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
+            const depositAmount = fakeUsers[1].maxAlloc.div(2);
+            const rewardAmount = depositAmount.mul(accuracy).div(presaleParams.rate);
             const nextTimestamp = await getLatestBlockTimestamp() + 10;
             await setNextBlockTimestamp(nextTimestamp);
             await expect(presale.connect(signers[1]).deposit(depositAmount))
@@ -550,8 +549,7 @@ describe('Presale', () => {
             await presale.setStartTime(startTime);
             await presale.startPresale();
 
-            const rewardAmount = fakeUsers[1].maxAlloc.div(2);
-            const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
+            const depositAmount = fakeUsers[1].maxAlloc.div(2);
             await presale.connect(signers[1]).deposit(depositAmount);
             await presale.connect(signers[2]).deposit(depositAmount);
             await presale.connect(signers[3]).deposit(depositAmount);
@@ -582,8 +580,7 @@ describe('Presale', () => {
             await presale.setStartTime(startTime);
             await presale.startPresale();
 
-            const rewardAmount = fakeUsers[1].maxAlloc.div(2);
-            const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
+            const depositAmount = fakeUsers[1].maxAlloc.div(2);
             await presale.connect(signers[1]).deposit(depositAmount);
             await presale.connect(signers[2]).deposit(depositAmount);
             await presale.connect(signers[3]).deposit(depositAmount);
@@ -643,8 +640,7 @@ describe('Presale', () => {
             await presale.setStartTime(startTime);
             await presale.startPresale();
 
-            const rewardAmount = fakeUsers[1].maxAlloc.div(2);
-            const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
+            const depositAmount = fakeUsers[1].maxAlloc.div(2);
             await presale.connect(signers[1]).deposit(depositAmount);
             await presale.connect(signers[2]).deposit(depositAmount);
             await presale.connect(signers[3]).deposit(depositAmount);
@@ -671,8 +667,7 @@ describe('Presale', () => {
             await presale.setStartTime(startTime);
             await presale.startPresale();
 
-            const rewardAmount = fakeUsers[1].maxAlloc.div(2);
-            const depositAmount = rewardAmount.mul(presaleParams.rate).div(accuracy);
+            const depositAmount = fakeUsers[1].maxAlloc.div(2);
             await presale.connect(signers[1]).deposit(depositAmount);
             await presale.connect(signers[2]).deposit(depositAmount);
             await presale.connect(signers[3]).deposit(depositAmount);
