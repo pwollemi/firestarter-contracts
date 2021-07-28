@@ -36,18 +36,11 @@ contract ProjectPresale is Presale {
         require(user != address(0), "depositPrivateSale: Not exist on the whitelist");
         require(allowedPrivateSale == true, "depositPrivateSale: Not allowed to participate in private sale");
 
-        // calculate reward token amount from fund token amount
-        uint256 rtAmount = amount
-        .mul(10**IERC20(rewardToken).decimals())
-        .mul(accuracy)
-        .div(exchangeRate)
-        .div(10**IERC20(fundToken).decimals());
-
         // calculate fund token balance after deposit
         Recipient storage recp = recipients[msg.sender];
-        uint256 newRewardBalance = recp.rtBalance.add(rtAmount);
+        uint256 newFundBalance = recp.ftBalance.add(amount);
         require(
-            privateMaxAlloc >= newRewardBalance,
+            privateMaxAlloc >= newFundBalance,
             "Deposit: Can't exceed the privateMaxAlloc!"
         );
         require(
@@ -55,10 +48,16 @@ contract ProjectPresale is Presale {
             "Deposit: Can't transfer fund token!"
         );
 
-        recp.ftBalance = recp.ftBalance.add(amount);
-        recp.rtBalance = newRewardBalance;
+        uint256 rtAmount = amount
+        .mul(10**IERC20(rewardToken).decimals())
+        .mul(accuracy)
+        .div(exchangeRate)
+        .div(10**IERC20(fundToken).decimals());        
+
+        recp.ftBalance = newFundBalance;
+        recp.rtBalance = recp.rtBalance.add(rtAmount);
         privateSoldAmount = privateSoldAmount.add(rtAmount);
-        privateSold[user] = privateSold[user].add(rtAmount);
+        privateSoldFunds[user] = privateSoldFunds[user].add(amount);
 
         IVesting(vesting).updateRecipient(msg.sender, recp.rtBalance);
 

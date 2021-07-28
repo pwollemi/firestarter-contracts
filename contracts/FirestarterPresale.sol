@@ -29,10 +29,17 @@ contract FirestarterPresale is Presale {
             "depositPrivateSale: Private Sale is ended!"
         );
 
+        uint256 ftAmount = amount
+        .mul(10**IERC20(fundToken).decimals())
+        .mul(exchangeRate)
+        .div(accuracy)
+        .div(10**IERC20(rewardToken).decimals());
+
         Recipient storage recp = recipients[user];
         recp.rtBalance = recp.rtBalance.add(amount);
+        recp.ftBalance = recp.ftBalance.add(ftAmount);
         privateSoldAmount = privateSoldAmount.add(amount);
-        privateSold[user] = privateSold[user].add(amount);
+        privateSoldFunds[user] = privateSoldFunds[user].add(ftAmount);
 
         IVesting(vesting).updateRecipient(user, recp.rtBalance);
 

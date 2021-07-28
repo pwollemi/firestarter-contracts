@@ -111,14 +111,14 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
     /// @notice Participants information
     mapping(address => Recipient) public recipients;
 
-    /// @notice Sold amount per user in Private Presale;
-    mapping(address => uint256) public privateSold;
+    /// @notice Record of fund token amount sold in Private Presale;
+    mapping(address => uint256) public privateSoldFunds;
 
     /// @notice An event emitted when the private sale is done
     event PrivateSaleDone(uint256);
 
     /// @notice An event emitted when presale is started
-    event PresaleStarted(uint256);
+    event PresaleManuallyStarted(uint256);
 
     /// @notice An event emitted when presale is paused
     event PresalePaused(uint256);
@@ -260,7 +260,7 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
 
         startTime = block.timestamp;
 
-        emit PresaleStarted(block.timestamp);
+        emit PresaleManuallyStarted(block.timestamp);
     }
 
     /**
@@ -297,20 +297,13 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
         );
         require(user != address(0), "Deposit: Not exist on the whitelist");
 
-        // calculate reward token amount from fund token amount
-        uint256 rtAmount = amount
-        .mul(10**IERC20(rewardToken).decimals())
-        .mul(accuracy)
-        .div(exchangeRate)
-        .div(10**IERC20(fundToken).decimals());
-
-        // calculate reward token balance after deposit
+        // calculate fund token balance after deposit
         // we assume private sale is always finished before public sale starts
         // thus rtBalance includes the private sale amount as well
         Recipient storage recp = recipients[msg.sender];
-        uint256 newRewardBalance = recp.rtBalance.add(rtAmount);
+        uint256 newFundBalance = recp.ftBalance.add(amount);
         require(
-            maxAlloc + privateSold[user] >= newRewardBalance,
+            maxAlloc + privateSoldFunds[user] >= newFundBalance,
             "Deposit: Can't exceed the maxAlloc!"
         );
         require(
@@ -318,8 +311,15 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
             "Deposit: Can't transfer fund token!"
         );
 
-        recp.ftBalance = recp.ftBalance.add(amount);
-        recp.rtBalance = newRewardBalance;
+        // calculate reward token amount from fund token amount
+        uint256 rtAmount = amount
+        .mul(10**IERC20(rewardToken).decimals())
+        .mul(accuracy)
+        .div(exchangeRate)
+        .div(10**IERC20(fundToken).decimals());        
+
+        recp.ftBalance = newFundBalance;
+        recp.rtBalance = recp.rtBalance.add(rtAmount);
         publicSoldAmount = publicSoldAmount.add(rtAmount);
 
         IVesting(vesting).updateRecipient(msg.sender, recp.rtBalance);
