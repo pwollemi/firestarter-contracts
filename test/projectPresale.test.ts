@@ -213,4 +213,70 @@ describe('Project Presale', () => {
                 .withArgs(signers[1].address, rewardAmount, true, nextTimestamp);
         });
     });
+
+    describe("analysis support", () => {
+        it("participants list - private and public", async () => {
+            const amount = ethers.utils.parseUnits("1", 18);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+
+            // private sale
+            await presale.connect(signers[0]).depositPrivateSale(amount);
+            await presale.connect(signers[1]).depositPrivateSale(amount);
+            await presale.connect(signers[2]).depositPrivateSale(amount);
+
+            // public sale
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.endPrivateSale();
+            await presale.startPresale();
+
+            await presale.connect(signers[3]).deposit(1);
+            await presale.connect(signers[4]).deposit(1);
+
+            // check list
+            const participants = await presale.getParticipants();
+            expect(await presale.participantsLength()).to.be.equal(5);
+            expect(participants.length).to.be.equal(5);
+            expect(participants).to.be.eql([
+                signers[0].address,
+                signers[1].address,
+                signers[2].address,
+                signers[3].address,
+                signers[4].address
+            ]);
+        });
+
+        it("participants list - no duplication", async () => {
+            const amount = ethers.utils.parseUnits("1", 18);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+
+            // private sale
+            await presale.connect(signers[0]).depositPrivateSale(amount);
+            await presale.connect(signers[1]).depositPrivateSale(amount);
+            await presale.connect(signers[2]).depositPrivateSale(amount);
+
+            // public sale
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.endPrivateSale();
+            await presale.startPresale();
+
+            await presale.connect(signers[1]).deposit(1);
+            await presale.connect(signers[2]).deposit(1);
+            await presale.connect(signers[4]).deposit(1);
+            await presale.connect(signers[1]).deposit(1);
+            await presale.connect(signers[4]).deposit(1);
+
+            // check list
+            const participants = await presale.getParticipants();
+            expect(await presale.participantsLength()).to.be.equal(4);
+            expect(participants.length).to.be.equal(4);
+            expect(participants).to.eql([
+                signers[0].address,
+                signers[1].address,
+                signers[2].address,
+                signers[4].address,
+            ]);
+        });
+    });
 });

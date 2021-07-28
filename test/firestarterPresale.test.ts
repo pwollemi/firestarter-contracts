@@ -70,6 +70,7 @@ describe('Firestarter Presale', () => {
         await fundToken.transfer(signers[3].address, totalTokenSupply.div(10));
         await fundToken.transfer(signers[4].address, totalTokenSupply.div(10));
 
+        await fundToken.connect(signers[0]).approve(presale.address, ethers.constants.MaxUint256);
         await fundToken.connect(signers[1]).approve(presale.address, ethers.constants.MaxUint256);
         await fundToken.connect(signers[2]).approve(presale.address, ethers.constants.MaxUint256);
         await fundToken.connect(signers[3]).approve(presale.address, ethers.constants.MaxUint256);
@@ -159,4 +160,67 @@ describe('Firestarter Presale', () => {
         });
     });
 
+    describe("analysis support", () => {
+        it("participants list - private and public", async () => {
+            const amount = ethers.utils.parseUnits("1", 18);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+
+            // private sale
+            await presale.depositPrivateSale(signers[3].address, amount);
+            await presale.depositPrivateSale(signers[4].address, amount);
+            await presale.depositPrivateSale(signers[5].address, amount);
+
+            // public sale
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.endPrivateSale();
+            await presale.startPresale();
+
+            await presale.connect(signers[1]).deposit(1);
+            await presale.connect(signers[0]).deposit(1);
+
+            // check list
+            const participants = await presale.getParticipants();
+            expect(await presale.participantsLength()).to.be.equal(5);
+            expect(participants.length).to.be.equal(5);
+            expect(participants).to.be.eql([
+                signers[3].address,
+                signers[4].address,
+                signers[5].address,
+                signers[1].address,
+                signers[0].address
+            ]);
+        });
+
+        it("participants list - no duplication", async () => {
+            const amount = ethers.utils.parseUnits("1", 18);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+
+            // private sale
+            await presale.depositPrivateSale(signers[3].address, amount);
+            await presale.depositPrivateSale(signers[4].address, amount);
+            await presale.depositPrivateSale(signers[5].address, amount);
+
+            // public sale
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.endPrivateSale();
+            await presale.startPresale();
+
+            await presale.connect(signers[1]).deposit(1);
+            await presale.connect(signers[3]).deposit(1);
+            await presale.connect(signers[4]).deposit(1);
+
+            // check list
+            const participants = await presale.getParticipants();
+            expect(await presale.participantsLength()).to.be.equal(4);
+            expect(participants.length).to.be.equal(4);
+            expect(participants).to.eql([
+                signers[3].address,
+                signers[4].address,
+                signers[5].address,
+                signers[1].address,
+            ]);
+        });
+    });
 });

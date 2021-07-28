@@ -36,6 +36,12 @@ contract FirestarterPresale is Presale {
         .div(10**IERC20(rewardToken).decimals());
 
         Recipient storage recp = recipients[user];
+
+        if (recp.rtBalance == 0 && amount > 0) {
+            indexOf[user] = participants.length;
+            participants.push(user);
+        }
+
         recp.rtBalance = recp.rtBalance.add(amount);
         recp.ftBalance = recp.ftBalance.add(ftAmount);
         privateSoldAmount = privateSoldAmount.add(amount);

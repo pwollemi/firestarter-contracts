@@ -69,11 +69,13 @@ contract Vesting is Initializable {
     /// @notice Owner address(presale)
     address public owner;
 
-    /// @notice Vesting schedule info for each user(presale)
-    mapping(address => VestingInfo) public recipients;
-
     /// @notice Sum of all user's vesting amount
     uint256 public totalVestingAmount;
+
+    /// @notice Vesting schedule info for each user(presale)
+    mapping(address => VestingInfo) public recipients;
+    address[] internal participants;
+    mapping(address => uint256) internal indexOf;
 
     /// @notice An event emitted when the vesting schedule is updated.
     event VestingInfoUpdated(address registeredAddress, uint256 totalAmount);
@@ -101,6 +103,20 @@ contract Vesting is Initializable {
         withdrawInterval = _params.withdrawInterval;
         releaseRate = _params.releaseRate;
         lockPeriod = _params.lockPeriod;
+    }
+
+    /**
+     * @notice Return the number of participants
+     */
+    function participantsLength() external view returns (uint256) {
+        return participants.length;
+    }
+
+    /**
+     * @notice Return the list of participants
+     */
+    function getParticipants() external view returns (address[] memory) {
+        return participants;
     }
 
     /**
@@ -136,6 +152,11 @@ contract Vesting is Initializable {
             depositedAmount >= totalVestingAmount,
             "updateRecipient: Vesting amount exceeds current balance"
         );
+
+        if (recipients[recp].totalAmount == 0) {
+            indexOf[recp] = participants.length;
+            participants.push(recp);
+        }
 
         recipients[recp].totalAmount = amount;
 

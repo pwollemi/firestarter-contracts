@@ -108,11 +108,13 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
     /// @notice Reward token amount sold by Public Sale
     uint256 public publicSoldAmount;
 
-    /// @notice Participants information
-    mapping(address => Recipient) public recipients;
-
     /// @notice Record of fund token amount sold in Private Presale;
     mapping(address => uint256) public privateSoldFunds;
+
+    /// @notice Participants information
+    mapping(address => Recipient) public recipients;
+    address[] internal participants;
+    mapping(address => uint256) internal indexOf;
 
     /// @notice An event emitted when the private sale is done
     event PrivateSaleDone(uint256);
@@ -206,6 +208,20 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
         initialRewardAmount = _presale.initialRewardsAmount;
 
         currentPresalePeriod = presalePeriod;
+    }
+
+    /**
+     * @notice Return the number of participants
+     */
+    function participantsLength() external view returns (uint256) {
+        return participants.length;
+    }
+
+    /**
+     * @notice Return the list of participants
+     */
+    function getParticipants() external view returns (address[] memory) {
+        return participants;
     }
 
     /**

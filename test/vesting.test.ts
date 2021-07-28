@@ -189,4 +189,31 @@ describe('Vesting', () => {
       expect(recpInfo.amountWithdrawn).to.be.equal(vestedAmount);
     });
   });
+
+  describe("analysis support", () => {
+    it("participants list", async () => {
+      const startTime = await getLatestBlockTimestamp() + 10000;
+      await vesting.setStartTime(startTime);
+      await vesting.updateRecipient(signers[0].address, 1);
+      await vesting.updateRecipient(signers[1].address, 1);
+      await vesting.updateRecipient(signers[2].address, 1);
+      await vesting.updateRecipient(signers[3].address, 1);
+      await vesting.updateRecipient(signers[0].address, 1);
+      await vesting.updateRecipient(signers[3].address, 1);
+      await vesting.updateRecipient(signers[4].address, 1);
+      await vesting.updateRecipient(signers[5].address, 1);
+
+      const participants = await vesting.getParticipants();
+      expect(await vesting.participantsLength()).to.be.equal(6);
+      expect(participants.length).to.be.equal(6);
+      expect(participants).to.be.eql([
+          signers[0].address,
+          signers[1].address,
+          signers[2].address,
+          signers[3].address,
+          signers[4].address,
+          signers[5].address
+      ]);
+    });
+  });
 });
