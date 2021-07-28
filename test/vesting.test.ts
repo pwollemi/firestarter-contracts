@@ -203,7 +203,7 @@ describe('Vesting', () => {
       await vesting.updateRecipient(signers[4].address, 1);
       await vesting.updateRecipient(signers[5].address, 1);
 
-      const participants = await vesting.getParticipants();
+      const participants = await vesting.getParticipants(0, 6);
       expect(await vesting.participantsLength()).to.be.equal(6);
       expect(participants.length).to.be.equal(6);
       expect(participants).to.be.eql([
@@ -214,6 +214,29 @@ describe('Vesting', () => {
           signers[4].address,
           signers[5].address
       ]);
+    });
+
+    it("pagination", async () => {
+      const startTime = await getLatestBlockTimestamp() + 10000;
+      await vesting.setStartTime(startTime);
+      await vesting.updateRecipient(signers[0].address, 1);
+      await vesting.updateRecipient(signers[1].address, 1);
+      await vesting.updateRecipient(signers[2].address, 1);
+      await vesting.updateRecipient(signers[3].address, 1);
+      await vesting.updateRecipient(signers[4].address, 1);
+      await vesting.updateRecipient(signers[5].address, 1);
+
+      expect(await vesting.getParticipants(1, 3)).to.be.eql([
+          signers[3].address,
+          signers[4].address,
+          signers[5].address
+      ]);
+      expect(await vesting.getParticipants(1, 4)).to.be.eql([
+        signers[4].address,
+        signers[5].address,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero
+    ]);
     });
   });
 });

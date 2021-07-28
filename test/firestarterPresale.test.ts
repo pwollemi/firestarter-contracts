@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop */
 import { ethers } from "hardhat";
 import { solidity } from "ethereum-waffle";
 import chai from 'chai';
@@ -65,16 +66,10 @@ describe('Firestarter Presale', () => {
         vesting = project.vesting;
         presale = <FirestarterPresale>project.presale;
 
-        await fundToken.transfer(signers[1].address, totalTokenSupply.div(10));
-        await fundToken.transfer(signers[2].address, totalTokenSupply.div(10));
-        await fundToken.transfer(signers[3].address, totalTokenSupply.div(10));
-        await fundToken.transfer(signers[4].address, totalTokenSupply.div(10));
-
-        await fundToken.connect(signers[0]).approve(presale.address, ethers.constants.MaxUint256);
-        await fundToken.connect(signers[1]).approve(presale.address, ethers.constants.MaxUint256);
-        await fundToken.connect(signers[2]).approve(presale.address, ethers.constants.MaxUint256);
-        await fundToken.connect(signers[3]).approve(presale.address, ethers.constants.MaxUint256);
-        await fundToken.connect(signers[4]).approve(presale.address, ethers.constants.MaxUint256);
+        for (let i = 0; i < 10; i += 1) {
+            await fundToken.transfer(signers[i].address, totalTokenSupply.div(10));
+            await fundToken.connect(signers[i]).approve(presale.address, ethers.constants.MaxUint256);
+        }
 
         fakeUsers = signers.slice(0, 5).map((signer, i) => ({
             wallet: signer.address,
@@ -180,7 +175,7 @@ describe('Firestarter Presale', () => {
             await presale.connect(signers[0]).deposit(1);
 
             // check list
-            const participants = await presale.getParticipants();
+            const participants = await presale.getParticipants(0, 5);
             expect(await presale.participantsLength()).to.be.equal(5);
             expect(participants.length).to.be.equal(5);
             expect(participants).to.be.eql([
@@ -212,7 +207,7 @@ describe('Firestarter Presale', () => {
             await presale.connect(signers[4]).deposit(1);
 
             // check list
-            const participants = await presale.getParticipants();
+            const participants = await presale.getParticipants(0, 4);
             expect(await presale.participantsLength()).to.be.equal(4);
             expect(participants.length).to.be.equal(4);
             expect(participants).to.eql([
@@ -220,6 +215,43 @@ describe('Firestarter Presale', () => {
                 signers[4].address,
                 signers[5].address,
                 signers[1].address,
+            ]);
+        });
+
+        it("participants list - pagination", async () => {
+            const amount = ethers.utils.parseUnits("1", 18);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+
+            // private sale
+            await presale.depositPrivateSale(signers[4].address, amount);
+            await presale.depositPrivateSale(signers[5].address, amount);
+            await presale.depositPrivateSale(signers[6].address, amount);
+            await presale.depositPrivateSale(signers[7].address, amount);
+            await presale.depositPrivateSale(signers[8].address, amount);
+            await presale.depositPrivateSale(signers[9].address, amount);
+
+            // public sale
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.endPrivateSale();
+            await presale.startPresale();
+
+            await presale.connect(signers[0]).deposit(1);
+            await presale.connect(signers[1]).deposit(1);
+            await presale.connect(signers[2]).deposit(1);
+            await presale.connect(signers[3]).deposit(1);
+
+            // check list
+            expect(await presale.getParticipants(1, 3)).to.eql([
+                signers[7].address,
+                signers[8].address,
+                signers[9].address,
+            ]);
+            expect(await presale.getParticipants(2, 4)).to.eql([
+                signers[2].address,
+                signers[3].address,
+                ethers.constants.AddressZero,
+                ethers.constants.AddressZero
             ]);
         });
     });
