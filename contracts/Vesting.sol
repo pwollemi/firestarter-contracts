@@ -4,6 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "./libraries/AddressPagination.sol";
 import "./interfaces/IERC20.sol";
 
 /// @title Firestarter Vesting Contract
@@ -12,6 +13,7 @@ import "./interfaces/IERC20.sol";
 /// @dev All function calls are currently implemented without side effects
 contract Vesting is Initializable {
     using SafeMath for uint256;
+    using AddressPagination for address[];
 
     struct VestingParams {
         // Name of this tokenomics
@@ -69,11 +71,16 @@ contract Vesting is Initializable {
     /// @notice Owner address(presale)
     address public owner;
 
+    /// @notice Sum of all user's vesting amount
+    uint256 public totalVestingAmount;
+
     /// @notice Vesting schedule info for each user(presale)
     mapping(address => VestingInfo) public recipients;
 
-    /// @notice Sum of all user's vesting amount
-    uint256 public totalVestingAmount;
+    // Participants list
+    address[] internal participants;
+    mapping(address => uint256) internal indexOf;
+    mapping(address => bool) internal inserted;
 
     /// @notice An event emitted when the vesting schedule is updated.
     event VestingInfoUpdated(address registeredAddress, uint256 totalAmount);
@@ -101,6 +108,20 @@ contract Vesting is Initializable {
         withdrawInterval = _params.withdrawInterval;
         releaseRate = _params.releaseRate;
         lockPeriod = _params.lockPeriod;
+    }
+
+    /**
+     * @notice Return the number of participants
+     */
+    function participantsLength() external view returns (uint256) {
+        return participants.length;
+    }
+
+    /**
+     * @notice Return the list of participants
+     */
+    function getParticipants(uint256 page, uint256 limit) external view returns (address[] memory) {
+        return participants.paginate(page, limit);
     }
 
     /**
@@ -136,6 +157,12 @@ contract Vesting is Initializable {
             depositedAmount >= totalVestingAmount,
             "updateRecipient: Vesting amount exceeds current balance"
         );
+
+        if (inserted[recp] == false) {
+            inserted[recp] = true;
+            indexOf[recp] = participants.length;
+            participants.push(recp);
+        }
 
         recipients[recp].totalAmount = amount;
 

@@ -41,6 +41,12 @@ contract FirestarterPresale is Presale {
         privateSoldAmount = privateSoldAmount.add(amount);
         privateSoldFunds[user] = privateSoldFunds[user].add(ftAmount);
 
+        if (inserted[user] == false) {
+            inserted[user] = true;
+            indexOf[user] = participants.length;
+            participants.push(user);
+        }
+
         IVesting(vesting).updateRecipient(user, recp.rtBalance);
 
         emit Vested(user, recp.rtBalance, true, block.timestamp);

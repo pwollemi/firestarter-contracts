@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "./libraries/AddressPagination.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IWhitelist.sol";
 import "./interfaces/IVesting.sol";
@@ -15,6 +16,7 @@ import "./interfaces/IVesting.sol";
 /// @dev All function calls are currently implemented without side effects
 contract Presale is Initializable, AccessControlEnumerableUpgradeable {
     using SafeMath for uint256;
+    using AddressPagination for address[];
 
     struct Recipient {
         // Deposited Funds token amount of the recipient
@@ -108,11 +110,16 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
     /// @notice Reward token amount sold by Public Sale
     uint256 public publicSoldAmount;
 
+    /// @notice Record of fund token amount sold in Private Presale;
+    mapping(address => uint256) public privateSoldFunds;
+
     /// @notice Participants information
     mapping(address => Recipient) public recipients;
 
-    /// @notice Record of fund token amount sold in Private Presale;
-    mapping(address => uint256) public privateSoldFunds;
+    // Participants list
+    address[] internal participants;
+    mapping(address => uint256) internal indexOf;
+    mapping(address => bool) internal inserted;
 
     /// @notice An event emitted when the private sale is done
     event PrivateSaleDone(uint256);
@@ -206,6 +213,20 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
         initialRewardAmount = _presale.initialRewardsAmount;
 
         currentPresalePeriod = presalePeriod;
+    }
+
+    /**
+     * @notice Return the number of participants
+     */
+    function participantsLength() external view returns (uint256) {
+        return participants.length;
+    }
+
+    /**
+     * @notice Return the list of participants
+     */
+    function getParticipants(uint256 page, uint256 limit) external view returns (address[] memory) {
+        return participants.paginate(page, limit);
     }
 
     /**
@@ -321,6 +342,12 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
         recp.ftBalance = newFundBalance;
         recp.rtBalance = recp.rtBalance.add(rtAmount);
         publicSoldAmount = publicSoldAmount.add(rtAmount);
+
+        if (inserted[user] == false) {
+            inserted[user] = true;
+            indexOf[user] = participants.length;
+            participants.push(user);
+        }
 
         IVesting(vesting).updateRecipient(msg.sender, recp.rtBalance);
 
