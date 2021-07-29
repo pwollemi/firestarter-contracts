@@ -34,10 +34,11 @@ async function main() {
     const vestingParams = {
         vestingName: "FireStarter Presale",
         amountToBeVested: testVestingAmount,
-        initialUnlock: 2000000000, // 20%
-        withdrawInterval: 60, // 1 min
-        releaseRate: 372000, // release 10% every interval
-        lockPeriod:  60 // 1min //  86400 * 7 * 2 // 2 weeks
+        initialUnlock: 1000000000, // 10%
+        releaseInterval: 60, // 1 min
+        releaseRate: 23150, // release 10% every month
+        lockPeriod: 60, // 1min
+        vestingPeriod: 86400 * 30 * 8 // 8 month
     }
     const addresses = {
         fundToken: mockUSDC.address,

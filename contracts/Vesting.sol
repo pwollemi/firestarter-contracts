@@ -20,14 +20,16 @@ contract Vesting is Initializable {
         string vestingName;
         // Total amount to be vested
         uint256 amountToBeVested;
+        // Period before release vesting starts, also it unlocks initialUnlock reward tokens. (in time unit of block.timestamp)
+        uint256 lockPeriod;
         // Percent of tokens initially unlocked
         uint256 initialUnlock;
+        // Period to release all reward token, after lockPeriod + vestingPeriod it releases 100% of reward tokens. (in time unit of block.timestamp)
+        uint256 vestingPeriod;
         // Amount of time in seconds between withdrawal periods.
-        uint256 withdrawInterval;
+        uint256 releaseInterval;
         // Release percent in each withdrawing interval
         uint256 releaseRate;
-        // Number of periods before start release.
-        uint256 lockPeriod;
     }
 
     struct VestingInfo {
@@ -51,8 +53,8 @@ contract Vesting is Initializable {
     /// @notice Start time of vesting
     uint256 public startTime;
 
-    /// @notice Amount of time in seconds between withdrawal periods.
-    uint256 public withdrawInterval;
+    /// @notice Intervals that the release happens. Every interval, releaseRate of tokens are released.
+    uint256 public releaseInterval;
 
     /// @notice Release percent in each withdrawing interval
     uint256 public releaseRate;
@@ -60,8 +62,11 @@ contract Vesting is Initializable {
     /// @notice Percent of tokens initially unlocked
     uint256 public initialUnlock;
 
-    /// @notice Number of periods before start release.
+    /// @notice Period before release vesting starts, also it unlocks initialUnlock reward tokens. (in time unit of block.timestamp)
     uint256 public lockPeriod;
+
+    /// @notice Period to release all reward token, after lockPeriod + vestingPeriod it releases 100% of reward tokens. (in time unit of block.timestamp)
+    uint256 public vestingPeriod;
 
     /// @notice Reward token of the project.
     address public rewardToken;
@@ -97,7 +102,7 @@ contract Vesting is Initializable {
     }
 
     function initialize(address _rewardToken, VestingParams memory _params) external initializer {
-        require(_params.withdrawInterval > 0);
+        require(_params.releaseInterval > 0);
 
         owner = msg.sender;
         rewardToken = _rewardToken;
@@ -105,9 +110,10 @@ contract Vesting is Initializable {
         vestingName = _params.vestingName;
         amountToBeVested = _params.amountToBeVested;
         initialUnlock = _params.initialUnlock;
-        withdrawInterval = _params.withdrawInterval;
+        releaseInterval = _params.releaseInterval;
         releaseRate = _params.releaseRate;
         lockPeriod = _params.lockPeriod;
+        vestingPeriod = _params.vestingPeriod;
     }
 
     /**
@@ -227,15 +233,20 @@ contract Vesting is Initializable {
         virtual
         returns (uint256 amount)
     {
-        uint256 endTime = startTime.add(lockPeriod);
+        uint256 lockEndTime = startTime.add(lockPeriod);
+        uint256 vestingEndTime = lockEndTime.add(vestingPeriod);
         VestingInfo memory vestingInfo = recipients[beneficiary];
 
         if (
             startTime == 0 ||
             vestingInfo.totalAmount == 0 ||
-            block.timestamp <= endTime
+            block.timestamp <= lockEndTime
         ) {
             return 0;
+        }
+
+        if (block.timestamp > vestingEndTime) {
+            return vestingInfo.totalAmount;
         }
 
         uint256 initialUnlockAmount = vestingInfo
@@ -248,7 +259,7 @@ contract Vesting is Initializable {
         .mul(releaseRate)
         .div(accuracy);
 
-        uint256 vestedAmount = block.timestamp.sub(endTime).div(withdrawInterval).mul(unlockAmountPerInterval).add(
+        uint256 vestedAmount = block.timestamp.sub(lockEndTime).div(releaseInterval).mul(unlockAmountPerInterval).add(
             initialUnlockAmount
         );
 
