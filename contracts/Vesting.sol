@@ -18,11 +18,11 @@ contract Vesting is Initializable {
         string vestingName;
         // Total amount to be vested
         uint256 amountToBeVested;
-        // Period before release vesting starts, also it unlocks initialUnlock reward tokens. (Same unit with block.timestamp)
+        // Period before release vesting starts, also it unlocks initialUnlock reward tokens. (in time unit of block.timestamp)
         uint256 lockPeriod;
         // Percent of tokens initially unlocked
         uint256 initialUnlock;
-        // Period to release all reward token, after lockPeriod + vestingPeriod it releases 100% of reward tokens. (Same unit with block.timestamp)
+        // Period to release all reward token, after lockPeriod + vestingPeriod it releases 100% of reward tokens. (in time unit of block.timestamp)
         uint256 vestingPeriod;
         // Amount of time in seconds between withdrawal periods.
         uint256 releaseInterval;
@@ -60,10 +60,10 @@ contract Vesting is Initializable {
     /// @notice Percent of tokens initially unlocked
     uint256 public initialUnlock;
 
-    /// @notice Period before release vesting starts, also it unlocks initialUnlock reward tokens. (Same unit with block.timestamp)
+    /// @notice Period before release vesting starts, also it unlocks initialUnlock reward tokens. (in time unit of block.timestamp)
     uint256 public lockPeriod;
 
-    /// @notice Period to release all reward token, after lockPeriod + vestingPeriod it releases 100% of reward tokens. (Same unit with block.timestamp)
+    /// @notice Period to release all reward token, after lockPeriod + vestingPeriod it releases 100% of reward tokens. (in time unit of block.timestamp)
     uint256 public vestingPeriod;
 
     /// @notice Reward token of the project.
