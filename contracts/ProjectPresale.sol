@@ -59,6 +59,12 @@ contract ProjectPresale is Presale {
         privateSoldAmount = privateSoldAmount.add(rtAmount);
         privateSoldFunds[user] = privateSoldFunds[user].add(amount);
 
+        if (inserted[user] == false) {
+            inserted[user] = true;
+            indexOf[user] = participants.length;
+            participants.push(user);
+        }
+
         IVesting(vesting).updateRecipient(msg.sender, recp.rtBalance);
 
         emit Vested(msg.sender, recp.rtBalance, true, block.timestamp);

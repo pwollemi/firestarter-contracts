@@ -76,8 +76,11 @@ contract Vesting is Initializable {
 
     /// @notice Vesting schedule info for each user(presale)
     mapping(address => VestingInfo) public recipients;
+
+    // Participants list
     address[] internal participants;
     mapping(address => uint256) internal indexOf;
+    mapping(address => bool) internal inserted;
 
     /// @notice An event emitted when the vesting schedule is updated.
     event VestingInfoUpdated(address registeredAddress, uint256 totalAmount);
@@ -155,7 +158,8 @@ contract Vesting is Initializable {
             "updateRecipient: Vesting amount exceeds current balance"
         );
 
-        if (recipients[recp].totalAmount == 0) {
+        if (inserted[recp] == false) {
+            inserted[recp] = true;
             indexOf[recp] = participants.length;
             participants.push(recp);
         }

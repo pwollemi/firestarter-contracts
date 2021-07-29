@@ -115,8 +115,11 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
 
     /// @notice Participants information
     mapping(address => Recipient) public recipients;
+
+    // Participants list
     address[] internal participants;
     mapping(address => uint256) internal indexOf;
+    mapping(address => bool) internal inserted;
 
     /// @notice An event emitted when the private sale is done
     event PrivateSaleDone(uint256);
@@ -339,6 +342,12 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
         recp.ftBalance = newFundBalance;
         recp.rtBalance = recp.rtBalance.add(rtAmount);
         publicSoldAmount = publicSoldAmount.add(rtAmount);
+
+        if (inserted[msg.sender] == false) {
+            inserted[msg.sender] = true;
+            indexOf[msg.sender] = participants.length;
+            participants.push(msg.sender);
+        }
 
         IVesting(vesting).updateRecipient(msg.sender, recp.rtBalance);
 
