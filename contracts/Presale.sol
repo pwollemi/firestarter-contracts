@@ -343,10 +343,10 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
         recp.rtBalance = recp.rtBalance.add(rtAmount);
         publicSoldAmount = publicSoldAmount.add(rtAmount);
 
-        if (inserted[msg.sender] == false) {
-            inserted[msg.sender] = true;
-            indexOf[msg.sender] = participants.length;
-            participants.push(msg.sender);
+        if (inserted[user] == false) {
+            inserted[user] = true;
+            indexOf[user] = participants.length;
+            participants.push(user);
         }
 
         IVesting(vesting).updateRecipient(msg.sender, recp.rtBalance);
