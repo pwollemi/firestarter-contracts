@@ -119,7 +119,7 @@ contract Vesting is Initializable {
     /**
      * @notice Return the number of participants
      */
-    function participantsLength() external view returns (uint256) {
+    function participantCount() external view returns (uint256) {
         return participants.length;
     }
 
