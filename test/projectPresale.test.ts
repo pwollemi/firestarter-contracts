@@ -236,7 +236,7 @@ describe('Project Presale', () => {
 
             // check list
             const participants = await presale.getParticipants(0, 5);
-            expect(await presale.participantsLength()).to.be.equal(5);
+            expect(await presale.participantCount()).to.be.equal(5);
             expect(participants.length).to.be.equal(5);
             expect(participants).to.be.eql([
                 signers[0].address,
@@ -270,7 +270,7 @@ describe('Project Presale', () => {
 
             // check list
             const participants = await presale.getParticipants(0, 4);
-            expect(await presale.participantsLength()).to.be.equal(4);
+            expect(await presale.participantCount()).to.be.equal(4);
             expect(participants.length).to.be.equal(4);
             expect(participants).to.eql([
                 signers[0].address,

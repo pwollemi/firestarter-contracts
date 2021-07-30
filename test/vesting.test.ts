@@ -223,7 +223,7 @@ describe('Vesting', () => {
       await vesting.updateRecipient(signers[5].address, 1);
 
       const participants = await vesting.getParticipants(0, 6);
-      expect(await vesting.participantsLength()).to.be.equal(6);
+      expect(await vesting.participantCount()).to.be.equal(6);
       expect(participants.length).to.be.equal(6);
       expect(participants).to.be.eql([
           signers[0].address,
