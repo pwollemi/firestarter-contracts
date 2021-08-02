@@ -55,6 +55,12 @@ contract Staking is Initializable, OwnableUpgradeable {
 
     /********************** Staking status ***********************/
 
+    // Total reward amount of previous staking periods.
+    uint256 private accTotalRewards;
+
+    // Total reward debt in current staking period. Updated when flamePerSecond is updated.
+    int256 private totalRewardDebt;
+
     /// @notice FLAME reward amount allocated per LP token.
     uint256 public accFlamePerShare;
 
@@ -123,10 +129,18 @@ contract Staking is Initializable, OwnableUpgradeable {
             _startTime > block.timestamp,
             "setStakingInfo: Should be time in future"
         );
+
+        // if this is setting new staking period
+        if (isStakingEnded()) {
+            accTotalRewards = totalRewards();
+            totalRewardDebt = 0;
+        }
+
         updatePool();
         startTime = _startTime;
         stakingPeriod = _stakingPeriod;
         lastRewardTime = _startTime;
+
         emit LogStakingInfo(_startTime, _stakingPeriod);
     }
 
@@ -136,9 +150,32 @@ contract Staking is Initializable, OwnableUpgradeable {
      * @param _flamePerSecond The amount of Flame to be distributed per second.
      */
     function setFlamePerSecond(uint256 _flamePerSecond) public onlyOwner {
+        if (isStakingInProgress()) {
+            totalRewardDebt = totalRewardDebt + (int256(_flamePerSecond) - int256(flamePerSecond)) * int256(block.timestamp - startTime);
+        }
+        if (isStakingEnded()) {
+            accTotalRewards = totalRewards();
+            totalRewardDebt = int256(_flamePerSecond * stakingPeriod);
+        }
+
         updatePool();
         flamePerSecond = _flamePerSecond;
         emit LogFlamePerSecond(_flamePerSecond);
+    }
+
+    /**
+     * @notice View function to return total rewards of all staking periods.
+     * @dev total rewards = claimedRewards + remaining reward balance
+     * 
+     *  This means that the all deposited rewards to this contract must be distributed.
+     *  Thus, it should be the same with sum of flamePerSecond * stakingPeriod in all staking periods.
+     *  If not, this function doesn't return the correct reward amount.
+     * 
+     * @return total rewards of all staking periods.
+     */
+    function totalRewards() public view returns (uint256 total) {
+        total = accTotalRewards;
+        total = total + (int256(flamePerSecond * stakingPeriod) - totalRewardDebt).toUint256();
     }
 
     /**
