@@ -259,7 +259,64 @@ describe('Staking Pool', () => {
       await setNextBlockTimestamp(startTime + stakingPeriod * 3 / 5);
       await staking.setFlamePerSecond(flamePerSecond4);
       expect(await staking.totalRewards()).to.be.equal(totalRewards);
+    });
 
+    it("Period 1 -> setStakingInfo -> setFlamePerSecond -> Period 2", async () => {
+      // stakingPeriod = 10
+      // flamePerSecond = 100
+      await staking.setStakingInfo(startTime, 10);
+      await staking.setFlamePerSecond(100);
+
+      // Period 1, after 5 seconds, update flamePerSecond
+      await setNextBlockTimestamp(startTime + 5);
+      await staking.setFlamePerSecond(1);
+      expect(await staking.totalRewards()).to.be.equal(505);
+
+      // Period 1 ended
+      const startTime1 = startTime + 1000;
+      await setNextBlockTimestamp(startTime + 11);
+
+      // Set Period 2 info
+      await staking.setStakingInfo(startTime1, 10);
+      expect(await staking.totalRewards()).to.be.equal(515);
+
+      // Update FlamePerSecond to 5
+      await staking.setFlamePerSecond(5);
+      expect(await staking.totalRewards()).to.be.equal(555);
+
+      // Period 2, after 5 seconds
+      await setNextBlockTimestamp(startTime1 + 5);
+      await mineBlock();
+      expect(await staking.totalRewards()).to.be.equal(555);
+    });
+
+    it("Period 1 -> setFlamePerSecond -> setStakingInfo -> Period 2", async () => {
+      // stakingPeriod = 10
+      // flamePerSecond = 100
+      await staking.setStakingInfo(startTime, 10);
+      await staking.setFlamePerSecond(100);
+
+      // Period 1, after 5 seconds, update flamePerSecond
+      await setNextBlockTimestamp(startTime + 5);
+      await staking.setFlamePerSecond(1);
+      expect(await staking.totalRewards()).to.be.equal(505);
+
+      // Period 1 ended
+      const startTime1 = startTime + 1000;
+      await setNextBlockTimestamp(startTime + 11);
+
+      // Update FlamePerSecond to 5
+      await staking.setFlamePerSecond(5);
+      expect(await staking.totalRewards()).to.be.equal(505);
+
+      // Set Period 2 info
+      await staking.setStakingInfo(startTime1, 10);
+      expect(await staking.totalRewards()).to.be.equal(555);
+
+      // Period 2, after 5 seconds
+      await setNextBlockTimestamp(startTime1 + 5);
+      await mineBlock();
+      expect(await staking.totalRewards()).to.be.equal(555);
     });
   });
 
