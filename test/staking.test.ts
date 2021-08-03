@@ -185,6 +185,141 @@ describe('Staking Pool', () => {
     });
   });
 
+  describe("Total rewards", () => {
+    it("Should involve several periods", async () => {
+      const totalRewards = flamePerSecond.mul(stakingPeriod);
+      
+      // at start
+      await setNextBlockTimestamp(startTime);
+      await mineBlock();
+      expect(await staking.totalRewards()).to.be.equal(totalRewards);
+
+      // in the middle
+      await setNextBlockTimestamp(startTime + stakingPeriod / 2);
+      await mineBlock();
+      expect(await staking.totalRewards()).to.be.equal(totalRewards);
+
+      // after the end
+      await setNextBlockTimestamp(startTime + stakingPeriod + 1000);
+      await mineBlock();
+      expect(await staking.totalRewards()).to.be.equal(totalRewards);
+
+      // new period is set
+      const startTime2 = startTime + stakingPeriod + 10000;
+      const stakingPeriod2 = stakingPeriod * 2;
+      const flamePerSecond2 = flamePerSecond.mul(2);
+      const totalRewards2 = flamePerSecond2.mul(stakingPeriod2);
+      await staking.setFlamePerSecond(flamePerSecond2);
+      expect(await staking.totalRewards()).to.be.equal(totalRewards);
+
+      await staking.setStakingInfo(startTime2, stakingPeriod2);
+      expect(await staking.totalRewards()).to.be.equal(totalRewards.add(totalRewards2));
+
+      await staking.setFlamePerSecond(flamePerSecond2);
+      expect(await staking.totalRewards()).to.be.equal(totalRewards.add(totalRewards2));
+
+      // set several times
+      await staking.setStakingInfo(startTime2 + 1, stakingPeriod2);
+      expect(await staking.totalRewards()).to.be.equal(totalRewards.add(totalRewards2));
+
+      // set several times
+      await staking.setStakingInfo(startTime2 + 2, stakingPeriod2);
+      expect(await staking.totalRewards()).to.be.equal(totalRewards.add(totalRewards2));
+
+      // after started
+      await setNextBlockTimestamp(startTime2 + stakingPeriod2 / 2);
+      await mineBlock();
+      expect(await staking.totalRewards()).to.be.equal(totalRewards.add(totalRewards2));
+    });
+
+    it("FlamePerSecond is updated serveral times in one staking period", async () => {
+      // at start
+      let totalRewards = flamePerSecond.mul(stakingPeriod);
+      await setNextBlockTimestamp(startTime);
+      await mineBlock();
+      expect(await staking.totalRewards()).to.be.equal(totalRewards);
+
+      // increase
+      const flamePerSecond2 = flamePerSecond.mul(2);
+      totalRewards = flamePerSecond.mul(stakingPeriod / 5).add(flamePerSecond2.mul(stakingPeriod * 4 / 5));
+      await setNextBlockTimestamp(startTime + stakingPeriod / 5);
+      await staking.setFlamePerSecond(flamePerSecond2);
+      expect(await staking.totalRewards()).to.be.equal(totalRewards);
+
+      // increase
+      const flamePerSecond3 = flamePerSecond2.mul(3);
+      totalRewards = flamePerSecond.mul(stakingPeriod / 5).add(flamePerSecond2.mul(stakingPeriod / 5)).add(flamePerSecond3.mul(stakingPeriod * 3 / 5));
+      await setNextBlockTimestamp(startTime + stakingPeriod * 2 / 5);
+      await staking.setFlamePerSecond(flamePerSecond3);
+      expect(await staking.totalRewards()).to.be.equal(totalRewards);
+
+      // decrease
+      const flamePerSecond4 = flamePerSecond2.div(2);
+      totalRewards = flamePerSecond.mul(stakingPeriod / 5).add(flamePerSecond2.mul(stakingPeriod / 5)).add(flamePerSecond3.mul(stakingPeriod / 5)).add(flamePerSecond4.mul(stakingPeriod * 2 / 5));
+      await setNextBlockTimestamp(startTime + stakingPeriod * 3 / 5);
+      await staking.setFlamePerSecond(flamePerSecond4);
+      expect(await staking.totalRewards()).to.be.equal(totalRewards);
+    });
+
+    it("Period 1 -> setStakingInfo -> setFlamePerSecond -> Period 2", async () => {
+      // stakingPeriod = 10
+      // flamePerSecond = 100
+      await staking.setStakingInfo(startTime, 10);
+      await staking.setFlamePerSecond(100);
+
+      // Period 1, after 5 seconds, update flamePerSecond
+      await setNextBlockTimestamp(startTime + 5);
+      await staking.setFlamePerSecond(1);
+      expect(await staking.totalRewards()).to.be.equal(505);
+
+      // Period 1 ended
+      const startTime1 = startTime + 1000;
+      await setNextBlockTimestamp(startTime + 11);
+
+      // Set Period 2 info
+      await staking.setStakingInfo(startTime1, 10);
+      expect(await staking.totalRewards()).to.be.equal(515);
+
+      // Update FlamePerSecond to 5
+      await staking.setFlamePerSecond(5);
+      expect(await staking.totalRewards()).to.be.equal(555);
+
+      // Period 2, after 5 seconds
+      await setNextBlockTimestamp(startTime1 + 5);
+      await mineBlock();
+      expect(await staking.totalRewards()).to.be.equal(555);
+    });
+
+    it("Period 1 -> setFlamePerSecond -> setStakingInfo -> Period 2", async () => {
+      // stakingPeriod = 10
+      // flamePerSecond = 100
+      await staking.setStakingInfo(startTime, 10);
+      await staking.setFlamePerSecond(100);
+
+      // Period 1, after 5 seconds, update flamePerSecond
+      await setNextBlockTimestamp(startTime + 5);
+      await staking.setFlamePerSecond(1);
+      expect(await staking.totalRewards()).to.be.equal(505);
+
+      // Period 1 ended
+      const startTime1 = startTime + 1000;
+      await setNextBlockTimestamp(startTime + 11);
+
+      // Update FlamePerSecond to 5
+      await staking.setFlamePerSecond(5);
+      expect(await staking.totalRewards()).to.be.equal(505);
+
+      // Set Period 2 info
+      await staking.setStakingInfo(startTime1, 10);
+      expect(await staking.totalRewards()).to.be.equal(555);
+
+      // Period 2, after 5 seconds
+      await setNextBlockTimestamp(startTime1 + 5);
+      await mineBlock();
+      expect(await staking.totalRewards()).to.be.equal(555);
+    });
+  });
+
   describe("PendingFlame", () => {
     /**
      * when lp supply is zero
