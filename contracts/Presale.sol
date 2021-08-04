@@ -253,7 +253,6 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
             "setStartTime: Should be time in future"
         );
 
-        isPrivateSaleOver = true;
         startTime = newStartTime;
 
         emit StartTimeSet(newStartTime);
@@ -425,7 +424,7 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
      * @return True: in Presale, False: not started or already ended
      */
     function isPresaleGoing() public view returns (bool) {
-        if (isPresalePaused) return false;
+        if (isPresalePaused || isPrivateSaleOver == false) return false;
 
         if (_getDepositedRewardTokenAmount() < initialRewardAmount)
             return false;
