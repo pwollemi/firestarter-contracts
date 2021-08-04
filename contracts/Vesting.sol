@@ -205,7 +205,7 @@ contract Vesting is Initializable {
      * Warning: Take care of re-entrancy attack here.
      * Reward tokens are from not our own, which means
      * re-entrancy can happen when the transfer happens.
-     * For now, we do checks-effects-interactsions, but
+     * For now, we do checks-effects-interactions, but
      * for absolute safety, we may use reentracny guard.
      */
     function withdraw() external {
