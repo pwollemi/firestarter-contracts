@@ -157,4 +157,37 @@ describe('Whitelist', () => {
       }));
     });
   });
+
+  describe("analysis support", () => {
+    it("users list", async () => {
+      await whitelist.addToWhitelist(fakeUsers);
+      expect(await whitelist.totalUsers()).to.equal(fakeUsers.length);
+
+      expect(await whitelist.getUsers(0, fakeUsers.length)).to.eql(fakeUsers.map(u => u.wallet));
+      expect(await whitelist.getUsers(1, 3)).to.eql(fakeUsers.slice(3, 6).map(u => u.wallet));
+      expect(await whitelist.getUsers(1, 4)).to.eql(fakeUsers.slice(4, 8).map(u => u.wallet));
+    });
+
+    it("users list - remove", async () => {
+      await whitelist.addToWhitelist(fakeUsers);
+      expect(await whitelist.totalUsers()).to.equal(fakeUsers.length);
+
+      expect(await whitelist.getUsers(0, fakeUsers.length)).to.eql(fakeUsers.map(u => u.wallet));
+
+      await whitelist.removeFromWhitelist([fakeUsers[3].wallet]);
+      expect(await whitelist.getUsers(1, 3)).to.eql([
+        fakeUsers[fakeUsers.length - 1].wallet,
+        fakeUsers[4].wallet,
+        fakeUsers[5].wallet
+      ]);
+
+      await whitelist.removeFromWhitelist([fakeUsers[4].wallet]);
+      expect(await whitelist.getUsers(1, 4)).to.eql([
+        fakeUsers[fakeUsers.length - 2].wallet,
+        fakeUsers[5].wallet,
+        fakeUsers[6].wallet,
+        fakeUsers[7].wallet
+      ]);
+    });
+  });
 });
