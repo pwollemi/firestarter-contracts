@@ -87,6 +87,10 @@ contract Staking is Initializable, OwnableUpgradeable {
      * @param _startTime The staking start time.
      */
     function initialize(IERC20 _flame, IERC20 _lpToken, uint256 _startTime) external initializer {
+        require(address(_flame) != address(0), "initialize: FLAME token address cannot be zero");
+        require(address(_lpToken) != address(0), "initialize: LP token address cannot be zero");
+        require(_startTime > block.timestamp, "initialize: staking start time must be in the future");
+
         __Ownable_init();
 
         FLAME = _flame;
@@ -104,6 +108,7 @@ contract Staking is Initializable, OwnableUpgradeable {
      * @param _earlyWithdrawal The new earlyWithdrawal
      */
     function setEarlyWithdrawal(uint256 _earlyWithdrawal) external onlyOwner {
+        require(stakingPeriod > _earlyWithdrawal, "setEarlyWithdrawal: early withdrawal should be shorter than staking period");
         earlyWithdrawal = _earlyWithdrawal;
         emit LogEarlyWithdrawal(_earlyWithdrawal);
     }
