@@ -520,4 +520,10 @@ describe('Staking Pool', () => {
         .withArgs(bob.address, getBigNumber(1), bob.address);
     });
   });
+
+  describe("Renoucne Ownership", () => {
+    it("Should revert when call renoucne ownership", async () => {
+      await expect(staking.connect(deployer).renounceOwnership()).to.be.reverted;
+    });
+  });
 });

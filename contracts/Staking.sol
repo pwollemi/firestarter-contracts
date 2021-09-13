@@ -373,4 +373,8 @@ contract Staking is Initializable, OwnableUpgradeable {
     function isEarlyWithdrawl(uint256 lastDepositedTime) internal view returns (bool isEarly) {
         isEarly = block.timestamp <= lastDepositedTime + earlyWithdrawal;
     }
+
+    function renounceOwnership() public override onlyOwner {
+        revert();
+    }
 }
