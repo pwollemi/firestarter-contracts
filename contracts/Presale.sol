@@ -372,6 +372,9 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
         uint256 feeAmount = balance.mul(serviceFee).div(accuracy);
         uint256 actualFunds = balance.sub(feeAmount);
 
+        emit WithdrawFunds(projectOwner, actualFunds, block.timestamp);
+        emit WithdrawFunds(treasury, feeAmount, block.timestamp);
+
         require(
             IERC20(fundToken).transfer(projectOwner, actualFunds),
             "withdraw: can't withdraw funds"
@@ -380,9 +383,6 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
             IERC20(fundToken).transfer(treasury, feeAmount),
             "withdraw: can't withdraw service fee"
         );
-
-        emit WithdrawFunds(projectOwner, actualFunds, block.timestamp);
-        emit WithdrawFunds(treasury, feeAmount, block.timestamp);
     }
 
     /**
@@ -399,6 +399,8 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
         uint256 totalSoldAmount = privateSoldAmount.add(publicSoldAmount);
         uint256 unsoldAmount = totalBalance.sub(totalSoldAmount);
 
+        emit WithdrawUnsoldToken(projectOwner, unsoldAmount, block.timestamp);
+
         require(
             IERC20(rewardToken).transferFrom(
                 address(vesting),
@@ -407,8 +409,6 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
             ),
             "withdraw: can't withdraw funds"
         );
-
-        emit WithdrawUnsoldToken(projectOwner, unsoldAmount, block.timestamp);
     }
 
     /**

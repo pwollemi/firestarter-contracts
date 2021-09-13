@@ -79,17 +79,17 @@ contract TokenLock is Initializable {
      * @param _amount is the flame amount to lock
      */
     function lock(uint256 _amount) external {
-        require(
-            IERC20(token).transferFrom(msg.sender, address(this), _amount),
-            "TokenLock: IERC20(token).TransferFrom: Failed to lock!"
-        );
-
         LockInfo storage lockInfo = lockedBalance[msg.sender];
         lockInfo.amount = lockInfo.amount.add(_amount);
         lockInfo.lastLockedTime = block.timestamp;
         totalLocked = totalLocked.add(_amount);
 
         emit Locked(msg.sender, _amount);
+
+        require(
+            IERC20(token).transferFrom(msg.sender, address(this), _amount),
+            "TokenLock: IERC20(token).TransferFrom: Failed to lock!"
+        );
     }
 
     /**
@@ -100,6 +100,11 @@ contract TokenLock is Initializable {
 
         require(lockInfo.amount > 0, "Not locked");
         require(lockInfo.amount >= _amount, "Exceeds locked amount");
+
+        totalLocked = totalLocked.sub(_amount);
+        lockInfo.amount = lockInfo.amount.sub(_amount);
+
+        emit Unlocked(msg.sender, _amount);
 
         uint256 penaltyRate = _getPenaltyRate(block.timestamp - lockInfo.lastLockedTime);
         uint256 penalty = _amount.mul(penaltyRate).div(100);
@@ -118,11 +123,6 @@ contract TokenLock is Initializable {
                 "TokenLock: IERC20(token).Transfer: Failed to burn!"
             );
         }
-
-        totalLocked = totalLocked.sub(_amount);
-        lockInfo.amount = lockInfo.amount.sub(_amount);
-
-        emit Unlocked(msg.sender, _amount);
     }
 
     /**
