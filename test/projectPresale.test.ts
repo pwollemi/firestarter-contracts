@@ -32,8 +32,6 @@ describe('Project Presale', () => {
     });
 
     beforeEach(async () => {
-        const initialOwners = [signers[0].address, signers[1].address];
-
         fundToken = <CustomToken>await deployContract("CustomToken", "Fund Token", "FT", totalTokenSupply);
         rewardToken = <CustomToken>await deployContract("CustomToken", "Reward Token", "RT", totalTokenSupply);
 
@@ -61,7 +59,7 @@ describe('Project Presale', () => {
             initialRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
         };
 
-        const project = await deployCampaign("ProjectPresale", initialOwners, vestingParams, addresses, presaleParams);
+        const project = await deployCampaign("ProjectPresale", vestingParams, addresses, presaleParams);
         whitelist = project.whitelist;
         vesting = project.vesting;
         presale = <ProjectPresale>project.presale;

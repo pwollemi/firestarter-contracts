@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./libraries/AddressPagination.sol";
 import "./interfaces/IERC20.sol";
@@ -14,7 +14,7 @@ import "./interfaces/IVesting.sol";
 /// @author Michael, Daniel Lee
 /// @notice You can use this contract for presale of projects
 /// @dev All function calls are currently implemented without side effects
-contract Presale is Initializable, AccessControlEnumerableUpgradeable {
+contract Presale is Initializable, OwnableUpgradeable {
     using SafeMath for uint256;
     using AddressPagination for address[];
 
@@ -153,11 +153,6 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
     /// @notice An event emitted when startTime is set
     event StartTimeSet(uint256 startTime);
 
-    modifier onlyOwner() {
-        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Requires Owner Role");
-        _;
-    }
-
     modifier whileOnGoing() {
         require(isPresaleGoing(), "Presale is not in progress");
         _;
@@ -186,18 +181,9 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
 
     function initialize(
         AddressParams memory _addrs,
-        PresaleParams memory _presale,
-        address[] memory owners
+        PresaleParams memory _presale
     ) external initializer {
-        __AccessControlEnumerable_init();
-
-        // msg.sender will be factory contract
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-
-        // Grant admin role to owners
-        for (uint256 i = 0; i < owners.length; i++) {
-            _setupRole(DEFAULT_ADMIN_ROLE, owners[i]);
-        }
+        __Ownable_init();
 
         fundToken = _addrs.fundToken;
         rewardToken = _addrs.rewardToken;

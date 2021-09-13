@@ -33,8 +33,6 @@ describe('Firestarter Presale', () => {
     });
 
     beforeEach(async () => {
-        const initialOwners = [signers[0].address, signers[1].address];
-
         fundToken = <CustomToken>await deployContract("CustomToken", "Fund Token", "FT", totalTokenSupply);
         rewardToken = <CustomToken>await deployContract("CustomToken", "Reward Token", "RT", totalTokenSupply);
 
@@ -62,7 +60,7 @@ describe('Firestarter Presale', () => {
             initialRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
         };
 
-        const project = await deployCampaign("FirestarterPresale", initialOwners, vestingParams, addresses, presaleParams);
+        const project = await deployCampaign("FirestarterPresale", vestingParams, addresses, presaleParams);
         whitelist = project.whitelist;
         vesting = project.vesting;
         presale = <FirestarterPresale>project.presale;
@@ -88,12 +86,11 @@ describe('Firestarter Presale', () => {
         it("Only owners can do this operation", async () => {
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
 
-            await expect(presale.connect(signers[2]).depositPrivateSale(signers[2].address, 1)).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[3]).depositPrivateSale(signers[2].address, 1)).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[4]).depositPrivateSale(signers[2].address, 1)).to.be.revertedWith("Requires Owner Role");
+            await expect(presale.connect(signers[2]).depositPrivateSale(signers[2].address, 1)).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[3]).depositPrivateSale(signers[2].address, 1)).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[4]).depositPrivateSale(signers[2].address, 1)).to.be.revertedWith("Ownable: caller is not the owner");
 
             await presale.connect(signers[0]).depositPrivateSale(signers[2].address, 1);
-            await presale.connect(signers[1]).depositPrivateSale(signers[2].address, 1);
         });
 
         it("Can do this only when enough amount is deposited", async () => {
