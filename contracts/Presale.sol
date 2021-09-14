@@ -107,19 +107,19 @@ contract Presale is Initializable, OwnableUpgradeable {
     /// @notice Presale remaining time if paused
     uint256 public currentPresalePeriod;
 
-    /// @dev Reward token amount sold by Private Sale
+    /// @dev Reward token amount sold by Private Sale (initialize with default value)
     uint256 public privateSoldAmount;
 
-    /// @notice Reward token amount sold by Public Sale
+    /// @notice Reward token amount sold by Public Sale (initialize with default value)
     uint256 public publicSoldAmount;
 
-    /// @notice Record of fund token amount sold in Private Presale;
+    /// @notice Record of fund token amount sold in Private Presale (initialize with default value)
     mapping(address => uint256) public privateSoldFunds;
 
-    /// @notice Participants information
+    /// @notice Participants information (initialize with default value)
     mapping(address => Recipient) public recipients;
 
-    // Participants list
+    // Participants list (initialize with default value)
     address[] internal participants;
     mapping(address => uint256) internal indexOf;
     mapping(address => bool) internal inserted;
