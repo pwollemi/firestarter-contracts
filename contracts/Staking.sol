@@ -244,9 +244,9 @@ contract Staking is Initializable, OwnableUpgradeable {
         user.amount = user.amount.add(amount);
         user.rewardDebt = user.rewardDebt.add((amount.mul(accFlamePerShare) / ACC_FLAME_PRECISION).toInt256());
 
-        lpToken.safeTransferFrom(msg.sender, address(this), amount);
-
         emit Deposit(msg.sender, amount, to);
+
+        lpToken.safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /**
@@ -264,6 +264,9 @@ contract Staking is Initializable, OwnableUpgradeable {
         user.rewardDebt = accumulatedFlame.sub((amount.mul(accFlamePerShare) / ACC_FLAME_PRECISION).toInt256());
         user.amount = user.amount.sub(amount);
         
+        emit Withdraw(msg.sender, amount, to);
+        emit Harvest(msg.sender, _pendingFlame);
+
         // Interactions
         if (isEarlyWithdrawl(user.lastDepositedAt)) {
             FLAME.safeTransfer(to, _pendingFlame.div(2));
@@ -273,9 +276,6 @@ contract Staking is Initializable, OwnableUpgradeable {
         }
 
         lpToken.safeTransfer(to, amount);
-
-        emit Withdraw(msg.sender, amount, to);
-        emit Harvest(msg.sender, _pendingFlame);
     }
 
     /**
@@ -292,6 +292,8 @@ contract Staking is Initializable, OwnableUpgradeable {
         // Effects
         user.rewardDebt = accumulatedFlame;
 
+        emit Harvest(msg.sender, _pendingFlame);
+
         // Interactions
         if (_pendingFlame != 0) {
             if (isEarlyWithdrawl(user.lastDepositedAt)) {
@@ -301,8 +303,6 @@ contract Staking is Initializable, OwnableUpgradeable {
                 FLAME.safeTransfer(to, _pendingFlame);
             }
         }
-        
-        emit Harvest(msg.sender, _pendingFlame);
     }
 
     /**
@@ -315,9 +315,10 @@ contract Staking is Initializable, OwnableUpgradeable {
         user.amount = 0;
         user.rewardDebt = 0;
 
+        emit EmergencyWithdraw(msg.sender, amount, to);
+
         // Note: transfer can fail or succeed if `amount` is zero.
         lpToken.safeTransfer(to, amount);
-        emit EmergencyWithdraw(msg.sender, amount, to);
     }
 
     /**
