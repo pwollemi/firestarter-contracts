@@ -221,6 +221,10 @@ contract Presale is Initializable, OwnableUpgradeable {
      */
     function endPrivateSale() external onlyOwner {
         isPrivateSaleOver = true;
+
+        if (startTime < block.timestamp)
+            startTime = block.timestamp;
+
         emit PrivateSaleDone(block.timestamp);
     }
 
@@ -231,7 +235,7 @@ contract Presale is Initializable, OwnableUpgradeable {
      */
     function setStartTime(uint256 newStartTime) external onlyOwner {
         require(
-            startTime >= block.timestamp,
+            startTime >= block.timestamp || isPrivateSaleOver == false,
             "setStartTime: Presale already started"
         );
         require(
