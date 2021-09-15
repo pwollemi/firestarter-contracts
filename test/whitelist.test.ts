@@ -38,7 +38,22 @@ describe('Whitelist', () => {
       await expect(whitelist.connect(signers[4]).addToWhitelist(fakeUsers)).to.be.revertedWith("Ownable: caller is not the owner");
       await whitelist.connect(signers[0]).addToWhitelist(fakeUsers.slice(0, 4));
     });
-  
+
+    it("Input length shouldn't exceed MAX_ARRAY_LENGTH", async () => {
+      const maxlength = await whitelist.MAX_ARRAY_LENGTH();
+      const inputArray = Array(maxlength.toNumber() + 1).fill(0).map((i) => ({
+        wallet: ethers.constants.AddressZero,
+        isKycPassed: true,
+        maxAlloc: 10,
+        allowedPrivateSale: false,
+        privateMaxAlloc: BigNumber.from("0")
+      }));
+      await expect(whitelist.addToWhitelist(inputArray)).to.be.revertedWith("addToWhitelist: users length shouldn't exceed MAX_ARRAY_LENGTH");
+
+      // succeed with maxLength
+      await whitelist.addToWhitelist(inputArray.slice(0, 50));
+    });
+    
     it("Attempt to add one user. AddedOrRemoved event is emitted.", async () => {
       const nextTimestamp = (await getLatestBlockTimestamp()) + 100;
       const fakeUser = {
@@ -97,7 +112,16 @@ describe('Whitelist', () => {
       await expect(whitelist.connect(signers[4]).removeFromWhitelist([signers[0].address])).to.be.revertedWith("Ownable: caller is not the owner");
       await whitelist.connect(signers[0]).removeFromWhitelist([signers[0].address]);
     });
-  
+
+    it("Input length shouldn't exceed MAX_ARRAY_LENGTH", async () => {
+      const maxlength = await whitelist.MAX_ARRAY_LENGTH();
+      const inputArray = Array(maxlength.toNumber() + 1).fill(0).map(() => ethers.constants.AddressZero);
+      await expect(whitelist.removeFromWhitelist(inputArray)).to.be.revertedWith("removeFromWhitelist: users length shouldn't exceed MAX_ARRAY_LENGTH");
+
+      // succeed with maxLength
+      await whitelist.removeFromWhitelist(inputArray.slice(0, 50));
+    });
+
     it("Attempt to remove one user. AddedOrRemoved event is emitted.", async () => {
       const nextTimestamp = (await getLatestBlockTimestamp()) + 100;
       const fakeUser = {

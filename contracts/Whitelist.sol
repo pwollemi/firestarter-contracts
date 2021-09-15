@@ -28,6 +28,9 @@ contract Whitelist is Initializable, OwnableUpgradeable {
         uint256 privateMaxAlloc;
     }
 
+    /// @notice Maximum input array length(used in `addToWhitelist`, `removeFromWhitelist`)
+    uint256 public constant MAX_ARRAY_LENGTH = 50;
+
     /// @notice Count of users participating in whitelisting
     uint256 public totalUsers;
 
@@ -66,6 +69,8 @@ contract Whitelist is Initializable, OwnableUpgradeable {
      * @param users List of user data
      */
     function addToWhitelist(UserData[] memory users) external onlyOwner {
+        require(users.length <= MAX_ARRAY_LENGTH, "addToWhitelist: users length shouldn't exceed MAX_ARRAY_LENGTH");
+
         for (uint256 i = 0; i < users.length; i++) {
             UserData memory user = users[i];
             WL[user.wallet] = user;
@@ -87,6 +92,8 @@ contract Whitelist is Initializable, OwnableUpgradeable {
      * @param addrs addresses to be removed
      */
     function removeFromWhitelist(address[] memory addrs) external onlyOwner {
+        require(addrs.length <= MAX_ARRAY_LENGTH, "removeFromWhitelist: users length shouldn't exceed MAX_ARRAY_LENGTH");
+
         for (uint256 i = 0; i < addrs.length; i++) {
             // Ignore for non-existing users
             if (WL[addrs[i]].wallet != address(0)) {
