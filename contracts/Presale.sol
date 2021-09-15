@@ -259,11 +259,6 @@ contract Presale is Initializable, OwnableUpgradeable {
             "startPresale: Presale has been already started!"
         );
 
-        require(
-            _getDepositedRewardTokenAmount() != 0,
-            "startPresale: Please deposit rewardToken tokens to vesting contract first!"
-        );
-
         startTime = block.timestamp;
 
         emit PresaleManuallyStarted(block.timestamp);
