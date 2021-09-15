@@ -186,6 +186,16 @@ contract Presale is Initializable, OwnableUpgradeable {
         AddressParams memory _addrs,
         PresaleParams memory _presale
     ) external initializer {
+        require(_addrs.fundToken != address(0), "initialize: fund token address cannot be zero");
+        require(_addrs.rewardToken != address(0), "initialize: reward token address cannot be zero");
+        require(_addrs.projectOwner != address(0), "initialize: project owner address cannot be zero");
+        require(_addrs.whitelist != address(0), "initialize: whitelisting contract address cannot be zero");
+        require(_addrs.vesting != address(0), "initialize: vesting contract address cannot be zero");
+
+        require(_presale.startTime > block.timestamp, "initialize: start time must be in the future");
+        require(_presale.rate > 0, "initialize: exchange rate cannot be zero");
+        require(_presale.period > 0, "initialize: presale period cannot be zero");
+
         __Ownable_init();
 
         fundToken = _addrs.fundToken;

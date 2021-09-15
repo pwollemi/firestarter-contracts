@@ -102,7 +102,9 @@ contract Vesting is Initializable {
     }
 
     function initialize(address _rewardToken, VestingParams memory _params) external initializer {
-        require(_params.releaseInterval > 0);
+        require(_rewardToken != address(0), "initialize: rewardToken cannot be zero");
+        require(_params.releaseRate > 0, "initialize: release rate cannot be zero");
+        require(_params.releaseInterval > 0, "initialize: release interval cannot be zero");
 
         owner = msg.sender;
         rewardToken = _rewardToken;
@@ -136,6 +138,7 @@ contract Vesting is Initializable {
      * @param presale Presale contract address
      */
     function init(address presale) external onlyOwner {
+        require(presale != address(0), "init: owner cannot be zero");
         owner = presale;
         require(IERC20(rewardToken).approve(presale, type(uint256).max), "init: Cannot approve owner");
     }

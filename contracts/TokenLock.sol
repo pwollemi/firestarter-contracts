@@ -36,6 +36,7 @@ contract TokenLock is Initializable {
     event Unlocked(address locker, uint256 amount);
 
     function initialize(address _token) external initializer {
+        require(_token != address(0), "initialize: token address cannot be zero");
         token = _token;
     }
 

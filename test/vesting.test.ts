@@ -44,6 +44,10 @@ describe('Vesting', () => {
       await vesting.connect(signers[0]).init(signers[1].address);
     });
 
+    it("Cannot set zero address", async () => {
+      await expect(vesting.connect(signers[0]).init(ethers.constants.AddressZero)).to.be.revertedWith("init: owner cannot be zero");
+    });
+
     it("Init updates the owner", async () => {
       await vesting.connect(signers[0]).init(signers[1].address);
       expect(await vesting.owner()).to.be.equal(signers[1].address);
