@@ -96,6 +96,9 @@ contract Vesting is Initializable {
     /// @notice An event emitted when startTime is set
     event StartTimeSet(uint256 startTime);
 
+    /// @notice An event emitted when owner is updated
+    event OwnerUpdated(address newOwner);
+
     modifier onlyOwner() {
         require(owner == msg.sender, "Requires Owner Role");
         _;
@@ -140,6 +143,7 @@ contract Vesting is Initializable {
     function init(address presale) external onlyOwner {
         require(presale != address(0), "init: owner cannot be zero");
         owner = presale;
+        emit OwnerUpdated(presale);
         require(IERC20(rewardToken).approve(presale, type(uint256).max), "init: Cannot approve owner");
     }
 
