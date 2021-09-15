@@ -49,7 +49,6 @@ async function main() {
         startTime: timestamp + 300, // in 10 mins // timestamp + 86400, // tomorrow
         period: 7200, // 2 hours , // 1 week,
         serviceFee: "500000000", // 5%,
-        goalFunds: "10000000000", // just placholder we can ignore for now,
         initialRewardsAmount: testVestingAmount // 10k tokens will be deposited to vesting
     };
 
@@ -79,7 +78,7 @@ async function main() {
     await project.whitelist.addToWhitelist([{
         wallet: "0x4FB2bb19Df86feF113b2016E051898065f963CC5",
         isKycPassed: true,
-        maxAlloc: ethers.utils.parseUnits("10000000", 18),
+        publicMaxAlloc: ethers.utils.parseUnits("10000000", 18),
         allowedPrivateSale: true,
         privateMaxAlloc: ethers.utils.parseUnits("10000000", 18)
     }])

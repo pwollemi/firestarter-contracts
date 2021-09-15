@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.0;
-pragma experimental ABIEncoderV2;
+pragma abicoder v2;
 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./libraries/AddressPagination.sol";
 import "./interfaces/IERC20.sol";
@@ -12,7 +11,6 @@ import "./interfaces/IERC20.sol";
 /// @notice You can use this contract for token vesting
 /// @dev All function calls are currently implemented without side effects
 contract Vesting is Initializable {
-    using SafeMath for uint256;
     using AddressPagination for address[];
 
     struct VestingParams {
@@ -39,8 +37,8 @@ contract Vesting is Initializable {
         uint256 amountWithdrawn;
     }
 
-    /// @notice General decimal values accuracy unless specified differently (e.g. fees, exchange rates)
-    uint256 public constant accuracy = 1e10;
+    /// @notice General decimal values ACCURACY unless specified differently (e.g. fees, exchange rates)
+    uint256 public constant ACCURACY = 1e10;
 
     /*************************** Vesting Params *************************/
 
@@ -88,16 +86,16 @@ contract Vesting is Initializable {
     mapping(address => bool) internal inserted;
 
     /// @notice An event emitted when the vesting schedule is updated.
-    event VestingInfoUpdated(address registeredAddress, uint256 totalAmount);
+    event VestingInfoUpdated(address indexed registeredAddress, uint256 totalAmount);
 
     /// @notice An event emitted when withdraw happens
-    event Withdraw(address registeredAddress, uint256 amountWithdrawn);
+    event Withdraw(address indexed registeredAddress, uint256 amountWithdrawn);
 
     /// @notice An event emitted when startTime is set
     event StartTimeSet(uint256 startTime);
 
     /// @notice An event emitted when owner is updated
-    event OwnerUpdated(address newOwner);
+    event OwnerUpdated(address indexed newOwner);
 
     modifier onlyOwner() {
         require(owner == msg.sender, "Requires Owner Role");
@@ -131,7 +129,11 @@ contract Vesting is Initializable {
     /**
      * @notice Return the list of participants
      */
-    function getParticipants(uint256 page, uint256 limit) external view returns (address[] memory) {
+    function getParticipants(uint256 page, uint256 limit)
+        external
+        view
+        returns (address[] memory)
+    {
         return participants.paginate(page, limit);
     }
 
@@ -144,7 +146,10 @@ contract Vesting is Initializable {
         require(presale != address(0), "init: owner cannot be zero");
         owner = presale;
         emit OwnerUpdated(presale);
-        require(IERC20(rewardToken).approve(presale, type(uint256).max), "init: Cannot approve owner");
+        require(
+            IERC20(rewardToken).approve(presale, type(uint256).max),
+            "init: Cannot approve owner"
+        );
     }
 
     /**
@@ -161,9 +166,7 @@ contract Vesting is Initializable {
         require(amount > 0, "updateRecipient: Cannot vest 0");
 
         // remove previous amount and add new amount
-        totalVestingAmount = totalVestingAmount
-        .sub(recipients[recp].totalAmount)
-        .add(amount);
+        totalVestingAmount = totalVestingAmount + amount - recipients[recp].totalAmount;
 
         uint256 depositedAmount = IERC20(rewardToken).balanceOf(address(this));
         require(
@@ -188,18 +191,9 @@ contract Vesting is Initializable {
      * @param newStartTime New start time
      */
     function setStartTime(uint256 newStartTime) external onlyOwner {
-        // Check if enough amount is deposited to this contract
-        // require(IERC20(rewardToken).balanceOf(address(this)) >= amountToBeVested, "setStartTime: Enough amount of reward token should be vested.");
-
         // Only allow to change start time before the counting starts
-        require(
-            startTime == 0 || startTime >= block.timestamp,
-            "setStartTime: Already started"
-        );
-        require(
-            newStartTime > block.timestamp,
-            "setStartTime: Should be time in future"
-        );
+        require(startTime == 0 || startTime >= block.timestamp, "setStartTime: Already started");
+        require(newStartTime > block.timestamp, "setStartTime: Should be time in future");
 
         startTime = newStartTime;
 
@@ -234,21 +228,12 @@ contract Vesting is Initializable {
      * @param beneficiary address of the beneficiary
      * @return amount : Amount of vested tokens
      */
-    function vested(address beneficiary)
-        public
-        view
-        virtual
-        returns (uint256 amount)
-    {
-        uint256 lockEndTime = startTime.add(lockPeriod);
-        uint256 vestingEndTime = lockEndTime.add(vestingPeriod);
+    function vested(address beneficiary) public view virtual returns (uint256 amount) {
+        uint256 lockEndTime = startTime + lockPeriod;
+        uint256 vestingEndTime = lockEndTime + vestingPeriod;
         VestingInfo memory vestingInfo = recipients[beneficiary];
 
-        if (
-            startTime == 0 ||
-            vestingInfo.totalAmount == 0 ||
-            block.timestamp <= lockEndTime
-        ) {
+        if (startTime == 0 || vestingInfo.totalAmount == 0 || block.timestamp <= lockEndTime) {
             return 0;
         }
 
@@ -256,21 +241,11 @@ contract Vesting is Initializable {
             return vestingInfo.totalAmount;
         }
 
-        uint256 initialUnlockAmount = vestingInfo
-        .totalAmount
-        .mul(initialUnlock)
-        .div(accuracy);
-
-        uint256 unlockAmountPerInterval = vestingInfo
-        .totalAmount
-        .mul(releaseRate)
-        .div(accuracy);
-
-        uint256 vestedAmount = block.timestamp
-        .sub(lockEndTime)
-        .mul(unlockAmountPerInterval)
-        .div(releaseInterval)
-        .add(initialUnlockAmount);
+        uint256 initialUnlockAmount = (vestingInfo.totalAmount * initialUnlock) / ACCURACY;
+        uint256 unlockAmountPerInterval = (vestingInfo.totalAmount * releaseRate) / ACCURACY;
+        uint256 vestedAmount = ((block.timestamp - lockEndTime) * unlockAmountPerInterval) /
+            releaseInterval +
+            initialUnlockAmount;
 
         if (vestedAmount > vestingInfo.totalAmount) {
             return vestingInfo.totalAmount;
@@ -285,7 +260,7 @@ contract Vesting is Initializable {
     function locked(address beneficiary) public view returns (uint256) {
         uint256 totalAmount = recipients[beneficiary].totalAmount;
         uint256 vestedAmount = vested(beneficiary);
-        return totalAmount.sub(vestedAmount);
+        return totalAmount - vestedAmount;
     }
 
     /**
@@ -295,6 +270,6 @@ contract Vesting is Initializable {
     function withdrawable(address beneficiary) public view returns (uint256) {
         uint256 vestedAmount = vested(beneficiary);
         uint256 withdrawnAmount = recipients[beneficiary].amountWithdrawn;
-        return vestedAmount.sub(withdrawnAmount);
+        return vestedAmount - withdrawnAmount;
     }
 }

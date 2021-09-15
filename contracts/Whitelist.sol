@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.0;
-pragma experimental ABIEncoderV2;
+pragma abicoder v2;
 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./libraries/AddressPagination.sol";
@@ -12,7 +11,6 @@ import "./libraries/AddressPagination.sol";
 /// @notice You can use this contract to manage WL users
 /// @dev All function calls are currently implemented without side effects
 contract Whitelist is Initializable, OwnableUpgradeable {
-    using SafeMath for uint256;
     using AddressPagination for address[];
 
     struct UserData {
@@ -21,7 +19,7 @@ contract Whitelist is Initializable, OwnableUpgradeable {
         // Flag for KYC status
         bool isKycPassed;
         // Max allocation for this user in public presale
-        uint256 maxAlloc;
+        uint256 publicMaxAlloc;
         // Flag if this user is allowed to participate in private presale
         bool allowedPrivateSale;
         // Max allocation for this user in private presale
@@ -43,7 +41,7 @@ contract Whitelist is Initializable, OwnableUpgradeable {
     mapping(address => bool) internal inserted;
 
     /// @notice An event emitted when a user is added or removed. True: Added, False: Removed
-    event AddedOrRemoved(bool added, address user, uint256 timestamp);
+    event AddedOrRemoved(bool added, address indexed user, uint256 timestamp);
 
     function initialize() external initializer {
         __Ownable_init();
@@ -69,7 +67,10 @@ contract Whitelist is Initializable, OwnableUpgradeable {
      * @param users List of user data
      */
     function addToWhitelist(UserData[] memory users) external onlyOwner {
-        require(users.length <= MAX_ARRAY_LENGTH, "addToWhitelist: users length shouldn't exceed MAX_ARRAY_LENGTH");
+        require(
+            users.length <= MAX_ARRAY_LENGTH,
+            "addToWhitelist: users length shouldn't exceed MAX_ARRAY_LENGTH"
+        );
 
         for (uint256 i = 0; i < users.length; i++) {
             UserData memory user = users[i];
@@ -92,7 +93,10 @@ contract Whitelist is Initializable, OwnableUpgradeable {
      * @param addrs addresses to be removed
      */
     function removeFromWhitelist(address[] memory addrs) external onlyOwner {
-        require(addrs.length <= MAX_ARRAY_LENGTH, "removeFromWhitelist: users length shouldn't exceed MAX_ARRAY_LENGTH");
+        require(
+            addrs.length <= MAX_ARRAY_LENGTH,
+            "removeFromWhitelist: users length shouldn't exceed MAX_ARRAY_LENGTH"
+        );
 
         for (uint256 i = 0; i < addrs.length; i++) {
             // Ignore for non-existing users
@@ -135,6 +139,12 @@ contract Whitelist is Initializable, OwnableUpgradeable {
             uint256
         )
     {
-        return (WL[_user].wallet, WL[_user].isKycPassed, WL[_user].maxAlloc, WL[_user].allowedPrivateSale, WL[_user].privateMaxAlloc);
+        return (
+            WL[_user].wallet,
+            WL[_user].isKycPassed,
+            WL[_user].publicMaxAlloc,
+            WL[_user].allowedPrivateSale,
+            WL[_user].privateMaxAlloc
+        );
     }
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.0;
-pragma experimental ABIEncoderV2;
+pragma abicoder v2;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./Presale.sol";
@@ -36,12 +36,7 @@ contract ProjectFactory is Ownable {
     mapping(string => Project) public PL;
 
     /// @notice An event emitted when a new project is added
-    event AddProject(
-        address indexed sender,
-        string id,
-        Project project,
-        uint256 timestamp
-    );
+    event AddProject(address indexed sender, string id, Project project, uint256 timestamp);
 
     constructor() {}
 

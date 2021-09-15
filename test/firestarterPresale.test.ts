@@ -23,8 +23,8 @@ describe('Firestarter Presale', () => {
     let vestingParams: any;
     let addresses: any;
     let presaleParams: any;
-    let fakeUsers: { wallet: string; isKycPassed: boolean; maxAlloc: BigNumber; allowedPrivateSale: boolean, privateMaxAlloc: BigNumberish;}[] = [];
-    let accuracy: BigNumber;
+    let fakeUsers: { wallet: string; isKycPassed: boolean; publicMaxAlloc: BigNumber; allowedPrivateSale: boolean, privateMaxAlloc: BigNumberish;}[] = [];
+    let ACCURACY: BigNumber;
 
     before(async () => {
         signers = await ethers.getSigners();
@@ -56,7 +56,6 @@ describe('Firestarter Presale', () => {
             startTime: timestamp + 86400, // tomorrow
             period: 86400 * 7, // 1 week,
             serviceFee: "5000000000", // 5%,
-            goalFunds: "1000000000000", // just placholder we can ignore for now,
             initialRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
         };
 
@@ -72,14 +71,14 @@ describe('Firestarter Presale', () => {
 
         fakeUsers = signers.slice(0, 5).map((signer, i) => ({
             wallet: signer.address,
-            isKycPassed: i % 2 === 0,
-            maxAlloc: totalTokenSupply.div(10000),
+            isKycPassed: true,
+            publicMaxAlloc: totalTokenSupply.div(10000),
             allowedPrivateSale: false,
             privateMaxAlloc: 0
           }));
         await whitelist.addToWhitelist(fakeUsers);
 
-        accuracy = await presale.accuracy();
+        ACCURACY = await presale.ACCURACY();
     });
 
     describe("depositPrivateSale", async () => {
@@ -119,8 +118,8 @@ describe('Firestarter Presale', () => {
         it("Can deposit full allocation amount in private and public sale", async () => { 
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
 
-            const depositAmount = fakeUsers[1].maxAlloc;
-            const rewardAmount = depositAmount.mul(accuracy).div(presaleParams.rate);
+            const depositAmount = fakeUsers[1].publicMaxAlloc;
+            const rewardAmount = depositAmount.mul(ACCURACY).div(presaleParams.rate);
 
             // deposit public max allocation amount in private sale
             await presale.depositPrivateSale(signers[1].address, rewardAmount);
@@ -133,7 +132,7 @@ describe('Firestarter Presale', () => {
             await presale.connect(signers[1]).deposit(depositAmount);
 
             const totalRwdAmount = rewardAmount.mul(2);
-            const totalDepositAmount = totalRwdAmount.mul(presaleParams.rate).div(accuracy);
+            const totalDepositAmount = totalRwdAmount.mul(presaleParams.rate).div(ACCURACY);
             const recpInfo = await presale.recipients(signers[1].address);
             expect(recpInfo.ftBalance).to.be.equal(totalDepositAmount); // deposited amount only in public sale
             expect(recpInfo.rtBalance).to.be.equal(totalRwdAmount);
