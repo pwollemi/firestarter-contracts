@@ -137,7 +137,7 @@ contract Vesting is Initializable {
      */
     function init(address presale) external onlyOwner {
         owner = presale;
-        IERC20(rewardToken).approve(presale, type(uint256).max);
+        require(IERC20(rewardToken).approve(presale, type(uint256).max), "init: Cannot approve owner");
     }
 
     /**
