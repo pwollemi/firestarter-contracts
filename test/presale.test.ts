@@ -79,11 +79,20 @@ describe('Presale', () => {
 
         fakeUsers = signers.slice(0, 5).map((signer, i) => ({
             wallet: signer.address,
-            isKycPassed: i % 2 === 0,
+            isKycPassed: true,
             maxAlloc: totalTokenSupply.div(10000),
             allowedPrivateSale: false,
             privateMaxAlloc: 0
           }));
+
+        // add one user that hasn't passed KYC
+        fakeUsers.push({
+            wallet: signers[6].address,
+            isKycPassed: false,
+            maxAlloc: totalTokenSupply.div(10000),
+            allowedPrivateSale: false,
+            privateMaxAlloc: 0
+          })
         await whitelist.addToWhitelist(fakeUsers);
 
         accuracy = await presale.accuracy();
@@ -384,6 +393,15 @@ describe('Presale', () => {
             await presale.setStartTime(startTime);
             await presale.startPresale();
             await expect(presale.connect(signers[7]).deposit("1")).to.be.revertedWith("Deposit: Not exist on the whitelist");
+        });
+
+        it("Must be kyc passed user", async () => { 
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+            await presale.endPrivateSale();
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.startPresale();
+            await expect(presale.connect(signers[6]).deposit("1")).to.be.revertedWith("Deposit: Not passed KYC");
         });
 
         it("Can't exceed maxAlloc", async () => { 

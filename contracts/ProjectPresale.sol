@@ -30,10 +30,11 @@ contract ProjectPresale is Presale {
         );
 
         // check if user is in white list
-        (address user, , , bool allowedPrivateSale, uint256 privateMaxAlloc) = IWhitelist(whitelist).getUser(
+        (address user, bool isKycPassed, , bool allowedPrivateSale, uint256 privateMaxAlloc) = IWhitelist(whitelist).getUser(
             msg.sender
         );
         require(user != address(0), "depositPrivateSale: Not exist on the whitelist");
+        require(isKycPassed, "depositPrivateSale: Not passed KYC");
         require(allowedPrivateSale == true, "depositPrivateSale: Not allowed to participate in private sale");
 
         // calculate fund token balance after deposit

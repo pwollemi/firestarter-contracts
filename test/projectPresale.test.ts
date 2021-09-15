@@ -79,11 +79,21 @@ describe('Project Presale', () => {
 
         fakeUsers = signers.slice(0, 5).map((signer, i) => ({
             wallet: signer.address,
-            isKycPassed: i % 2 === 0,
+            isKycPassed: true,
             maxAlloc: totalTokenSupply.div(10000),
             allowedPrivateSale: true,
             privateMaxAlloc: totalTokenSupply.div(2000)
           }));
+
+        // add one user that hasn't passed KYC
+        fakeUsers.push({
+            wallet: signers[6].address,
+            isKycPassed: false,
+            maxAlloc: totalTokenSupply.div(10000),
+            allowedPrivateSale: false,
+            privateMaxAlloc: 0
+          })
+
         fakeUsers[3].allowedPrivateSale = false;
         fakeUsers[4].allowedPrivateSale = false;
         await whitelist.addToWhitelist(fakeUsers);
@@ -108,6 +118,11 @@ describe('Project Presale', () => {
         it("Must be whitelisted user", async () => { 
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await expect(presale.connect(signers[7]).depositPrivateSale("1")).to.be.revertedWith("depositPrivateSale: Not exist on the whitelist");
+        });
+
+        it("Must be kyc passed user", async () => { 
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+            await expect(presale.connect(signers[6]).depositPrivateSale("1")).to.be.revertedWith("depositPrivateSale: Not passed KYC");
         });
 
         it("Must be private sale allowed user", async () => { 

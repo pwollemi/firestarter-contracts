@@ -312,10 +312,11 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
      */
     function deposit(uint256 amount) external whileOnGoing {
         // check if user is in white list
-        (address user, , uint256 maxAlloc, ,) = IWhitelist(whitelist).getUser(
+        (address user, bool isKycPassed, uint256 maxAlloc, ,) = IWhitelist(whitelist).getUser(
             msg.sender
         );
         require(user != address(0), "Deposit: Not exist on the whitelist");
+        require(isKycPassed, "Deposit: Not passed KYC");
 
         // calculate fund token balance after deposit
         // we assume private sale is always finished before public sale starts
