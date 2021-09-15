@@ -4,7 +4,6 @@ import { getLatestBlockTimestamp } from "../helper/utils";
 import { deployCampaign, deployContract, deployProxy, verifyContract } from "../helper/deployer";
 
 async function main() {
-    const initialOwners = ["0x70c2D3864b280748ac06c164608013D12CE1d574", "0xaC280999C0a97D7Ceb5407b6A35e424A2DeDeD94"];
     const totalUSDCSupply = ethers.utils.parseUnits("1145188782.215577", 18);
     const totalTokenSupply = ethers.utils.parseUnits("1000000000000", 18);
     
@@ -54,7 +53,7 @@ async function main() {
         initialRewardsAmount: testVestingAmount // 10k tokens will be deposited to vesting
     };
 
-    const firestarter = await deployCampaign("FirestarterPresale", initialOwners, vestingParams, addresses, presaleParams);
+    const firestarter = await deployCampaign("FirestarterPresale", vestingParams, addresses, presaleParams);
     await flameToken.transfer(firestarter.vesting.address, testVestingAmount);
 
     console.log("Firestarter");
@@ -76,7 +75,7 @@ async function main() {
         period: 3600 * 8, // finish in 8 hours
         startTime: timestamp
     }
-    const project = await deployCampaign("ProjectPresale", initialOwners, vestingParams1, addresses1, presaleParams1);
+    const project = await deployCampaign("ProjectPresale", vestingParams1, addresses1, presaleParams1);
     await project.whitelist.addToWhitelist([{
         wallet: "0x4FB2bb19Df86feF113b2016E051898065f963CC5",
         isKycPassed: true,
@@ -101,21 +100,21 @@ async function main() {
 
     // await verifyContract(tokenLock.address, flameToken.address);
 
-    // await verifyContract(firestarter.whitelist.address, initialOwners);
+    // await verifyContract(firestarter.whitelist.address);
     // await verifyContract(firestarter.vesting.address, addresses.rewardToken, vestingParams);
     // await verifyContract(firestarter.presale.address, {
     //     ...addresses,
     //     whitelist: firestarter.whitelist.address,
     //     vesting: firestarter.vesting.address
-    // }, presaleParams, initialOwners);
+    // }, presaleParams);
 
-    // await verifyContract(project.whitelist.address, initialOwners);
+    // await verifyContract(project.whitelist.address);
     // await verifyContract(project.vesting.address, addresses1.rewardToken, vestingParams1);
     // await verifyContract(project.presale.address, {
     //     ...addresses1,
     //     whitelist: project.whitelist.address,
     //     vesting: project.vesting.address
-    // }, presaleParams1, initialOwners);
+    // }, presaleParams1);
 }
 
 main()

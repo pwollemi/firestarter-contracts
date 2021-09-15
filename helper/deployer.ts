@@ -26,14 +26,14 @@ async function deployProxy(name: ContractName, ...constructorArgs: any[]) : Prom
     return contract;
 }
 
-async function deployCampaign(type: CampaignType, owners: string[], vestingParams = {}, addresses: any, presaleParams: any): Promise<{ whitelist: Whitelist; vesting: Vesting; presale: FirestarterPresale | ProjectPresale | Presale; }> {
-    const whitelist = <Whitelist>await deployProxy("Whitelist", owners);
+async function deployCampaign(type: CampaignType, vestingParams = {}, addresses: any, presaleParams: any): Promise<{ whitelist: Whitelist; vesting: Vesting; presale: FirestarterPresale | ProjectPresale | Presale; }> {
+    const whitelist = <Whitelist>await deployProxy("Whitelist");
     const vesting = <Vesting>await deployProxy("Vesting", addresses.rewardToken, vestingParams);
     const presale = <FirestarterPresale | ProjectPresale>await deployProxy(type, {
         ...addresses,
         whitelist: whitelist.address,
         vesting: vesting.address
-    }, presaleParams, owners);
+    }, presaleParams);
 
     // set vesting owner to presale
     await vesting.init(presale.address);

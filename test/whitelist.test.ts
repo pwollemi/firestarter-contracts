@@ -13,12 +13,10 @@ const { assert, expect } = chai;
 describe('Whitelist', () => {
   let whitelist: Whitelist;
   let signers: SignerWithAddress[];
-  let owners: string[];
   let fakeUsers: { wallet: string; isKycPassed: boolean; maxAlloc: BigNumber; allowedPrivateSale: boolean, privateMaxAlloc: BigNumber;}[] = [];
 
   before(async () => {
     signers = await ethers.getSigners();
-    owners = [signers[0].address, signers[1].address];
 
     fakeUsers = signers.map((signer, i) => ({
       wallet: signer.address,
@@ -30,16 +28,15 @@ describe('Whitelist', () => {
   });
 
   beforeEach(async () => {
-    whitelist = <Whitelist>await deployProxy("Whitelist", owners)
+    whitelist = <Whitelist>await deployProxy("Whitelist");
   });
 
   describe("addToWhitelist", () => {
     it("Security", async () => {
-      await expect(whitelist.connect(signers[2]).addToWhitelist(fakeUsers)).to.be.revertedWith("Requires Owner Role");
-      await expect(whitelist.connect(signers[3]).addToWhitelist(fakeUsers)).to.be.revertedWith("Requires Owner Role");
-      await expect(whitelist.connect(signers[4]).addToWhitelist(fakeUsers)).to.be.revertedWith("Requires Owner Role");
+      await expect(whitelist.connect(signers[2]).addToWhitelist(fakeUsers)).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(whitelist.connect(signers[3]).addToWhitelist(fakeUsers)).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(whitelist.connect(signers[4]).addToWhitelist(fakeUsers)).to.be.revertedWith("Ownable: caller is not the owner");
       await whitelist.connect(signers[0]).addToWhitelist(fakeUsers.slice(0, 4));
-      await whitelist.connect(signers[1]).addToWhitelist(fakeUsers.slice(5));
     });
   
     it("Attempt to add one user. AddedOrRemoved event is emitted.", async () => {
@@ -95,11 +92,10 @@ describe('Whitelist', () => {
 
   describe("removeFromWhitelist", () => {
     it("Security", async () => {
-      await expect(whitelist.connect(signers[2]).removeFromWhitelist([signers[0].address])).to.be.revertedWith("Requires Owner Role");
-      await expect(whitelist.connect(signers[3]).removeFromWhitelist([signers[0].address])).to.be.revertedWith("Requires Owner Role");
-      await expect(whitelist.connect(signers[4]).removeFromWhitelist([signers[0].address])).to.be.revertedWith("Requires Owner Role");
+      await expect(whitelist.connect(signers[2]).removeFromWhitelist([signers[0].address])).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(whitelist.connect(signers[3]).removeFromWhitelist([signers[0].address])).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(whitelist.connect(signers[4]).removeFromWhitelist([signers[0].address])).to.be.revertedWith("Ownable: caller is not the owner");
       await whitelist.connect(signers[0]).removeFromWhitelist([signers[0].address]);
-      await whitelist.connect(signers[1]).removeFromWhitelist([signers[0].address]);
     });
   
     it("Attempt to remove one user. AddedOrRemoved event is emitted.", async () => {

@@ -33,8 +33,6 @@ describe('Presale', () => {
     });
 
     beforeEach(async () => {
-        const initialOwners = [signers[0].address, signers[1].address];
-
         fundToken = <CustomToken>await deployContract("CustomToken", "Fund Token", "FT", totalTokenSupply);
         rewardToken = <CustomToken>await deployContract("CustomToken", "Reward Token", "RT", totalTokenSupply);
 
@@ -62,7 +60,7 @@ describe('Presale', () => {
             initialRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
         };
 
-        const project = await deployCampaign("Presale", initialOwners, vestingParams, addresses, presaleParams);
+        const project = await deployCampaign("Presale", vestingParams, addresses, presaleParams);
         whitelist = project.whitelist;
         vesting = project.vesting;
         presale = <Presale>project.presale;
@@ -100,12 +98,11 @@ describe('Presale', () => {
 
     describe("endPrivateSale", async () => {
         it("Only owners can do this operation", async () => {
-            await expect(presale.connect(signers[2]).endPrivateSale()).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[3]).endPrivateSale()).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[4]).endPrivateSale()).to.be.revertedWith("Requires Owner Role");
+            await expect(presale.connect(signers[2]).endPrivateSale()).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[3]).endPrivateSale()).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[4]).endPrivateSale()).to.be.revertedWith("Ownable: caller is not the owner");
 
             await presale.connect(signers[0]).endPrivateSale();
-            await presale.connect(signers[1]).endPrivateSale();
         });
 
         it("PrivateSaleDone event is emitted with correct params", async () => {
@@ -120,12 +117,11 @@ describe('Presale', () => {
     describe("setStartTime", async () => {
         it("Only owners can do this operation", async () => {
             const startTime = await getLatestBlockTimestamp() + 10000;
-            await expect(presale.connect(signers[2]).setStartTime(startTime)).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[3]).setStartTime(startTime)).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[4]).setStartTime(startTime)).to.be.revertedWith("Requires Owner Role");
+            await expect(presale.connect(signers[2]).setStartTime(startTime)).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[3]).setStartTime(startTime)).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[4]).setStartTime(startTime)).to.be.revertedWith("Ownable: caller is not the owner");
 
             await presale.connect(signers[0]).setStartTime(startTime);
-            await presale.connect(signers[1]).setStartTime(startTime);
         });
 
         it("Cannot set if alredy started", async () => {
@@ -162,9 +158,9 @@ describe('Presale', () => {
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
 
-            await expect(presale.connect(signers[2]).startPresale()).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[3]).startPresale()).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[4]).startPresale()).to.be.revertedWith("Requires Owner Role");
+            await expect(presale.connect(signers[2]).startPresale()).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[3]).startPresale()).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[4]).startPresale()).to.be.revertedWith("Ownable: caller is not the owner");
 
             await presale.connect(signers[0]).startPresale();
         });
@@ -224,9 +220,9 @@ describe('Presale', () => {
             await presale.setStartTime(startTime);
             await presale.startPresale();
 
-            await expect(presale.connect(signers[2]).pausePresaleByEmergency()).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[3]).pausePresaleByEmergency()).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[4]).pausePresaleByEmergency()).to.be.revertedWith("Requires Owner Role");
+            await expect(presale.connect(signers[2]).pausePresaleByEmergency()).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[3]).pausePresaleByEmergency()).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[4]).pausePresaleByEmergency()).to.be.revertedWith("Ownable: caller is not the owner");
             await presale.pausePresaleByEmergency();
         });
 
@@ -281,9 +277,9 @@ describe('Presale', () => {
             await presale.startPresale();
             await presale.pausePresaleByEmergency();
 
-            await expect(presale.connect(signers[2]).resumePresale()).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[3]).resumePresale()).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[4]).resumePresale()).to.be.revertedWith("Requires Owner Role");
+            await expect(presale.connect(signers[2]).resumePresale()).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[3]).resumePresale()).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[4]).resumePresale()).to.be.revertedWith("Ownable: caller is not the owner");
         });
 
         it("Can only be called while paused", async () => {
@@ -500,9 +496,9 @@ describe('Presale', () => {
             await presale.startPresale();
             await setNextBlockTimestamp(startTime + presaleParams.period + 1);
 
-            await expect(presale.connect(signers[2]).startVesting()).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[3]).startVesting()).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[4]).startVesting()).to.be.revertedWith("Requires Owner Role");
+            await expect(presale.connect(signers[2]).startVesting()).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[3]).startVesting()).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[4]).startVesting()).to.be.revertedWith("Ownable: caller is not the owner");
             await presale.startVesting();
         });
 
@@ -543,9 +539,9 @@ describe('Presale', () => {
             await setNextBlockTimestamp(startTime + presaleParams.period + 1);
 
             const treasury = signers[9].address;
-            await expect(presale.connect(signers[2]).withdrawFunds(treasury)).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[3]).withdrawFunds(treasury)).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[4]).withdrawFunds(treasury)).to.be.revertedWith("Requires Owner Role");
+            await expect(presale.connect(signers[2]).withdrawFunds(treasury)).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[3]).withdrawFunds(treasury)).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[4]).withdrawFunds(treasury)).to.be.revertedWith("Ownable: caller is not the owner");
             await presale.withdrawFunds(treasury);
         });
 
@@ -635,9 +631,9 @@ describe('Presale', () => {
             await presale.startPresale();
             await setNextBlockTimestamp(startTime + presaleParams.period + 1);
 
-            await expect(presale.connect(signers[2]).withdrawUnsoldToken()).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[3]).withdrawUnsoldToken()).to.be.revertedWith("Requires Owner Role");
-            await expect(presale.connect(signers[4]).withdrawUnsoldToken()).to.be.revertedWith("Requires Owner Role");
+            await expect(presale.connect(signers[2]).withdrawUnsoldToken()).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[3]).withdrawUnsoldToken()).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(presale.connect(signers[4]).withdrawUnsoldToken()).to.be.revertedWith("Ownable: caller is not the owner");
             await presale.withdrawUnsoldToken();
         });
 

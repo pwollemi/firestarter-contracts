@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./libraries/AddressPagination.sol";
 
@@ -11,7 +11,7 @@ import "./libraries/AddressPagination.sol";
 /// @author Michael, Daniel Lee
 /// @notice You can use this contract to manage WL users
 /// @dev All function calls are currently implemented without side effects
-contract Whitelist is Initializable, AccessControlEnumerableUpgradeable {
+contract Whitelist is Initializable, OwnableUpgradeable {
     using SafeMath for uint256;
     using AddressPagination for address[];
 
@@ -42,18 +42,8 @@ contract Whitelist is Initializable, AccessControlEnumerableUpgradeable {
     /// @notice An event emitted when a user is added or removed. True: Added, False: Removed
     event AddedOrRemoved(bool added, address user, uint256 timestamp);
 
-    modifier onlyOwner() {
-        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Requires Owner Role");
-        _;
-    }
-
-    function initialize(address[] memory owners) external initializer {
-        __AccessControlEnumerable_init();
-
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        for (uint256 i = 0; i < owners.length; i++) {
-            _setupRole(DEFAULT_ADMIN_ROLE, owners[i]);
-        }
+    function initialize() external initializer {
+        __Ownable_init();
     }
 
     /**
