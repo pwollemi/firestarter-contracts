@@ -45,7 +45,7 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
         uint256 startTime;
         // Presale period
         uint256 period;
-        // Service Fee : eg 1e5 = 10% default is 5%
+        // Service Fee : if `accuracy` is 1e10(default), 1e9 is 10%
         uint256 serviceFee;
         // Funds amount to be raised. Amount * fundToken's Decimals
         uint256 goalFunds;
@@ -87,7 +87,7 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
     /// @notice Presale Start Time
     uint256 public startTime;
 
-    /// @notice Service Fee: eg 1e5 = 10% default is 5%
+    /// @notice Service Fee : if `accuracy` is 1e10(default), 1e9 is 10%
     uint256 public serviceFee;
 
     /// @notice Initial Deposited rewardToken amount
