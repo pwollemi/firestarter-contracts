@@ -99,6 +99,15 @@ describe('Presale', () => {
             await presale.connect(signers[1]).endPrivateSale();
         });
 
+        it("Set startTime to now if presale is already started", async () => {
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await setNextBlockTimestamp(startTime + 100);
+            await presale.endPrivateSale();
+            const expectedStartTime = await getLatestBlockTimestamp();
+            expect(await presale.startTime()).to.be.equal(expectedStartTime);
+        });
+
         it("PrivateSaleDone event is emitted with correct params", async () => {
             const nextTimestamp = await getLatestBlockTimestamp() + 100;
             await setNextBlockTimestamp(nextTimestamp);
@@ -119,11 +128,26 @@ describe('Presale', () => {
             await presale.connect(signers[1]).setStartTime(startTime);
         });
 
-        it("Cannot set if alredy started", async () => {
+        it("Cannot set if private sale is over and presale alredy started", async () => {
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.endPrivateSale();
+            await setNextBlockTimestamp(startTime + 10);
+            await expect(presale.setStartTime(startTime + 100)).to.be.revertedWith("setStartTime: Presale already started");
+        });
+
+        it("Can set if private sale is over and presale is not started", async () => {
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.endPrivateSale();
+            await presale.setStartTime(startTime + 100);
+        });
+
+        it("Can set if private sale is not over, though presale is already started", async () => {
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
             await setNextBlockTimestamp(startTime + 10);
-            await expect(presale.setStartTime(startTime)).to.be.revertedWith("setStartTime: Presale already started");
+            await presale.setStartTime(startTime + 100);
         });
 
         it("Must set future time", async () => {
@@ -345,7 +369,9 @@ describe('Presale', () => {
             await presale.endPrivateSale();
             expect(await presale.isPresaleGoing()).to.be.equal(true);
 
-            await setNextBlockTimestamp(startTime + presaleParams.period + 1);
+            // startTime is reset when ending private sale
+            const newStartTime = await getLatestBlockTimestamp();
+            await setNextBlockTimestamp(newStartTime + presaleParams.period + 1);
             await mineBlock();
             expect(await presale.isPresaleGoing()).to.be.equal(false);
         });
