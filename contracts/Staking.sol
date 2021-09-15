@@ -105,7 +105,7 @@ contract Staking is Initializable, OwnableUpgradeable {
      */
     function setEarlyWithdrawal(uint256 _earlyWithdrawal) external onlyOwner {
         earlyWithdrawal = _earlyWithdrawal;
-        emit LogFlamePerSecond(_earlyWithdrawal);
+        emit LogEarlyWithdrawal(_earlyWithdrawal);
     }
 
     /**
