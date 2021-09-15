@@ -176,7 +176,7 @@ contract Staking is Initializable, OwnableUpgradeable {
      */
     function totalRewards() public view returns (uint256 total) {
         total = accTotalRewards;
-        total = total + ((flamePerSecond * stakingPeriod).toInt256() - totalRewardDebt).toUint256();
+        total = ((total + flamePerSecond * stakingPeriod).toInt256() - totalRewardDebt).toUint256();
     }
 
     /**
