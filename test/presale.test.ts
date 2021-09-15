@@ -481,6 +481,7 @@ describe('Presale', () => {
             await presale.setStartTime(startTime);
             await presale.startPresale();
             await setNextBlockTimestamp(startTime + presaleParams.period + 1);
+            await presale.withdrawUnsoldToken();
 
             await expect(presale.connect(signers[2]).startVesting()).to.be.revertedWith("Requires Owner Role");
             await expect(presale.connect(signers[3]).startVesting()).to.be.revertedWith("Requires Owner Role");
@@ -488,7 +489,7 @@ describe('Presale', () => {
             await presale.startVesting();
         });
 
-        it("Can only be called when finished", async () => {
+        it("Can only be called when finished and unsold token is withdrawn", async () => {
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
@@ -498,6 +499,9 @@ describe('Presale', () => {
 
             await expect(presale.startVesting()).to.be.revertedWith("Presale has not been ended yet!");
             await setNextBlockTimestamp(startTime + presaleParams.period + 1);
+            await expect(presale.startVesting()).to.be.revertedWith("startVesting: can only start vesting after withdrawing unsold tokens");
+
+            await presale.withdrawUnsoldToken();
             await presale.startVesting();
         });
 
@@ -508,6 +512,7 @@ describe('Presale', () => {
             await presale.setStartTime(startTime);
             await presale.startPresale();
             await setNextBlockTimestamp(startTime + presaleParams.period + 1);
+            await presale.withdrawUnsoldToken();
             await presale.startVesting();
 
             const curtime = await getLatestBlockTimestamp();
@@ -634,6 +639,18 @@ describe('Presale', () => {
             await expect(presale.withdrawUnsoldToken()).to.be.revertedWith("Presale has not been ended yet!");
             await setNextBlockTimestamp(startTime + presaleParams.period + 1);
             await presale.withdrawUnsoldToken();
+        });
+
+        it("Set unsoldTokenWithdrawnFlag to true", async () => {
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+            await presale.endPrivateSale();
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.startPresale();
+            await setNextBlockTimestamp(startTime + presaleParams.period + 1);
+            expect(await presale.unsoldTokenWithdrawn()).to.be.equal(false);
+            await presale.withdrawUnsoldToken();
+            expect(await presale.unsoldTokenWithdrawn()).to.be.equal(true);
         });
 
         it("Correct amount is withdrawn", async () => {

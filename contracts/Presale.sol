@@ -101,6 +101,9 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
     /// @notice Presale pause status
     bool public isPresalePaused;
 
+    /// @notice If unsold reward token is withdrawn, set to true(false by default)
+    bool public unsoldTokenWithdrawn;
+
     /// @notice Presale remaining time if paused
     uint256 public currentPresalePeriod;
 
@@ -395,6 +398,8 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
             "withdraw: Project Owner address hasn't been set!"
         );
 
+        unsoldTokenWithdrawn = true;
+
         uint256 totalBalance = _getDepositedRewardTokenAmount();
         uint256 totalSoldAmount = privateSoldAmount.add(publicSoldAmount);
         uint256 unsoldAmount = totalBalance.sub(totalSoldAmount);
@@ -416,6 +421,7 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
      * @dev Check if presale is finished
      */
     function startVesting() external whileFinished onlyOwner {
+        require(unsoldTokenWithdrawn, "startVesting: can only start vesting after withdrawing unsold tokens");
         IVesting(vesting).setStartTime(block.timestamp + 1);
     }
 
