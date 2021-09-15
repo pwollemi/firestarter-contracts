@@ -262,9 +262,11 @@ contract Vesting is Initializable {
         .mul(releaseRate)
         .div(accuracy);
 
-        uint256 vestedAmount = block.timestamp.sub(lockEndTime).div(releaseInterval).mul(unlockAmountPerInterval).add(
-            initialUnlockAmount
-        );
+        uint256 vestedAmount = block.timestamp
+        .sub(lockEndTime)
+        .mul(unlockAmountPerInterval)
+        .div(releaseInterval)
+        .add(initialUnlockAmount);
 
         if (vestedAmount > vestingInfo.totalAmount) {
             return vestingInfo.totalAmount;
