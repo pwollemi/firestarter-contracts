@@ -130,7 +130,7 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
     /// @notice An event emitted when presale is paused
     event PresalePaused(uint256);
 
-    /// @notice An event emitted when presale is started
+    /// @notice An event emitted when presale is resumed
     event PresaleResumed(uint256);
 
     /// @notice An event emitted when a user vested reward token
@@ -296,7 +296,7 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
     }
 
     /**
-     * @notice Start presale
+     * @notice Resume presale
      * @dev Need to check if requirements are satisfied
      */
     function resumePresale() external whilePaused onlyOwner {
@@ -412,7 +412,7 @@ contract Presale is Initializable, AccessControlEnumerableUpgradeable {
     }
 
     /**
-     * @notice Check if Presale is in progress
+     * @notice Start vesting
      * @dev Check if presale is finished
      */
     function startVesting() external whileFinished onlyOwner {
