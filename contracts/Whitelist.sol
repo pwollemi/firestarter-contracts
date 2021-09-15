@@ -83,7 +83,7 @@ contract Whitelist is Initializable, OwnableUpgradeable {
 
             emit AddedOrRemoved(true, user.wallet, block.timestamp);
         }
-        totalUsers = totalUsers.add(users.length);
+        totalUsers = userlist.length;
     }
 
     /**
@@ -98,7 +98,6 @@ contract Whitelist is Initializable, OwnableUpgradeable {
             // Ignore for non-existing users
             if (WL[addrs[i]].wallet != address(0)) {
                 delete WL[addrs[i]];
-                totalUsers = totalUsers.sub(1);
 
                 if (inserted[addrs[i]] == true) {
                     delete inserted[addrs[i]];
@@ -117,6 +116,7 @@ contract Whitelist is Initializable, OwnableUpgradeable {
                 emit AddedOrRemoved(false, addrs[i], block.timestamp);
             }
         }
+        totalUsers = userlist.length;
     }
 
     /**
