@@ -20,7 +20,7 @@ contract Whitelist is Initializable, OwnableUpgradeable {
         address wallet;
         // Flag for KYC status
         bool isKycPassed;
-        // Max allocation for this user
+        // Max allocation for this user in public presale
         uint256 maxAlloc;
         // Flag if this user is allowed to participate in private presale
         bool allowedPrivateSale;

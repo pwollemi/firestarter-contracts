@@ -304,10 +304,14 @@ contract Presale is Initializable, OwnableUpgradeable {
         // thus rtBalance includes the private sale amount as well
         Recipient storage recp = recipients[msg.sender];
         uint256 newFundBalance = recp.ftBalance.add(amount);
+
+        // `newFundBalance` includes sold token amount both in private presale and public presale,
+        // but `maxAlloc` is only for public presale
         require(
             maxAlloc + privateSoldFunds[user] >= newFundBalance,
             "Deposit: Can't exceed the maxAlloc!"
         );
+
         require(
             IERC20(fundToken).transferFrom(msg.sender, address(this), amount),
             "Deposit: Can't transfer fund token!"
