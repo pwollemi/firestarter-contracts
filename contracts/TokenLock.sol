@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.0;
-pragma experimental ABIEncoderV2;
+pragma abicoder v2;
 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./interfaces/IERC20.sol";
 
@@ -11,8 +10,6 @@ import "./interfaces/IERC20.sol";
 /// @notice You can use this contract to apply locking to any ERC20 token
 /// @dev All function calls are currently implemented without side effects
 contract TokenLock is Initializable {
-    using SafeMath for uint256;
-
     struct LockInfo {
         // locked amount
         uint256 amount;
@@ -30,10 +27,10 @@ contract TokenLock is Initializable {
     mapping(address => LockInfo) public lockedBalance;
 
     /// @notice An event emitted when token is locked
-    event Locked(address locker, uint256 amount);
+    event Locked(address indexed locker, uint256 amount);
 
     /// @notice An event emitted when token is unlocked
-    event Unlocked(address locker, uint256 amount);
+    event Unlocked(address indexed locker, uint256 amount);
 
     function initialize(address _token) external initializer {
         require(_token != address(0), "initialize: token address cannot be zero");
@@ -52,17 +49,13 @@ contract TokenLock is Initializable {
      * @notice calculate last deposit and penalty amount for address
      * @return _total
      */
-    function getPenalty(address _addr)
-        external
-        view
-        returns (uint256, uint256)
-    {
+    function getPenalty(address _addr) external view returns (uint256, uint256) {
         LockInfo memory lockInfo = lockedBalance[_addr];
 
         require(lockInfo.amount > 0, "Not locked");
 
         uint256 penaltyRate = _getPenaltyRate(block.timestamp - lockInfo.lastLockedTime);
-        uint256 penalty = lockInfo.amount.mul(penaltyRate).div(100);
+        uint256 penalty = (lockInfo.amount * penaltyRate) / 100;
 
         return (lockInfo.lastLockedTime, penalty);
     }
@@ -81,9 +74,9 @@ contract TokenLock is Initializable {
      */
     function lock(uint256 _amount) external {
         LockInfo storage lockInfo = lockedBalance[msg.sender];
-        lockInfo.amount = lockInfo.amount.add(_amount);
+        lockInfo.amount = lockInfo.amount + _amount;
         lockInfo.lastLockedTime = block.timestamp;
-        totalLocked = totalLocked.add(_amount);
+        totalLocked = totalLocked + _amount;
 
         emit Locked(msg.sender, _amount);
 
@@ -102,14 +95,14 @@ contract TokenLock is Initializable {
         require(lockInfo.amount > 0, "Not locked");
         require(lockInfo.amount >= _amount, "Exceeds locked amount");
 
-        totalLocked = totalLocked.sub(_amount);
-        lockInfo.amount = lockInfo.amount.sub(_amount);
+        totalLocked = totalLocked - _amount;
+        lockInfo.amount = lockInfo.amount - _amount;
 
         emit Unlocked(msg.sender, _amount);
 
         uint256 penaltyRate = _getPenaltyRate(block.timestamp - lockInfo.lastLockedTime);
-        uint256 penalty = _amount.mul(penaltyRate).div(100);
-        uint256 unlocked = _amount.sub(penalty);
+        uint256 penalty = (_amount * penaltyRate) / 100;
+        uint256 unlocked = _amount - penalty;
 
         // transfer unlocked amount to user
         require(

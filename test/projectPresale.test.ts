@@ -22,8 +22,8 @@ describe('Project Presale', () => {
     let vestingParams: any;
     let addresses: any;
     let presaleParams: any;
-    let fakeUsers: { wallet: string; isKycPassed: boolean; maxAlloc: BigNumber; allowedPrivateSale: boolean, privateMaxAlloc: BigNumberish;}[] = [];
-    let accuracy: BigNumber;
+    let fakeUsers: { wallet: string; isKycPassed: boolean; publicMaxAlloc: BigNumber; allowedPrivateSale: boolean, privateMaxAlloc: BigNumberish;}[] = [];
+    let ACCURACY: BigNumber;
 
     before(async () => {
         signers = await ethers.getSigners();
@@ -55,7 +55,6 @@ describe('Project Presale', () => {
             startTime: timestamp + 86400, // tomorrow
             period: 86400 * 7, // 1 week,
             serviceFee: "5000000000", // 5%,
-            goalFunds: "1000000000000", // just placholder we can ignore for now,
             initialRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
         };
 
@@ -78,7 +77,7 @@ describe('Project Presale', () => {
         fakeUsers = signers.slice(0, 5).map((signer, i) => ({
             wallet: signer.address,
             isKycPassed: true,
-            maxAlloc: totalTokenSupply.div(10000),
+            publicMaxAlloc: totalTokenSupply.div(10000),
             allowedPrivateSale: true,
             privateMaxAlloc: totalTokenSupply.div(2000)
           }));
@@ -87,7 +86,7 @@ describe('Project Presale', () => {
         fakeUsers.push({
             wallet: signers[6].address,
             isKycPassed: false,
-            maxAlloc: totalTokenSupply.div(10000),
+            publicMaxAlloc: totalTokenSupply.div(10000),
             allowedPrivateSale: false,
             privateMaxAlloc: 0
           })
@@ -96,7 +95,7 @@ describe('Project Presale', () => {
         fakeUsers[4].allowedPrivateSale = false;
         await whitelist.addToWhitelist(fakeUsers);
 
-        accuracy = await presale.accuracy();
+        ACCURACY = await presale.ACCURACY();
     });
 
     describe("Deposit PrivateSale", async () => {
@@ -129,7 +128,7 @@ describe('Project Presale', () => {
             await expect(presale.connect(signers[4]).depositPrivateSale("1")).to.be.revertedWith("depositPrivateSale: Not allowed to participate in private sale");
         });
 
-        it("Can't exceed maxAlloc", async () => { 
+        it("Can't exceed publicMaxAlloc", async () => { 
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             const depositAmount = BigNumber.from(fakeUsers[1].privateMaxAlloc);
             await expect(presale.connect(signers[1]).depositPrivateSale(depositAmount.add(1))).to.be.revertedWith("Deposit: Can't exceed the privateMaxAlloc!");
@@ -142,7 +141,7 @@ describe('Project Presale', () => {
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
 
             const depositAmount = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(2);
-            const rewardAmount = depositAmount.mul(accuracy).div(presaleParams.rate);
+            const rewardAmount = depositAmount.mul(ACCURACY).div(presaleParams.rate);
             await presale.connect(signers[1]).depositPrivateSale(depositAmount);
 
             const recpInfo = await presale.recipients(signers[1].address);
@@ -160,9 +159,9 @@ describe('Project Presale', () => {
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
 
             const depositAmount1 = BigNumber.from(fakeUsers[1].privateMaxAlloc);
-            const depositAmount2 = fakeUsers[1].maxAlloc;
-            const rewardAmount1 = depositAmount1.mul(accuracy).div(presaleParams.rate);
-            const rewardAmount2 = depositAmount2.mul(accuracy).div(presaleParams.rate);
+            const depositAmount2 = fakeUsers[1].publicMaxAlloc;
+            const rewardAmount1 = depositAmount1.mul(ACCURACY).div(presaleParams.rate);
+            const rewardAmount2 = depositAmount2.mul(ACCURACY).div(presaleParams.rate);
 
             await presale.connect(signers[1]).depositPrivateSale(depositAmount1);
             await presale.endPrivateSale();
@@ -172,7 +171,7 @@ describe('Project Presale', () => {
             await presale.connect(signers[1]).deposit(depositAmount2);
 
             const totalDepositAmount = depositAmount1.add(depositAmount2);
-            const totalRwdAmount = totalDepositAmount.mul(accuracy).div(presaleParams.rate);
+            const totalRwdAmount = totalDepositAmount.mul(ACCURACY).div(presaleParams.rate);
             const recpInfo = await presale.recipients(signers[1].address);
             expect(recpInfo.ftBalance).to.be.equal(totalDepositAmount);
             expect(recpInfo.rtBalance).to.be.equal(totalRwdAmount);
@@ -186,7 +185,7 @@ describe('Project Presale', () => {
 
             // 1st
             const depositAmount1 = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(2);
-            const rewardAmount1 = depositAmount1.mul(accuracy).div(presaleParams.rate);
+            const rewardAmount1 = depositAmount1.mul(ACCURACY).div(presaleParams.rate);
             await presale.connect(signers[1]).depositPrivateSale(depositAmount1);
 
             const recpInfo1 = await presale.recipients(signers[1].address);
@@ -201,7 +200,7 @@ describe('Project Presale', () => {
 
             // 2nd
             const depositAmount2 = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(4);
-            const rewardAmount2 = depositAmount2.mul(accuracy).div(presaleParams.rate);
+            const rewardAmount2 = depositAmount2.mul(ACCURACY).div(presaleParams.rate);
             await presale.connect(signers[1]).depositPrivateSale(depositAmount2);
 
             const recpInfo2 = await presale.recipients(signers[1].address);
@@ -219,7 +218,7 @@ describe('Project Presale', () => {
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
 
             const depositAmount = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(2);
-            const rewardAmount = depositAmount.mul(accuracy).div(presaleParams.rate);
+            const rewardAmount = depositAmount.mul(ACCURACY).div(presaleParams.rate);
             const nextTimestamp = await getLatestBlockTimestamp() + 10;
             await setNextBlockTimestamp(nextTimestamp);
             await expect(presale.connect(signers[1]).depositPrivateSale(depositAmount))

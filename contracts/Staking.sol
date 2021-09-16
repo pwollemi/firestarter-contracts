@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity 0.8.0;
-pragma experimental ABIEncoderV2;
+pragma abicoder v2;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/utils/math/SignedSafeMath.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
 
 /// @title Firestarter Staking Contract
 /// @author Daniel Lee
@@ -17,8 +14,6 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 /// @dev All function calls are currently implemented without side effects
 contract Staking is Initializable, OwnableUpgradeable {
     using SafeERC20 for IERC20;
-    using SafeMath for uint256;
-    using SignedSafeMath for int256;
     using SafeCast for int256;
     using SafeCast for uint256;
 
@@ -69,7 +64,7 @@ contract Staking is Initializable, OwnableUpgradeable {
     uint256 public lastRewardTime;
 
     /// @notice Info of each user that stakes LP tokens.
-    mapping (address => UserInfo) public userInfo;
+    mapping(address => UserInfo) public userInfo;
 
     event Deposit(address indexed user, uint256 amount, address indexed to);
     event Withdraw(address indexed user, uint256 amount, address indexed to);
@@ -86,16 +81,23 @@ contract Staking is Initializable, OwnableUpgradeable {
      * @param _lpToken The LP token contract address.
      * @param _startTime The staking start time.
      */
-    function initialize(IERC20 _flame, IERC20 _lpToken, uint256 _startTime) external initializer {
+    function initialize(
+        IERC20 _flame,
+        IERC20 _lpToken,
+        uint256 _startTime
+    ) external initializer {
         require(address(_flame) != address(0), "initialize: FLAME token address cannot be zero");
         require(address(_lpToken) != address(0), "initialize: LP token address cannot be zero");
-        require(_startTime > block.timestamp, "initialize: staking start time must be in the future");
+        require(
+            _startTime > block.timestamp,
+            "initialize: staking start time must be in the future"
+        );
 
         __Ownable_init();
 
         FLAME = _flame;
         lpToken = _lpToken;
-        accFlamePerShare = 0; 
+        accFlamePerShare = 0;
         startTime = _startTime;
         lastRewardTime = _startTime;
 
@@ -108,7 +110,10 @@ contract Staking is Initializable, OwnableUpgradeable {
      * @param _earlyWithdrawal The new earlyWithdrawal
      */
     function setEarlyWithdrawal(uint256 _earlyWithdrawal) external onlyOwner {
-        require(stakingPeriod > _earlyWithdrawal, "setEarlyWithdrawal: early withdrawal should be shorter than staking period");
+        require(
+            stakingPeriod > _earlyWithdrawal,
+            "setEarlyWithdrawal: early withdrawal should be shorter than staking period"
+        );
         earlyWithdrawal = _earlyWithdrawal;
         emit LogEarlyWithdrawal(_earlyWithdrawal);
     }
@@ -120,21 +125,15 @@ contract Staking is Initializable, OwnableUpgradeable {
      *  2. Start another staking after current one ends
      *  In case 2, before updating startTime and stakingPeriod,
      *  we should distribute rewards first.
-     * 
+     *
      *  You must update lastRewardTime
-     *  
+     *
      * @param _startTime Staking start time
      * @param _stakingPeriod The new stakingPeriod
      */
     function setStakingInfo(uint256 _startTime, uint256 _stakingPeriod) external onlyOwner {
-        require(
-            !isStakingInProgress(),
-            "setStakingInfo: Staking is in progress"
-        );
-        require(
-            _startTime > block.timestamp,
-            "setStakingInfo: Should be time in future"
-        );
+        require(!isStakingInProgress(), "setStakingInfo: Staking is in progress");
+        require(_startTime > block.timestamp, "setStakingInfo: Should be time in future");
 
         // if this is setting new staking period
         if (isStakingEnded()) {
@@ -157,7 +156,10 @@ contract Staking is Initializable, OwnableUpgradeable {
      */
     function setFlamePerSecond(uint256 _flamePerSecond) public onlyOwner {
         if (isStakingInProgress()) {
-            totalRewardDebt = totalRewardDebt + (_flamePerSecond.toInt256() - flamePerSecond.toInt256()) * (block.timestamp - startTime).toInt256();
+            totalRewardDebt =
+                totalRewardDebt +
+                (_flamePerSecond.toInt256() - flamePerSecond.toInt256()) *
+                (block.timestamp - startTime).toInt256();
         }
         if (isStakingEnded()) {
             accTotalRewards = totalRewards();
@@ -172,11 +174,11 @@ contract Staking is Initializable, OwnableUpgradeable {
     /**
      * @notice View function to return total rewards of all staking periods.
      * @dev total rewards = claimedRewards + remaining reward balance
-     * 
+     *
      *  This means that the all deposited rewards to this contract must be distributed.
      *  Thus, it should be the same with sum of flamePerSecond * stakingPeriod in all staking periods.
      *  If not, this function doesn't return the correct reward amount.
-     * 
+     *
      * @return total rewards of all staking periods.
      */
     function totalRewards() public view returns (uint256 total) {
@@ -198,14 +200,17 @@ contract Staking is Initializable, OwnableUpgradeable {
         uint256 lpSupply = lpToken.balanceOf(address(this));
         uint256 accFlamePerShare_ = accFlamePerShare;
 
-        uint256 stakingEndTime = startTime + stakingPeriod; 
+        uint256 stakingEndTime = startTime + stakingPeriod;
         uint256 rewardTime = stakingEndTime < block.timestamp ? stakingEndTime : block.timestamp;
         if (rewardTime > lastRewardTime && lpSupply != 0) {
-            uint256 time = rewardTime.sub(lastRewardTime);
-            uint256 flameReward = time.mul(flamePerSecond);
-            accFlamePerShare_ = accFlamePerShare_.add(flameReward.mul(ACC_FLAME_PRECISION) / lpSupply);
+            uint256 time = rewardTime - lastRewardTime;
+            uint256 flameReward = time * flamePerSecond;
+            accFlamePerShare_ =
+                accFlamePerShare_ +
+                ((flameReward * ACC_FLAME_PRECISION) / lpSupply);
         }
-        pending = (user.amount.mul(accFlamePerShare_) / ACC_FLAME_PRECISION).toInt256().sub(user.rewardDebt).toUint256();
+        pending = (((user.amount * accFlamePerShare_) / ACC_FLAME_PRECISION).toInt256() -
+            user.rewardDebt).toUint256();
     }
 
     /**
@@ -219,14 +224,16 @@ contract Staking is Initializable, OwnableUpgradeable {
      *     - new staking params are set: lastRewardTime is startTime and the reward is already calculated
      */
     function updatePool() public {
-        uint256 stakingEndTime = startTime + stakingPeriod; 
+        uint256 stakingEndTime = startTime + stakingPeriod;
         uint256 rewardTime = stakingEndTime < block.timestamp ? stakingEndTime : block.timestamp;
         if (rewardTime > lastRewardTime) {
             uint256 lpSupply = lpToken.balanceOf(address(this));
             if (lpSupply > 0) {
-                uint256 time = rewardTime.sub(lastRewardTime);
-                uint256 flameReward = time.mul(flamePerSecond);
-                accFlamePerShare = accFlamePerShare.add(flameReward.mul(ACC_FLAME_PRECISION).div(lpSupply));
+                uint256 time = rewardTime - lastRewardTime;
+                uint256 flameReward = time * flamePerSecond;
+                accFlamePerShare =
+                    accFlamePerShare +
+                    ((flameReward * ACC_FLAME_PRECISION) / lpSupply);
             }
             lastRewardTime = rewardTime;
             emit LogUpdatePool(lastRewardTime, lpSupply, accFlamePerShare);
@@ -246,8 +253,10 @@ contract Staking is Initializable, OwnableUpgradeable {
 
         // Effects
         user.lastDepositedAt = block.timestamp;
-        user.amount = user.amount.add(amount);
-        user.rewardDebt = user.rewardDebt.add((amount.mul(accFlamePerShare) / ACC_FLAME_PRECISION).toInt256());
+        user.amount = user.amount + amount;
+        user.rewardDebt =
+            user.rewardDebt +
+            ((amount * accFlamePerShare) / ACC_FLAME_PRECISION).toInt256();
 
         emit Deposit(msg.sender, amount, to);
 
@@ -262,20 +271,23 @@ contract Staking is Initializable, OwnableUpgradeable {
     function withdraw(uint256 amount, address to) public {
         updatePool();
         UserInfo storage user = userInfo[msg.sender];
-        int256 accumulatedFlame = (user.amount.mul(accFlamePerShare) / ACC_FLAME_PRECISION).toInt256();
-        uint256 _pendingFlame = accumulatedFlame.sub(user.rewardDebt).toUint256();
+        int256 accumulatedFlame = ((user.amount * accFlamePerShare) / ACC_FLAME_PRECISION)
+            .toInt256();
+        uint256 _pendingFlame = (accumulatedFlame - user.rewardDebt).toUint256();
 
         // Effects
-        user.rewardDebt = accumulatedFlame.sub((amount.mul(accFlamePerShare) / ACC_FLAME_PRECISION).toInt256());
-        user.amount = user.amount.sub(amount);
-        
+        user.rewardDebt =
+            accumulatedFlame -
+            ((amount * accFlamePerShare) / ACC_FLAME_PRECISION).toInt256();
+        user.amount = user.amount - amount;
+
         emit Withdraw(msg.sender, amount, to);
         emit Harvest(msg.sender, _pendingFlame);
 
         // Interactions
         if (isEarlyWithdrawl(user.lastDepositedAt)) {
-            FLAME.safeTransfer(to, _pendingFlame.div(2));
-            FLAME.safeTransfer(address(0xdead), _pendingFlame.div(2));
+            FLAME.safeTransfer(to, _pendingFlame / 2);
+            FLAME.safeTransfer(address(0xdead), _pendingFlame / 2);
         } else {
             FLAME.safeTransfer(to, _pendingFlame);
         }
@@ -291,8 +303,9 @@ contract Staking is Initializable, OwnableUpgradeable {
     function harvest(address to) public {
         updatePool();
         UserInfo storage user = userInfo[msg.sender];
-        int256 accumulatedFlame = (user.amount.mul(accFlamePerShare) / ACC_FLAME_PRECISION).toInt256();
-        uint256 _pendingFlame = accumulatedFlame.sub(user.rewardDebt).toUint256();
+        int256 accumulatedFlame = ((user.amount * accFlamePerShare) / ACC_FLAME_PRECISION)
+            .toInt256();
+        uint256 _pendingFlame = (accumulatedFlame - user.rewardDebt).toUint256();
 
         // Effects
         user.rewardDebt = accumulatedFlame;
@@ -302,8 +315,8 @@ contract Staking is Initializable, OwnableUpgradeable {
         // Interactions
         if (_pendingFlame != 0) {
             if (isEarlyWithdrawl(user.lastDepositedAt)) {
-                FLAME.safeTransfer(to, _pendingFlame.div(2));
-                FLAME.safeTransfer(address(0xdead), _pendingFlame.div(2));
+                FLAME.safeTransfer(to, _pendingFlame / 2);
+                FLAME.safeTransfer(address(0xdead), _pendingFlame / 2);
             } else {
                 FLAME.safeTransfer(to, _pendingFlame);
             }

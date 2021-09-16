@@ -13,7 +13,7 @@ const { assert, expect } = chai;
 describe('Whitelist', () => {
   let whitelist: Whitelist;
   let signers: SignerWithAddress[];
-  let fakeUsers: { wallet: string; isKycPassed: boolean; maxAlloc: BigNumber; allowedPrivateSale: boolean, privateMaxAlloc: BigNumber;}[] = [];
+  let fakeUsers: { wallet: string; isKycPassed: boolean; publicMaxAlloc: BigNumber; allowedPrivateSale: boolean, privateMaxAlloc: BigNumber;}[] = [];
 
   before(async () => {
     signers = await ethers.getSigners();
@@ -21,7 +21,7 @@ describe('Whitelist', () => {
     fakeUsers = signers.map((signer, i) => ({
       wallet: signer.address,
       isKycPassed: i % 2 === 0,
-      maxAlloc: BigNumber.from((i + 1) * 10000000000),
+      publicMaxAlloc: BigNumber.from((i + 1) * 10000000000),
       allowedPrivateSale: false,
       privateMaxAlloc: BigNumber.from("0")
     }));
@@ -44,7 +44,7 @@ describe('Whitelist', () => {
       const inputArray = Array(maxlength.toNumber() + 1).fill(0).map((i) => ({
         wallet: ethers.constants.AddressZero,
         isKycPassed: true,
-        maxAlloc: 10,
+        publicMaxAlloc: 10,
         allowedPrivateSale: false,
         privateMaxAlloc: BigNumber.from("0")
       }));
@@ -59,7 +59,7 @@ describe('Whitelist', () => {
       const fakeUser = {
         wallet: "0x4FB2bb19Df86feF113b2016E051898065f963CC5",
         isKycPassed: true,
-        maxAlloc: "100000000000",
+        publicMaxAlloc: "100000000000",
         allowedPrivateSale: false,
         privateMaxAlloc: 0
       }
@@ -74,7 +74,7 @@ describe('Whitelist', () => {
       const userInfo = await whitelist.getUser(fakeUser.wallet);
       assert(userInfo[0] === fakeUser.wallet, "Wallet address should be matched.")
       assert(userInfo[1] === fakeUser.isKycPassed, "KYC passed status should be matched.")
-      assert(userInfo[2].eq(fakeUser.maxAlloc), "Max allocation should be matched.")
+      assert(userInfo[2].eq(fakeUser.publicMaxAlloc), "Max allocation should be matched.")
       assert(userInfo[3] === fakeUser.allowedPrivateSale, "Max allocation should be matched.")
       assert(userInfo[4].eq(fakeUser.privateMaxAlloc), "Max allocation should be matched.")
     });
@@ -92,7 +92,7 @@ describe('Whitelist', () => {
         const userInfo = await whitelist.getUser(fakeUser.wallet);
         assert(userInfo[0] === fakeUser.wallet, "Wallet address should be matched.")
         assert(userInfo[1] === fakeUser.isKycPassed, "KYC passed status should be matched.")
-        assert(userInfo[2].eq(fakeUser.maxAlloc), "Max allocation should be matched.")
+        assert(userInfo[2].eq(fakeUser.publicMaxAlloc), "Max allocation should be matched.")
         assert(userInfo[3] === fakeUser.allowedPrivateSale, "Max allocation should be matched.")
         assert(userInfo[4].eq(fakeUser.privateMaxAlloc), "Max allocation should be matched.")
   
@@ -127,7 +127,7 @@ describe('Whitelist', () => {
       const fakeUser = {
         wallet: "0x4FB2bb19Df86feF113b2016E051898065f963CC5",
         isKycPassed: true,
-        maxAlloc: "100000000000",
+        publicMaxAlloc: "100000000000",
         allowedPrivateSale: false,
         privateMaxAlloc: 0
       }

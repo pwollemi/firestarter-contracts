@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.0;
-pragma experimental ABIEncoderV2;
+pragma abicoder v2;
 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./libraries/AddressPagination.sol";
@@ -15,7 +14,6 @@ import "./interfaces/IVesting.sol";
 /// @notice You can use this contract for presale of projects
 /// @dev All function calls are currently implemented without side effects
 contract Presale is Initializable, OwnableUpgradeable {
-    using SafeMath for uint256;
     using AddressPagination for address[];
 
     struct Recipient {
@@ -32,7 +30,7 @@ contract Presale is Initializable, OwnableUpgradeable {
         address rewardToken;
         // Owner of this project
         address projectOwner;
-        // Contract that managers WL users
+        // Contract that managers whitelisted users
         address whitelist;
         // Presale Vesting Contract
         address vesting;
@@ -45,16 +43,14 @@ contract Presale is Initializable, OwnableUpgradeable {
         uint256 startTime;
         // Presale period
         uint256 period;
-        // Service Fee : if `accuracy` is 1e10(default), 1e9 is 10%
+        // Service Fee : if `ACCURACY` is 1e10(default), 1e9 is 10%
         uint256 serviceFee;
-        // Funds amount to be raised. Amount * fundToken's Decimals
-        uint256 goalFunds;
         // Initial Deposited rewardToken amount
         uint256 initialRewardsAmount;
     }
 
-    /// @notice General decimal values accuracy unless specified differently (e.g. fees, exchange rates)
-    uint256 public constant accuracy = 1e10;
+    /// @notice General decimal values ACCURACY unless specified differently (e.g. fees, exchange rates)
+    uint256 public constant ACCURACY = 1e10;
 
     /********************** Address Infos ***********************/
 
@@ -73,12 +69,9 @@ contract Presale is Initializable, OwnableUpgradeable {
     /// @notice Vesting Contract
     address public vesting;
 
-    /// @notice Goal Funds : Funds amount to be raised. Amount * fundToken's Decimals
-    // uint256 public goalFunds;
-
     /********************** Presale Params ***********************/
 
-    /// @notice Fixed Rate between fundToken vs rewardsToken = rewards/funds * accuracy
+    /// @notice Fixed Rate between fundToken vs rewardsToken = rewards / funds * ACCURACY
     uint256 public exchangeRate;
 
     /// @notice Presale Period
@@ -87,7 +80,7 @@ contract Presale is Initializable, OwnableUpgradeable {
     /// @notice Presale Start Time
     uint256 public startTime;
 
-    /// @notice Service Fee : if `accuracy` is 1e10(default), 1e9 is 10%
+    /// @notice Service Fee : if `ACCURACY` is 1e10(default), 1e9 is 10%
     uint256 public serviceFee;
 
     /// @notice Initial Deposited rewardToken amount
@@ -107,19 +100,19 @@ contract Presale is Initializable, OwnableUpgradeable {
     /// @notice Presale remaining time if paused
     uint256 public currentPresalePeriod;
 
-    /// @dev Reward token amount sold by Private Sale (initialize with default value)
+    /// @dev Reward token amount sold by Private Sale (init with default value)
     uint256 public privateSoldAmount;
 
-    /// @notice Reward token amount sold by Public Sale (initialize with default value)
+    /// @notice Reward token amount sold by Public Sale (init with default value)
     uint256 public publicSoldAmount;
 
-    /// @notice Record of fund token amount sold in Private Presale (initialize with default value)
+    /// @notice Record of fund token amount sold in Private Presale (init with default value)
     mapping(address => uint256) public privateSoldFunds;
 
-    /// @notice Participants information (initialize with default value)
+    /// @notice Participants information (init with default value)
     mapping(address => Recipient) public recipients;
 
-    // Participants list (initialize with default value)
+    // Participants list (init with default value)
     address[] internal participants;
     mapping(address => uint256) internal indexOf;
     mapping(address => bool) internal inserted;
@@ -140,18 +133,10 @@ contract Presale is Initializable, OwnableUpgradeable {
     event Vested(address indexed user, uint256 amount, bool isPrivate, uint256 timestamp);
 
     /// @notice An event emitted when the remaining reward token is withdrawn
-    event WithdrawUnsoldToken(
-        address indexed receiver,
-        uint256 amount,
-        uint256 timestamp
-    );
+    event WithdrawUnsoldToken(address indexed receiver, uint256 amount, uint256 timestamp);
 
     /// @notice An event emitted when funded token is withdrawn(project owner and service fee)
-    event WithdrawFunds(
-        address indexed receiver,
-        uint256 amount,
-        uint256 timestamp
-    );
+    event WithdrawFunds(address indexed receiver, uint256 amount, uint256 timestamp);
 
     /// @notice An event emitted when startTime is set
     event StartTimeSet(uint256 startTime);
@@ -182,19 +167,19 @@ contract Presale is Initializable, OwnableUpgradeable {
         _;
     }
 
-    function initialize(
-        AddressParams memory _addrs,
-        PresaleParams memory _presale
-    ) external initializer {
-        require(_addrs.fundToken != address(0), "initialize: fund token address cannot be zero");
-        require(_addrs.rewardToken != address(0), "initialize: reward token address cannot be zero");
-        require(_addrs.projectOwner != address(0), "initialize: project owner address cannot be zero");
-        require(_addrs.whitelist != address(0), "initialize: whitelisting contract address cannot be zero");
-        require(_addrs.vesting != address(0), "initialize: vesting contract address cannot be zero");
+    function initialize(AddressParams memory _addrs, PresaleParams memory _presale)
+        external
+        initializer
+    {
+        require(_addrs.fundToken != address(0), "fund token address cannot be zero");
+        require(_addrs.rewardToken != address(0), "reward token address cannot be zero");
+        require(_addrs.projectOwner != address(0), "project owner address cannot be zero");
+        require(_addrs.whitelist != address(0), "whitelisting contract address cannot be zero");
+        require(_addrs.vesting != address(0), "init: vesting contract address cannot be zero");
 
-        require(_presale.startTime > block.timestamp, "initialize: start time must be in the future");
-        require(_presale.rate > 0, "initialize: exchange rate cannot be zero");
-        require(_presale.period > 0, "initialize: presale period cannot be zero");
+        require(_presale.startTime > block.timestamp, "start time must be in the future");
+        require(_presale.rate > 0, "exchange rate cannot be zero");
+        require(_presale.period > 0, "presale period cannot be zero");
 
         __Ownable_init();
 
@@ -208,7 +193,6 @@ contract Presale is Initializable, OwnableUpgradeable {
         startTime = _presale.startTime;
         presalePeriod = _presale.period;
         serviceFee = _presale.serviceFee;
-        // goalFunds = _presale.goalFunds;
         initialRewardAmount = _presale.initialRewardsAmount;
 
         currentPresalePeriod = presalePeriod;
@@ -224,7 +208,11 @@ contract Presale is Initializable, OwnableUpgradeable {
     /**
      * @notice Return the list of participants
      */
-    function getParticipants(uint256 page, uint256 limit) external view returns (address[] memory) {
+    function getParticipants(uint256 page, uint256 limit)
+        external
+        view
+        returns (address[] memory)
+    {
         return participants.paginate(page, limit);
     }
 
@@ -235,8 +223,7 @@ contract Presale is Initializable, OwnableUpgradeable {
     function endPrivateSale() external onlyOwner {
         isPrivateSaleOver = true;
 
-        if (startTime < block.timestamp)
-            startTime = block.timestamp;
+        if (startTime < block.timestamp) startTime = block.timestamp;
 
         emit PrivateSaleDone(block.timestamp);
     }
@@ -251,10 +238,7 @@ contract Presale is Initializable, OwnableUpgradeable {
             startTime >= block.timestamp || isPrivateSaleOver == false,
             "setStartTime: Presale already started"
         );
-        require(
-            newStartTime > block.timestamp,
-            "setStartTime: Should be time in future"
-        );
+        require(newStartTime > block.timestamp, "setStartTime: Should be time in future");
 
         startTime = newStartTime;
 
@@ -266,15 +250,9 @@ contract Presale is Initializable, OwnableUpgradeable {
      * @dev Need to check if requirements are satisfied
      */
     function startPresale() external whileDeposited onlyOwner {
-        require(
-            isPrivateSaleOver == true,
-            "startPresale: Private Sale has not been done yet!"
-        );
+        require(isPrivateSaleOver == true, "startPresale: Private Sale has not been done yet!");
 
-        require(
-            startTime > block.timestamp,
-            "startPresale: Presale has been already started!"
-        );
+        require(startTime > block.timestamp, "startPresale: Presale has been already started!");
 
         startTime = block.timestamp;
 
@@ -287,9 +265,7 @@ contract Presale is Initializable, OwnableUpgradeable {
      */
     function pausePresaleByEmergency() external whileOnGoing onlyOwner {
         isPresalePaused = true;
-        currentPresalePeriod = startTime.add(currentPresalePeriod).sub(
-            block.timestamp
-        );
+        currentPresalePeriod = startTime + currentPresalePeriod - block.timestamp;
         emit PresalePaused(block.timestamp);
     }
 
@@ -310,9 +286,8 @@ contract Presale is Initializable, OwnableUpgradeable {
      */
     function deposit(uint256 amount) external whileOnGoing {
         // check if user is in white list
-        (address user, bool isKycPassed, uint256 maxAlloc, ,) = IWhitelist(whitelist).getUser(
-            msg.sender
-        );
+        (address user, bool isKycPassed, uint256 publicMaxAlloc, , ) = IWhitelist(whitelist)
+            .getUser(msg.sender);
         require(user != address(0), "Deposit: Not exist on the whitelist");
         require(isKycPassed, "Deposit: Not passed KYC");
 
@@ -320,13 +295,13 @@ contract Presale is Initializable, OwnableUpgradeable {
         // we assume private sale is always finished before public sale starts
         // thus rtBalance includes the private sale amount as well
         Recipient storage recp = recipients[msg.sender];
-        uint256 newFundBalance = recp.ftBalance.add(amount);
+        uint256 newFundBalance = recp.ftBalance + amount;
 
         // `newFundBalance` includes sold token amount both in private presale and public presale,
-        // but `maxAlloc` is only for public presale
+        // but `publicMaxAlloc` is only for public presale
         require(
-            maxAlloc + privateSoldFunds[user] >= newFundBalance,
-            "Deposit: Can't exceed the maxAlloc!"
+            publicMaxAlloc + privateSoldFunds[user] >= newFundBalance,
+            "Deposit: Can't exceed the publicMaxAlloc!"
         );
 
         require(
@@ -335,15 +310,13 @@ contract Presale is Initializable, OwnableUpgradeable {
         );
 
         // calculate reward token amount from fund token amount
-        uint256 rtAmount = amount
-        .mul(10**IERC20(rewardToken).decimals())
-        .mul(accuracy)
-        .div(exchangeRate)
-        .div(10**IERC20(fundToken).decimals());        
+        uint256 rtAmount = (amount * (10**IERC20(rewardToken).decimals()) * ACCURACY) /
+            exchangeRate /
+            (10**IERC20(fundToken).decimals());
 
         recp.ftBalance = newFundBalance;
-        recp.rtBalance = recp.rtBalance.add(rtAmount);
-        publicSoldAmount = publicSoldAmount.add(rtAmount);
+        recp.rtBalance = recp.rtBalance + rtAmount;
+        publicSoldAmount = publicSoldAmount + rtAmount;
 
         if (inserted[user] == false) {
             inserted[user] = true;
@@ -362,18 +335,12 @@ contract Presale is Initializable, OwnableUpgradeable {
      * @param treasury address of the participant
      */
     function withdrawFunds(address treasury) external whileFinished onlyOwner {
-        require(
-            projectOwner != address(0),
-            "withdraw: Project Owner address hasn't been set!"
-        );
-        require(
-            treasury != address(0),
-            "withdraw: Treasury can't be zero address"
-        );
+        require(projectOwner != address(0), "withdraw: Project Owner address hasn't been set!");
+        require(treasury != address(0), "withdraw: Treasury can't be zero address");
 
         uint256 balance = IERC20(fundToken).balanceOf(address(this));
-        uint256 feeAmount = balance.mul(serviceFee).div(accuracy);
-        uint256 actualFunds = balance.sub(feeAmount);
+        uint256 feeAmount = (balance * serviceFee) / ACCURACY;
+        uint256 actualFunds = balance - feeAmount;
 
         emit WithdrawFunds(projectOwner, actualFunds, block.timestamp);
         emit WithdrawFunds(treasury, feeAmount, block.timestamp);
@@ -393,25 +360,18 @@ contract Presale is Initializable, OwnableUpgradeable {
      * @dev After presale ends, we withdraw unsold rewardToken token to project owner.
      */
     function withdrawUnsoldToken() external whileFinished onlyOwner {
-        require(
-            projectOwner != address(0),
-            "withdraw: Project Owner address hasn't been set!"
-        );
+        require(projectOwner != address(0), "withdraw: Project Owner address hasn't been set!");
 
         unsoldTokenWithdrawn = true;
 
         uint256 totalBalance = _getDepositedRewardTokenAmount();
-        uint256 totalSoldAmount = privateSoldAmount.add(publicSoldAmount);
-        uint256 unsoldAmount = totalBalance.sub(totalSoldAmount);
+        uint256 totalSoldAmount = privateSoldAmount + publicSoldAmount;
+        uint256 unsoldAmount = totalBalance - totalSoldAmount;
 
         emit WithdrawUnsoldToken(projectOwner, unsoldAmount, block.timestamp);
 
         require(
-            IERC20(rewardToken).transferFrom(
-                address(vesting),
-                projectOwner,
-                unsoldAmount
-            ),
+            IERC20(rewardToken).transferFrom(address(vesting), projectOwner, unsoldAmount),
             "withdraw: can't withdraw funds"
         );
     }
@@ -421,7 +381,11 @@ contract Presale is Initializable, OwnableUpgradeable {
      * @dev Check if presale is finished
      */
     function startVesting() external whileFinished onlyOwner {
-        require(unsoldTokenWithdrawn, "startVesting: can only start vesting after withdrawing unsold tokens");
+        require(
+            unsoldTokenWithdrawn,
+            "startVesting: can only start vesting after withdrawing unsold tokens"
+        );
+
         IVesting(vesting).setStartTime(block.timestamp + 1);
     }
 
@@ -432,10 +396,9 @@ contract Presale is Initializable, OwnableUpgradeable {
     function isPresaleGoing() public view returns (bool) {
         if (isPresalePaused || isPrivateSaleOver == false) return false;
 
-        if (_getDepositedRewardTokenAmount() < initialRewardAmount)
-            return false;
+        if (_getDepositedRewardTokenAmount() < initialRewardAmount) return false;
 
-        uint256 endTime = startTime.add(currentPresalePeriod);
+        uint256 endTime = startTime + currentPresalePeriod;
         return block.timestamp >= startTime && block.timestamp <= endTime;
     }
 
