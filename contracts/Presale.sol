@@ -30,7 +30,7 @@ contract Presale is Initializable, OwnableUpgradeable {
         address rewardToken;
         // Owner of this project
         address projectOwner;
-        // Contract that managers WL users
+        // Contract that managers whitelisted users
         address whitelist;
         // Presale Vesting Contract
         address vesting;

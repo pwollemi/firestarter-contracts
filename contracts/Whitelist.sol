@@ -8,7 +8,7 @@ import "./libraries/AddressPagination.sol";
 
 /// @title Firestarter WhiteList Contract
 /// @author Michael, Daniel Lee
-/// @notice You can use this contract to manage WL users
+/// @notice You can use this contract to manage whitelisted users
 /// @dev All function calls are currently implemented without side effects
 contract Whitelist is Initializable, OwnableUpgradeable {
     using AddressPagination for address[];
@@ -33,7 +33,7 @@ contract Whitelist is Initializable, OwnableUpgradeable {
     uint256 public totalUsers;
 
     /// @dev White List
-    mapping(address => UserData) private WL;
+    mapping(address => UserData) private whitelistedUsers;
 
     // Users list
     address[] internal userlist;
@@ -74,7 +74,7 @@ contract Whitelist is Initializable, OwnableUpgradeable {
 
         for (uint256 i = 0; i < users.length; i++) {
             UserData memory user = users[i];
-            WL[user.wallet] = user;
+            whitelistedUsers[user.wallet] = user;
 
             if (inserted[user.wallet] == false) {
                 inserted[user.wallet] = true;
@@ -100,8 +100,8 @@ contract Whitelist is Initializable, OwnableUpgradeable {
 
         for (uint256 i = 0; i < addrs.length; i++) {
             // Ignore for non-existing users
-            if (WL[addrs[i]].wallet != address(0)) {
-                delete WL[addrs[i]];
+            if (whitelistedUsers[addrs[i]].wallet != address(0)) {
+                delete whitelistedUsers[addrs[i]];
 
                 if (inserted[addrs[i]] == true) {
                     delete inserted[addrs[i]];
@@ -124,7 +124,7 @@ contract Whitelist is Initializable, OwnableUpgradeable {
     }
 
     /**
-     * @notice Return WL user info
+     * @notice Return whitelisted user info
      * @param _user user wallet address
      * @return user wallet, kyc status, max allocation
      */
@@ -140,11 +140,11 @@ contract Whitelist is Initializable, OwnableUpgradeable {
         )
     {
         return (
-            WL[_user].wallet,
-            WL[_user].isKycPassed,
-            WL[_user].publicMaxAlloc,
-            WL[_user].allowedPrivateSale,
-            WL[_user].privateMaxAlloc
+            whitelistedUsers[_user].wallet,
+            whitelistedUsers[_user].isKycPassed,
+            whitelistedUsers[_user].publicMaxAlloc,
+            whitelistedUsers[_user].allowedPrivateSale,
+            whitelistedUsers[_user].privateMaxAlloc
         );
     }
 }
