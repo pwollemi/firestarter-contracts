@@ -38,6 +38,23 @@ describe('Vesting', () => {
     await flameToken.transfer(vesting.address, totalAmount);
   });
 
+  describe("initialize", async () => {
+    it("Validiation of initilize params", async () => {
+      const params = {
+        vestingName: "Marketing",
+        amountToBeVested: totalAmount,
+        initialUnlock: 1000000000, // 10%
+        releaseInterval: 60, // 1 min
+        releaseRate: 23150, // release 10% every month
+        lockPeriod: 60, // 1min
+        vestingPeriod: 86400 * 30 * 8 // 8 month
+      }
+      await expect(deployProxy("Vesting", ethers.constants.AddressZero, params)).to.be.revertedWith("initialize: rewardToken cannot be zero");
+      await expect(deployProxy("Vesting", flameToken.address, { ...params, releaseRate: 0 })).to.be.revertedWith("initialize: release rate cannot be zero");
+      await expect(deployProxy("Vesting", flameToken.address, { ...params, releaseInterval: 0 })).to.be.revertedWith("initialize: release interval cannot be zero");
+    });
+  });
+
   describe("init", async () => {
     it("Only owner can call this function", async () => {
       await expect(vesting.connect(signers[2]).init(signers[1].address)).to.be.revertedWith("Requires Owner Role");
@@ -150,10 +167,11 @@ describe('Vesting', () => {
           expect(await vesting.vested(signers[1].address)).to.be.equal(vestingAmount);
           break;
         }
-        expect(await vesting.vested(signers[1].address)).to.be.equal(vestedAmount);
+        const locked = await vesting.locked(signers[1].address);
+        expect(await vesting.vested(signers[1].address)).to.be.equal(vestedAmount).to.be.equal(vestingAmount.sub(locked));
       }
     });
-
+    
     it("Full amount should be released after vesting period", async () => {
       const startTime = await getLatestBlockTimestamp() + 10000;
       const lockEndTime = startTime + vestingParams.lockPeriod;
@@ -170,6 +188,20 @@ describe('Vesting', () => {
   });
 
   describe("withdraw", () => {
+    it("If zero, nothing happens", async () => {
+      const startTime = await getLatestBlockTimestamp() + 10000;
+      await vesting.setStartTime(startTime);
+
+      const passedTime = vestingParams.releaseInterval * 10000 + 1;
+      await setNextBlockTimestamp(startTime + vestingParams.lockPeriod + passedTime);
+
+      const balance0 = await flameToken.balanceOf(signers[1].address);
+      const receipt = await (await vesting.connect(signers[1]).withdraw()).wait();
+      expect(receipt.events?.length).to.be.equal(0);
+      const balance1 = await flameToken.balanceOf(signers[1].address);
+      expect(balance0).to.be.equal(balance1);
+    });
+
     it("Correct amount is withdrawn/event is emitted", async () => {
       const startTime = await getLatestBlockTimestamp() + 10000;
       const vestingAmount = totalAmount.div(5);
@@ -207,6 +239,22 @@ describe('Vesting', () => {
       expect(await vesting.withdrawable(signers[1].address)).to.be.equal(0);
       const recpInfo = await vesting.recipients(signers[1].address);
       expect(recpInfo.amountWithdrawn).to.be.equal(vestedAmount);
+    });
+
+    it("withdrawable amound decrease / amountWithdrawn is updated", async () => {
+      const startTime = await getLatestBlockTimestamp() + 10000;
+      const vestingAmount = totalAmount.div(5);
+      await vesting.setStartTime(startTime);
+      await vesting.updateRecipient(signers[1].address, vestingAmount);
+
+      // calculate time to withdraw all
+      const ACCURACY = await vesting.ACCURACY();
+      const passedTime =  vestingParams.releaseInterval * (ACCURACY.div(vestingParams.releaseRate).toNumber() + 1);
+      await setNextBlockTimestamp(startTime + vestingParams.lockPeriod + passedTime);
+      await vesting.connect(signers[1]).withdraw();
+
+      // if no withdrawable amount, then reverts
+      await expect(vesting.connect(signers[1]).withdraw()).to.be.revertedWith("Nothing to withdraw");
     });
   });
 

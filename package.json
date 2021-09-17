@@ -10,7 +10,7 @@
     "lint": "npx solhint contracts/*.sol && npx eslint . && npx markdownlint --ignore node_modules **/*.md",
     "format": "prettier --check \"contracts/**/*.sol\" \"**/*.ts\" \"**/*.md\" \"**/*.yml\"",
     "test": "npx hardhat test",
-    "coverage": "npm run build && npx hardhat coverage --temp artifacts --network coverage"
+    "coverage": "npm run build && npx hardhat coverage --temp artifacts --solcoverjs ./.solcover.ts"
   },
   "dependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.1",

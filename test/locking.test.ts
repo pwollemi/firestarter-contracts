@@ -35,22 +35,29 @@ describe('Locking', () => {
     await flameToken.connect(signers[3]).approve(tokenLock.address, totalAmount.div(5));
   });
 
+  describe("initialize", async () => {
+    it("Validiation of initilize params", async () => {
+      await expect(deployProxy("TokenLock", ethers.constants.AddressZero)).to.be.revertedWith("initialize: token address cannot be zero");
+    });
+  });
+
   describe("lock", async () => {
     it("Correct amount is locked", async () => {
       const timestamp = await getLatestBlockTimestamp() + 10;
       const lockAmount = totalAmount.div(10);
 
       const balance0 =  await flameToken.balanceOf(tokenLock.address);
-      const totalLocked0 = await tokenLock.totalLocked();
+      const totalLocked0 = await tokenLock.getTotalLocked();
 
       await setNextBlockTimestamp(timestamp);
       await tokenLock.connect(signers[1]).lock(lockAmount);
 
       const balance1 = await flameToken.balanceOf(tokenLock.address);
-      const totalLocked1 = await tokenLock.totalLocked();
+      const totalLocked1 = await tokenLock.getTotalLocked();
 
       const lockInfo = await tokenLock.lockedBalance(signers[1].address);
-      expect(lockInfo.amount).to.be.equal(lockAmount);
+      const lockedAmount = await tokenLock.getLockedAmount(signers[1].address);
+      expect(lockInfo.amount).to.be.equal(lockAmount).to.be.equal(lockedAmount);
       expect(lockInfo.lastLockedTime).to.be.equal(timestamp);
       expect(totalLocked1.sub(totalLocked0)).to.be.equal(lockAmount);
       expect(balance1.sub(balance0)).to.be.equal(lockAmount);
@@ -78,6 +85,10 @@ describe('Locking', () => {
   });
 
   describe("getPenalty", async () => {
+    it("Revert if none locked", async () => {
+      await expect(tokenLock.getPenalty(signers[1].address)).to.be.revertedWith("Not locked");
+    });
+
     it("Penalty is correct per passed days", async () => {
       const timestamp = await getLatestBlockTimestamp() + 10;
       const lockAmount = totalAmount.div(10);
@@ -130,7 +141,7 @@ describe('Locking', () => {
         await setNextBlockTimestamp(timestamp);
         await tokenLock.connect(signers[1]).lock(lockAmount);
   
-        const totalLocked0 = await tokenLock.totalLocked();
+        const totalLocked0 = await tokenLock.getTotalLocked();
         const lockInfo0 = await tokenLock.lockedBalance(signers[1].address);
         const balance0 = await flameToken.balanceOf(signers[1].address);
         const burned0 = await flameToken.balanceOf("0x000000000000000000000000000000000000dead");
@@ -140,7 +151,7 @@ describe('Locking', () => {
         await setNextBlockTimestamp(timestamp + 86400 * 10 - 1);
         await tokenLock.connect(signers[1]).unlock(lockAmount)
 
-        const totalLocked1 = await tokenLock.totalLocked();
+        const totalLocked1 = await tokenLock.getTotalLocked();
         const lockInfo1 = await tokenLock.lockedBalance(signers[1].address);
         const balance1 = await flameToken.balanceOf(signers[1].address);
         const burned1 = await flameToken.balanceOf("0x000000000000000000000000000000000000dead");
@@ -157,7 +168,7 @@ describe('Locking', () => {
         await setNextBlockTimestamp(timestamp);
         await tokenLock.connect(signers[1]).lock(lockAmount);
   
-        const totalLocked0 = await tokenLock.totalLocked();
+        const totalLocked0 = await tokenLock.getTotalLocked();
         const lockInfo0 = await tokenLock.lockedBalance(signers[1].address);
         const balance0 = await flameToken.balanceOf(signers[1].address);
         const burned0 = await flameToken.balanceOf("0x000000000000000000000000000000000000dead");
@@ -167,7 +178,7 @@ describe('Locking', () => {
         await setNextBlockTimestamp(timestamp + 86400 * 20 - 1);
         await tokenLock.connect(signers[1]).unlock(lockAmount)
 
-        const totalLocked1 = await tokenLock.totalLocked();
+        const totalLocked1 = await tokenLock.getTotalLocked();
         const lockInfo1 = await tokenLock.lockedBalance(signers[1].address);
         const balance1 = await flameToken.balanceOf(signers[1].address);
         const burned1 = await flameToken.balanceOf("0x000000000000000000000000000000000000dead");
@@ -184,7 +195,7 @@ describe('Locking', () => {
         await setNextBlockTimestamp(timestamp);
         await tokenLock.connect(signers[1]).lock(lockAmount);
   
-        const totalLocked0 = await tokenLock.totalLocked();
+        const totalLocked0 = await tokenLock.getTotalLocked();
         const lockInfo0 = await tokenLock.lockedBalance(signers[1].address);
         const balance0 = await flameToken.balanceOf(signers[1].address);
         const burned0 = await flameToken.balanceOf("0x000000000000000000000000000000000000dead");
@@ -194,7 +205,7 @@ describe('Locking', () => {
         await setNextBlockTimestamp(timestamp + 86400 * 30 - 1);
         await tokenLock.connect(signers[1]).unlock(lockAmount)
 
-        const totalLocked1 = await tokenLock.totalLocked();
+        const totalLocked1 = await tokenLock.getTotalLocked();
         const lockInfo1 = await tokenLock.lockedBalance(signers[1].address);
         const balance1 = await flameToken.balanceOf(signers[1].address);
         const burned1 = await flameToken.balanceOf("0x000000000000000000000000000000000000dead");
@@ -211,7 +222,7 @@ describe('Locking', () => {
         await setNextBlockTimestamp(timestamp);
         await tokenLock.connect(signers[1]).lock(lockAmount);
   
-        const totalLocked0 = await tokenLock.totalLocked();
+        const totalLocked0 = await tokenLock.getTotalLocked();
         const lockInfo0 = await tokenLock.lockedBalance(signers[1].address);
         const balance0 = await flameToken.balanceOf(signers[1].address);
         const burned0 = await flameToken.balanceOf("0x000000000000000000000000000000000000dead");
@@ -221,7 +232,7 @@ describe('Locking', () => {
         await setNextBlockTimestamp(timestamp + 86400 * 30 + 1);
         await tokenLock.connect(signers[1]).unlock(lockAmount)
 
-        const totalLocked1 = await tokenLock.totalLocked();
+        const totalLocked1 = await tokenLock.getTotalLocked();
         const lockInfo1 = await tokenLock.lockedBalance(signers[1].address);
         const balance1 = await flameToken.balanceOf(signers[1].address);
         const burned1 = await flameToken.balanceOf("0x000000000000000000000000000000000000dead");

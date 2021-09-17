@@ -215,6 +215,19 @@ describe('Firestarter Presale', () => {
             ]);
         });
 
+        it("participants list - if duplicated, no update to the list", async () => {
+            const amount = ethers.utils.parseUnits("1", 18);
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+
+            // deposit same user 3 times
+            await presale.depositPrivateSale(signers[3].address, amount);
+            await presale.depositPrivateSale(signers[3].address, amount);
+            await presale.depositPrivateSale(signers[3].address, amount);
+
+            // check count
+            expect(await presale.participantCount()).to.be.equal(1);
+        });
+
         it("participants list - pagination", async () => {
             const amount = ethers.utils.parseUnits("1", 18);
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);

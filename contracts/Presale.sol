@@ -5,6 +5,7 @@ pragma abicoder v2;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./libraries/AddressPagination.sol";
+import "./libraries/SafeERC20.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IWhitelist.sol";
 import "./interfaces/IVesting.sol";
@@ -14,6 +15,7 @@ import "./interfaces/IVesting.sol";
 /// @notice You can use this contract for presale of projects
 /// @dev All function calls are currently implemented without side effects
 contract Presale is Initializable, OwnableUpgradeable {
+    using SafeERC20 for IERC20;
     using AddressPagination for address[];
 
     struct Recipient {
@@ -304,10 +306,7 @@ contract Presale is Initializable, OwnableUpgradeable {
             "Deposit: Can't exceed the publicMaxAlloc!"
         );
 
-        require(
-            IERC20(fundToken).transferFrom(msg.sender, address(this), amount),
-            "Deposit: Can't transfer fund token!"
-        );
+        IERC20(fundToken).safeTransferFrom(msg.sender, address(this), amount);
 
         // calculate reward token amount from fund token amount
         uint256 rtAmount = (amount * (10**IERC20(rewardToken).decimals()) * ACCURACY) /
@@ -335,7 +334,6 @@ contract Presale is Initializable, OwnableUpgradeable {
      * @param treasury address of the participant
      */
     function withdrawFunds(address treasury) external whileFinished onlyOwner {
-        require(projectOwner != address(0), "withdraw: Project Owner address hasn't been set!");
         require(treasury != address(0), "withdraw: Treasury can't be zero address");
 
         uint256 balance = IERC20(fundToken).balanceOf(address(this));
@@ -345,14 +343,8 @@ contract Presale is Initializable, OwnableUpgradeable {
         emit WithdrawFunds(projectOwner, actualFunds, block.timestamp);
         emit WithdrawFunds(treasury, feeAmount, block.timestamp);
 
-        require(
-            IERC20(fundToken).transfer(projectOwner, actualFunds),
-            "withdraw: can't withdraw funds"
-        );
-        require(
-            IERC20(fundToken).transfer(treasury, feeAmount),
-            "withdraw: can't withdraw service fee"
-        );
+        IERC20(fundToken).safeTransfer(projectOwner, actualFunds);
+        IERC20(fundToken).safeTransfer(treasury, feeAmount);
     }
 
     /**
@@ -360,8 +352,6 @@ contract Presale is Initializable, OwnableUpgradeable {
      * @dev After presale ends, we withdraw unsold rewardToken token to project owner.
      */
     function withdrawUnsoldToken() external whileFinished onlyOwner {
-        require(projectOwner != address(0), "withdraw: Project Owner address hasn't been set!");
-
         unsoldTokenWithdrawn = true;
 
         uint256 totalBalance = _getDepositedRewardTokenAmount();
@@ -370,10 +360,7 @@ contract Presale is Initializable, OwnableUpgradeable {
 
         emit WithdrawUnsoldToken(projectOwner, unsoldAmount, block.timestamp);
 
-        require(
-            IERC20(rewardToken).transferFrom(address(vesting), projectOwner, unsoldAmount),
-            "withdraw: can't withdraw funds"
-        );
+        IERC20(rewardToken).safeTransferFrom(address(vesting), projectOwner, unsoldAmount);
     }
 
     /**

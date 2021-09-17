@@ -5,7 +5,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { BigNumber, BigNumberish } from "ethers";
 import { CustomToken, CustomTokenFactory, Presale, PresaleFactory, Vesting, VestingFactory, Whitelist, WhitelistFactory } from "../typechain";
 import { setNextBlockTimestamp, getLatestBlockTimestamp, mineBlock } from "../helper/utils";
-import { deployContract, deployCampaign } from "../helper/deployer";
+import { deployContract, deployCampaign, deployProxy } from "../helper/deployer";
 
 chai.use(solidity);
 const { assert, expect } = chai;
@@ -95,6 +95,26 @@ describe('Presale', () => {
         ACCURACY = await presale.ACCURACY();
     });
 
+    describe("initialize", async () => {
+        it("Validiation of initilize params", async () => {
+            const addressParams = {
+                ...addresses,
+                whitelist: whitelist.address,
+                vesting: vesting.address
+            };
+            const now = await getLatestBlockTimestamp();
+            await expect(deployProxy("Presale", { ...addressParams, fundToken: ethers.constants.AddressZero }, presaleParams)).to.be.revertedWith("fund token address cannot be zero");
+            await expect(deployProxy("Presale", { ...addressParams, rewardToken: ethers.constants.AddressZero }, presaleParams)).to.be.revertedWith("reward token address cannot be zero");
+            await expect(deployProxy("Presale", { ...addressParams, projectOwner: ethers.constants.AddressZero }, presaleParams)).to.be.revertedWith("project owner address cannot be zero");
+            await expect(deployProxy("Presale", { ...addressParams, whitelist: ethers.constants.AddressZero }, presaleParams)).to.be.revertedWith("whitelisting contract address cannot be zero");
+            await expect(deployProxy("Presale", { ...addressParams, vesting: ethers.constants.AddressZero }, presaleParams)).to.be.revertedWith("init: vesting contract address cannot be zero");
+
+            await expect(deployProxy("Presale", addressParams, { ...presaleParams, startTime: now })).to.be.revertedWith("start time must be in the future");
+            await expect(deployProxy("Presale", addressParams, { ...presaleParams, rate: 0 })).to.be.revertedWith("exchange rate cannot be zero");
+            await expect(deployProxy("Presale", addressParams, { ...presaleParams, period: 0 })).to.be.revertedWith("presale period cannot be zero");
+        });
+    });
+    
     describe("endPrivateSale", async () => {
         it("Only owners can do this operation", async () => {
             await expect(presale.connect(signers[2]).endPrivateSale()).to.be.revertedWith("Ownable: caller is not the owner");
@@ -380,6 +400,18 @@ describe('Presale', () => {
             expect(await presale.isPresaleGoing()).to.be.equal(false);
         });
 
+        it("Private sale ended, but not enough reward token deposited", async () => {
+            expect(await presale.isPresaleGoing()).to.be.equal(false);
+            await presale.endPrivateSale();
+            expect(await presale.isPresaleGoing()).to.be.equal(false);
+
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.startPresale();
+            expect(await presale.isPresaleGoing()).to.be.equal(true);
+        });
+
         it("Pause and resume", async () => {
             expect(await presale.isPresaleGoing()).to.be.equal(false);
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
@@ -587,6 +619,16 @@ describe('Presale', () => {
             await expect(presale.withdrawFunds(treasury)).to.be.revertedWith("Presale has not been ended yet!");
             await setNextBlockTimestamp(startTime + presaleParams.period + 1);
             await presale.withdrawFunds(treasury);
+        });
+
+        it("Cannot withdraw to zero address", async () => {
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+            await presale.endPrivateSale();
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.startPresale();
+            await setNextBlockTimestamp(startTime + presaleParams.period + 1);
+            await expect(presale.withdrawFunds(ethers.constants.AddressZero)).to.be.revertedWith("withdraw: Treasury can't be zero address");
         });
 
         it("Correct amount is withdrawn", async () => {

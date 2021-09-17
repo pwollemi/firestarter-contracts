@@ -12,6 +12,8 @@ import "./Presale.sol";
 /// @notice You can use this contract for presale of projects
 /// @dev All function calls are currently implemented without side effects
 contract ProjectPresale is Presale {
+    using SafeERC20 for IERC20;
+
     /**
      * @notice Deposit fund token to the pool in private presale
      * @dev Only allowed users can do this operation.
@@ -40,10 +42,7 @@ contract ProjectPresale is Presale {
         Recipient storage recp = recipients[msg.sender];
         uint256 newFundBalance = recp.ftBalance + amount;
         require(privateMaxAlloc >= newFundBalance, "Deposit: Can't exceed the privateMaxAlloc!");
-        require(
-            IERC20(fundToken).transferFrom(msg.sender, address(this), amount),
-            "Deposit: Can't transfer fund token!"
-        );
+        IERC20(fundToken).safeTransferFrom(msg.sender, address(this), amount);
 
         uint256 rtAmount = (amount * (10**IERC20(rewardToken).decimals()) * ACCURACY) /
             exchangeRate /

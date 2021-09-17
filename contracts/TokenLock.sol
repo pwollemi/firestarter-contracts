@@ -3,6 +3,7 @@ pragma solidity 0.8.0;
 pragma abicoder v2;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "./libraries/SafeERC20.sol";
 import "./interfaces/IERC20.sol";
 
 /// @title Token locking contract
@@ -10,6 +11,8 @@ import "./interfaces/IERC20.sol";
 /// @notice You can use this contract to apply locking to any ERC20 token
 /// @dev All function calls are currently implemented without side effects
 contract TokenLock is Initializable {
+    using SafeERC20 for IERC20;
+
     struct LockInfo {
         // locked amount
         uint256 amount;
@@ -80,10 +83,7 @@ contract TokenLock is Initializable {
 
         emit Locked(msg.sender, _amount);
 
-        require(
-            IERC20(token).transferFrom(msg.sender, address(this), _amount),
-            "TokenLock: IERC20(token).TransferFrom: Failed to lock!"
-        );
+        IERC20(token).safeTransferFrom(msg.sender, address(this), _amount);
     }
 
     /**
@@ -105,17 +105,11 @@ contract TokenLock is Initializable {
         uint256 unlocked = _amount - penalty;
 
         // transfer unlocked amount to user
-        require(
-            IERC20(token).transfer(msg.sender, unlocked),
-            "TokenLock: IERC20(token).Transfer: Failed to unlock!"
-        );
+        IERC20(token).safeTransfer(msg.sender, unlocked);
 
         // burn penalty
         if (penalty > 0) {
-            require(
-                IERC20(token).transfer(address(0xdead), penalty),
-                "TokenLock: IERC20(token).Transfer: Failed to burn!"
-            );
+            IERC20(token).safeTransfer(address(0xdead), penalty);
         }
     }
 

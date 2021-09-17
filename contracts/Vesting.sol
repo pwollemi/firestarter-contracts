@@ -4,6 +4,7 @@ pragma abicoder v2;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./libraries/AddressPagination.sol";
+import "./libraries/SafeERC20.sol";
 import "./interfaces/IERC20.sol";
 
 /// @title Firestarter Vesting Contract
@@ -12,6 +13,7 @@ import "./interfaces/IERC20.sol";
 /// @dev All function calls are currently implemented without side effects
 contract Vesting is Initializable {
     using AddressPagination for address[];
+    using SafeERC20 for IERC20;
 
     struct VestingParams {
         // Name of this tokenomics
@@ -146,10 +148,7 @@ contract Vesting is Initializable {
         require(presale != address(0), "init: owner cannot be zero");
         owner = presale;
         emit OwnerUpdated(presale);
-        require(
-            IERC20(rewardToken).approve(presale, type(uint256).max),
-            "init: Cannot approve owner"
-        );
+        IERC20(rewardToken).safeApprove(presale, type(uint256).max);
     }
 
     /**
@@ -218,7 +217,7 @@ contract Vesting is Initializable {
         vestingInfo.amountWithdrawn = _vested;
 
         require(_withdrawable > 0, "Nothing to withdraw");
-        require(IERC20(rewardToken).transfer(msg.sender, _withdrawable));
+        IERC20(rewardToken).safeTransfer(msg.sender, _withdrawable);
         emit Withdraw(msg.sender, _withdrawable);
     }
 
@@ -247,10 +246,7 @@ contract Vesting is Initializable {
             releaseInterval +
             initialUnlockAmount;
 
-        if (vestedAmount > vestingInfo.totalAmount) {
-            return vestingInfo.totalAmount;
-        }
-        return vestedAmount;
+        return vestedAmount > vestingInfo.totalAmount ? vestingInfo.totalAmount : vestedAmount;
     }
 
     /**

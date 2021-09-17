@@ -55,6 +55,15 @@ describe('Staking Pool', () => {
     await lpToken.connect(alice).approve(staking.address, ethers.constants.MaxUint256);
   });
 
+  describe("initialize", async () => {
+    it("Validiation of initilize params", async () => {
+      const now = await getLatestBlockTimestamp();
+      await expect(deployProxy("Staking", ethers.constants.AddressZero, lpToken.address, startTime)).to.be.revertedWith("initialize: FLAME token address cannot be zero");
+      await expect(deployProxy("Staking", flameToken.address, ethers.constants.AddressZero, startTime)).to.be.revertedWith("initialize: LP token address cannot be zero");
+      await expect(deployProxy("Staking", flameToken.address, lpToken.address, now)).to.be.revertedWith("initialize: staking start time must be in the future");
+    });
+  });
+
   describe("Deposit/withdraw reward token", () => {
     const tokenAmount = getBigNumber(1);
     
@@ -72,6 +81,10 @@ describe('Staking Pool', () => {
 
     it("Only owner can do these operation", async () => {
       await expect(staking.connect(bob).setEarlyWithdrawal(newPenaltyPeriod)).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("Cannot exceed staking period", async () => {
+      await expect(staking.setEarlyWithdrawal(stakingPeriod)).to.be.revertedWith("setEarlyWithdrawal: early withdrawal should be shorter than staking period");
     });
 
     it("It correctly updates information", async () => {
@@ -370,7 +383,8 @@ describe('Staking Pool', () => {
       const rewardPerShare1 = await staking.accFlamePerShare();
 
       // total rewards
-      const totalFlame = flamePerSecond.mul(86400 * 2);
+      const now = await getLatestBlockTimestamp();
+      const totalFlame = flamePerSecond.mul(now - startTime);
       const bobFlame = await staking.pendingFlame(bob.address);
       const aliceFlame = await staking.pendingFlame(alice.address);
       expect(bobFlame.add(aliceFlame)).to.be.equal(totalFlame);
@@ -492,7 +506,7 @@ describe('Staking Pool', () => {
       await staking.deposit(depositAmount, alice.address);
       await advanceTime(period);
       const balance0 = await lpToken.balanceOf(alice.address);
-      await staking.connect(alice).withdraw(withdrawAmount, alice.address);
+      await (await staking.connect(alice).withdraw(withdrawAmount, alice.address)).wait();
       const balance1 = await lpToken.balanceOf(alice.address);
 
       expect(withdrawAmount).to.be.equal(balance1.sub(balance0));
