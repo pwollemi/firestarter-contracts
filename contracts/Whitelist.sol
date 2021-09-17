@@ -102,22 +102,20 @@ contract Whitelist is Initializable, OwnableUpgradeable {
             // Ignore for non-existing users
             if (whitelistedUsers[addrs[i]].wallet != address(0)) {
                 delete whitelistedUsers[addrs[i]];
-
-                if (inserted[addrs[i]] == true) {
-                    delete inserted[addrs[i]];
-
-                    uint256 index = indexOf[addrs[i]];
-                    uint256 lastIndex = userlist.length - 1;
-                    address lastUser = userlist[lastIndex];
-
-                    indexOf[lastUser] = index;
-                    delete indexOf[addrs[i]];
-
-                    userlist[index] = lastUser;
-                    userlist.pop();
-                }
-
                 emit AddedOrRemoved(false, addrs[i], block.timestamp);
+            }
+            if (inserted[addrs[i]] == true) {
+                delete inserted[addrs[i]];
+
+                uint256 index = indexOf[addrs[i]];
+                uint256 lastIndex = userlist.length - 1;
+                address lastUser = userlist[lastIndex];
+
+                indexOf[lastUser] = index;
+                delete indexOf[addrs[i]];
+
+                userlist[index] = lastUser;
+                userlist.pop();
             }
         }
         totalUsers = userlist.length;
