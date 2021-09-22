@@ -5,17 +5,17 @@ pragma abicoder v2;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 /// @title Firestarter Staking Contract
 /// @author Daniel Lee
 /// @notice You can use this contract for staking LP tokens
 /// @dev All function calls are currently implemented without side effects
 contract Staking is Initializable, OwnableUpgradeable {
-    using SafeERC20 for IERC20;
-    using SafeCast for int256;
-    using SafeCast for uint256;
+    using SafeERC20Upgradeable for IERC20Upgradeable;
+    using SafeCastUpgradeable for int256;
+    using SafeCastUpgradeable for uint256;
 
     /// @notice Info of each user.
     /// `amount` LP token amount the user has provided.
@@ -30,10 +30,10 @@ contract Staking is Initializable, OwnableUpgradeable {
     uint256 private constant ACC_FLAME_PRECISION = 1e12;
 
     /// @notice Address of FLAME contract.
-    IERC20 public FLAME;
+    IERC20Upgradeable public FLAME;
 
     /// @notice Address of the LP token.
-    IERC20 public lpToken;
+    IERC20Upgradeable public lpToken;
 
     /********************** Staking params ***********************/
 
@@ -82,8 +82,8 @@ contract Staking is Initializable, OwnableUpgradeable {
      * @param _startTime The staking start time.
      */
     function initialize(
-        IERC20 _flame,
-        IERC20 _lpToken,
+        IERC20Upgradeable _flame,
+        IERC20Upgradeable _lpToken,
         uint256 _startTime
     ) external initializer {
         require(address(_flame) != address(0), "initialize: FLAME token address cannot be zero");

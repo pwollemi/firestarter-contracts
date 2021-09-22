@@ -19,9 +19,9 @@ contract FirestarterPresale is Presale {
     function depositPrivateSale(address user, uint256 amount) external whileDeposited onlyOwner {
         require(isPrivateSaleOver == false, "depositPrivateSale: Private Sale is ended!");
 
-        uint256 ftAmount = (amount * (10**IERC20(fundToken).decimals()) * exchangeRate) /
+        uint256 ftAmount = (amount * (10**IERC20Extended(fundToken).decimals()) * exchangeRate) /
             ACCURACY /
-            (10**IERC20(rewardToken).decimals());
+            (10**IERC20Extended(rewardToken).decimals());
 
         Recipient storage recp = recipients[user];
         recp.rtBalance = recp.rtBalance + amount;

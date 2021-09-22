@@ -16,6 +16,4 @@ interface IWhitelist {
             bool,
             uint256
         );
-
-    event AddedOrRemoved(bool, address, uint256); // 1: Added, 0: Removed
 }
