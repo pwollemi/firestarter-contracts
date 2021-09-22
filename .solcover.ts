@@ -1,3 +1,3 @@
 module.exports = {
-  skipFiles: ['ProjectFactory.sol']
+  skipFiles: []
 };
