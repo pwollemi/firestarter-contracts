@@ -3,9 +3,8 @@ pragma solidity 0.8.0;
 pragma abicoder v2;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "./libraries/AddressPagination.sol";
-import "./libraries/SafeERC20.sol";
-import "./interfaces/IERC20.sol";
 
 /// @title Firestarter Vesting Contract
 /// @author Michael, Daniel Lee
@@ -13,7 +12,7 @@ import "./interfaces/IERC20.sol";
 /// @dev All function calls are currently implemented without side effects
 contract Vesting is Initializable {
     using AddressPagination for address[];
-    using SafeERC20 for IERC20;
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
     struct VestingParams {
         // Name of this tokenomics
@@ -148,7 +147,7 @@ contract Vesting is Initializable {
         require(presale != address(0), "init: owner cannot be zero");
         owner = presale;
         emit OwnerUpdated(presale);
-        IERC20(rewardToken).safeApprove(presale, type(uint256).max);
+        IERC20Upgradeable(rewardToken).safeApprove(presale, type(uint256).max);
     }
 
     /**
@@ -167,7 +166,7 @@ contract Vesting is Initializable {
         // remove previous amount and add new amount
         totalVestingAmount = totalVestingAmount + amount - recipients[recp].totalAmount;
 
-        uint256 depositedAmount = IERC20(rewardToken).balanceOf(address(this));
+        uint256 depositedAmount = IERC20Upgradeable(rewardToken).balanceOf(address(this));
         require(
             depositedAmount >= totalVestingAmount,
             "updateRecipient: Vesting amount exceeds current balance"
@@ -217,7 +216,7 @@ contract Vesting is Initializable {
         vestingInfo.amountWithdrawn = _vested;
 
         require(_withdrawable > 0, "Nothing to withdraw");
-        IERC20(rewardToken).safeTransfer(msg.sender, _withdrawable);
+        IERC20Upgradeable(rewardToken).safeTransfer(msg.sender, _withdrawable);
         emit Withdraw(msg.sender, _withdrawable);
     }
 

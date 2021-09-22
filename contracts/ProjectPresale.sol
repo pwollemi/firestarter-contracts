@@ -2,7 +2,6 @@
 pragma solidity 0.8.0;
 pragma abicoder v2;
 
-import "./interfaces/IERC20.sol";
 import "./interfaces/IWhitelist.sol";
 import "./interfaces/IVesting.sol";
 import "./Presale.sol";
@@ -12,7 +11,7 @@ import "./Presale.sol";
 /// @notice You can use this contract for presale of projects
 /// @dev All function calls are currently implemented without side effects
 contract ProjectPresale is Presale {
-    using SafeERC20 for IERC20;
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
      * @notice Deposit fund token to the pool in private presale
@@ -42,11 +41,11 @@ contract ProjectPresale is Presale {
         Recipient storage recp = recipients[msg.sender];
         uint256 newFundBalance = recp.ftBalance + amount;
         require(privateMaxAlloc >= newFundBalance, "Deposit: Can't exceed the privateMaxAlloc!");
-        IERC20(fundToken).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20Upgradeable(fundToken).safeTransferFrom(msg.sender, address(this), amount);
 
-        uint256 rtAmount = (amount * (10**IERC20(rewardToken).decimals()) * ACCURACY) /
+        uint256 rtAmount = (amount * (10**IERC20Extended(rewardToken).decimals()) * ACCURACY) /
             exchangeRate /
-            (10**IERC20(fundToken).decimals());
+            (10**IERC20Extended(fundToken).decimals());
 
         recp.ftBalance = newFundBalance;
         recp.rtBalance = recp.rtBalance + rtAmount;

@@ -4,9 +4,9 @@ pragma abicoder v2;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "./libraries/AddressPagination.sol";
-import "./libraries/SafeERC20.sol";
-import "./interfaces/IERC20.sol";
+import "./interfaces/IERC20Extended.sol";
 import "./interfaces/IWhitelist.sol";
 import "./interfaces/IVesting.sol";
 
@@ -15,7 +15,7 @@ import "./interfaces/IVesting.sol";
 /// @notice You can use this contract for presale of projects
 /// @dev All function calls are currently implemented without side effects
 contract Presale is Initializable, OwnableUpgradeable {
-    using SafeERC20 for IERC20;
+    using SafeERC20Upgradeable for IERC20Upgradeable;
     using AddressPagination for address[];
 
     struct Recipient {
@@ -306,12 +306,12 @@ contract Presale is Initializable, OwnableUpgradeable {
             "Deposit: Can't exceed the publicMaxAlloc!"
         );
 
-        IERC20(fundToken).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20Upgradeable(fundToken).safeTransferFrom(msg.sender, address(this), amount);
 
         // calculate reward token amount from fund token amount
-        uint256 rtAmount = (amount * (10**IERC20(rewardToken).decimals()) * ACCURACY) /
+        uint256 rtAmount = (amount * (10**IERC20Extended(rewardToken).decimals()) * ACCURACY) /
             exchangeRate /
-            (10**IERC20(fundToken).decimals());
+            (10**IERC20Extended(fundToken).decimals());
 
         recp.ftBalance = newFundBalance;
         recp.rtBalance = recp.rtBalance + rtAmount;
@@ -336,15 +336,15 @@ contract Presale is Initializable, OwnableUpgradeable {
     function withdrawFunds(address treasury) external whileFinished onlyOwner {
         require(treasury != address(0), "withdraw: Treasury can't be zero address");
 
-        uint256 balance = IERC20(fundToken).balanceOf(address(this));
+        uint256 balance = IERC20Upgradeable(fundToken).balanceOf(address(this));
         uint256 feeAmount = (balance * serviceFee) / ACCURACY;
         uint256 actualFunds = balance - feeAmount;
 
         emit WithdrawFunds(projectOwner, actualFunds, block.timestamp);
         emit WithdrawFunds(treasury, feeAmount, block.timestamp);
 
-        IERC20(fundToken).safeTransfer(projectOwner, actualFunds);
-        IERC20(fundToken).safeTransfer(treasury, feeAmount);
+        IERC20Upgradeable(fundToken).safeTransfer(projectOwner, actualFunds);
+        IERC20Upgradeable(fundToken).safeTransfer(treasury, feeAmount);
     }
 
     /**
@@ -360,7 +360,7 @@ contract Presale is Initializable, OwnableUpgradeable {
 
         emit WithdrawUnsoldToken(projectOwner, unsoldAmount, block.timestamp);
 
-        IERC20(rewardToken).safeTransferFrom(address(vesting), projectOwner, unsoldAmount);
+        IERC20Upgradeable(rewardToken).safeTransferFrom(address(vesting), projectOwner, unsoldAmount);
     }
 
     /**
@@ -395,6 +395,6 @@ contract Presale is Initializable, OwnableUpgradeable {
      * @return Reward token balance of vesting contract
      */
     function _getDepositedRewardTokenAmount() internal view returns (uint256) {
-        return IERC20(rewardToken).balanceOf(vesting);
+        return IERC20Upgradeable(rewardToken).balanceOf(vesting);
     }
 }
