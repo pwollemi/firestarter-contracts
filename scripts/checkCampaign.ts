@@ -120,14 +120,6 @@ async function main() {
       );
     }
   }
-
-  //   const contract = await attachContract("CustomToken", data.fUSDCAddress);
-  //   const flameToken = await attachContract("CustomToken", data.FLAMEAddress);
-
-  //   for (const user of users) {
-  //     const balance = await flameToken.balanceOf(user);
-  //     console.log(`Wallet ${user} has ${balance} Flame tokens`);
-  //   }
 }
 
 main()
