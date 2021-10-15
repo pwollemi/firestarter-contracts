@@ -244,6 +244,9 @@ contract Vesting is Initializable {
         uint256 vestedAmount = (block.timestamp - lockEndTime) / releaseInterval * unlockAmountPerInterval +
             initialUnlockAmount;
 
+        uint256 withdrawnAmount = recipients[beneficiary].amountWithdrawn;
+        vestedAmount = withdrawnAmount > vestedAmount ? withdrawnAmount : vestedAmount;
+
         return vestedAmount > vestingInfo.totalAmount ? vestingInfo.totalAmount : vestedAmount;
     }
 
