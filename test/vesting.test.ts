@@ -6,6 +6,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { CustomToken, Vesting } from "../typechain";
 import { setNextBlockTimestamp, getLatestBlockTimestamp, mineBlock } from "../helper/utils";
 import { deployContract, deployProxy } from "../helper/deployer";
+import { BigNumber } from "@ethersproject/bignumber";
 
 chai.use(solidity);
 const { expect } = chai;
@@ -148,6 +149,38 @@ describe('Vesting', () => {
       expect(await vesting.vested(signers[1].address)).to.be.equal(0);
     });
 
+    it("Should only release every interval", async () => {
+      const startTime = await getLatestBlockTimestamp() + 10000;
+      const lockEndTime = startTime + vestingParams.lockPeriod;
+
+      const amount = totalAmount.div(5);
+      await vesting.setStartTime(startTime);
+      await vesting.updateRecipient(signers[1].address, amount);
+
+      const initialUnlockAmoumnt = amount.mul(vestingParams.initialUnlock).div(1e10);
+      const releaseAmount = amount.mul(vestingParams.releaseRate).div(1e10);
+
+      await setNextBlockTimestamp(lockEndTime + 1);
+      await mineBlock();
+      expect(await vesting.vested(signers[1].address)).to.be.equal(initialUnlockAmoumnt);
+
+      await setNextBlockTimestamp(lockEndTime + vestingParams.releaseInterval - 1);
+      await mineBlock();
+      expect(await vesting.vested(signers[1].address)).to.be.equal(initialUnlockAmoumnt);
+
+      await setNextBlockTimestamp(lockEndTime + vestingParams.releaseInterval * 2 - 1);
+      await mineBlock();
+      expect(await vesting.vested(signers[1].address)).to.be.equal(initialUnlockAmoumnt.add(releaseAmount));
+
+      await setNextBlockTimestamp(lockEndTime + vestingParams.releaseInterval * 3 - 1);
+      await mineBlock();
+      expect(await vesting.vested(signers[1].address)).to.be.equal(initialUnlockAmoumnt.add(releaseAmount.mul(2)));
+
+      await setNextBlockTimestamp(lockEndTime + vestingParams.releaseInterval * 4 - 1);
+      await mineBlock();
+      expect(await vesting.vested(signers[1].address)).to.be.equal(initialUnlockAmoumnt.add(releaseAmount.mul(3)));
+    });
+
     it("Correct amount should be vested during the lockPeriod", async () => {
       const startTime = await getLatestBlockTimestamp() + 10000;
       const lockEndTime = startTime + vestingParams.lockPeriod;
@@ -162,7 +195,7 @@ describe('Vesting', () => {
         const nextTime = lockEndTime + i;
         await setNextBlockTimestamp(nextTime);
         await mineBlock();
-        const vestedAmount = vestingAmount.mul(vestingParams.releaseRate).mul(i).div(1e10).div(vestingParams.releaseInterval).add(initialUnlockAmoumnt);
+        const vestedAmount = BigNumber.from(i).div(vestingParams.releaseInterval).mul(vestingAmount).mul(vestingParams.releaseRate).div(1e10).add(initialUnlockAmoumnt);
         if (vestedAmount.gt(vestingAmount) || nextTime > vestingEndTime) {
           expect(await vesting.vested(signers[1].address)).to.be.equal(vestingAmount);
           break;
@@ -210,7 +243,7 @@ describe('Vesting', () => {
 
       const passedTime = vestingParams.releaseInterval * 10000 + 1;
       const initialUnlockAmoumnt = vestingAmount.mul(vestingParams.initialUnlock).div(1e10);
-      const vestedAmount = vestingAmount.mul(passedTime).mul(vestingParams.releaseRate).div(vestingParams.releaseInterval).div(1e10).add(initialUnlockAmoumnt);
+      const vestedAmount = BigNumber.from(passedTime).div(vestingParams.releaseInterval).mul(vestingAmount).mul(vestingParams.releaseRate).div(1e10).add(initialUnlockAmoumnt);
 
       await setNextBlockTimestamp(startTime + vestingParams.lockPeriod + passedTime);
 
@@ -231,7 +264,7 @@ describe('Vesting', () => {
 
       const passedTime = vestingParams.releaseInterval * 10000 + 1;
       const initialUnlockAmoumnt = vestingAmount.mul(vestingParams.initialUnlock).div(1e10);
-      const vestedAmount = vestingAmount.mul(passedTime).mul(vestingParams.releaseRate).div(vestingParams.releaseInterval).div(1e10).add(initialUnlockAmoumnt);
+      const vestedAmount = BigNumber.from(passedTime).div(vestingParams.releaseInterval).mul(vestingAmount).mul(vestingParams.releaseRate).div(1e10).add(initialUnlockAmoumnt);
 
       await setNextBlockTimestamp(startTime + vestingParams.lockPeriod + passedTime);
       await vesting.connect(signers[1]).withdraw();

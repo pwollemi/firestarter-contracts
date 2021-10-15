@@ -241,8 +241,7 @@ contract Vesting is Initializable {
 
         uint256 initialUnlockAmount = (vestingInfo.totalAmount * initialUnlock) / ACCURACY;
         uint256 unlockAmountPerInterval = (vestingInfo.totalAmount * releaseRate) / ACCURACY;
-        uint256 vestedAmount = ((block.timestamp - lockEndTime) * unlockAmountPerInterval) /
-            releaseInterval +
+        uint256 vestedAmount = (block.timestamp - lockEndTime) / releaseInterval * unlockAmountPerInterval +
             initialUnlockAmount;
 
         return vestedAmount > vestingInfo.totalAmount ? vestingInfo.totalAmount : vestedAmount;
