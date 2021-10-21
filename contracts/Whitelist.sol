@@ -40,8 +40,19 @@ contract Whitelist is Initializable, OwnableUpgradeable {
     mapping(address => uint256) internal indexOf;
     mapping(address => bool) internal inserted;
 
+    /// @notice Worker's address allowed to modify whitelist
+    address public worker;
+
     /// @notice An event emitted when a user is added or removed. True: Added, False: Removed
     event AddedOrRemoved(bool added, address indexed user, uint256 timestamp);
+
+    /**
+     * @dev Throws if called by any account other than the owner or the worker.
+     */
+    modifier onlyOwnerOrWorker() {
+        require(owner() == _msgSender() || worker == _msgSender(), "Whitelist: caller is not the owner nor the worker");
+        _;
+    }
 
     function initialize() external initializer {
         __Ownable_init();
@@ -66,7 +77,7 @@ contract Whitelist is Initializable, OwnableUpgradeable {
      * @dev Only owner can do this operation
      * @param users List of user data
      */
-    function addToWhitelist(UserData[] memory users) external onlyOwner {
+    function addToWhitelist(UserData[] memory users) external onlyOwnerOrWorker {
         require(
             users.length <= MAX_ARRAY_LENGTH,
             "addToWhitelist: users length shouldn't exceed MAX_ARRAY_LENGTH"
@@ -92,7 +103,7 @@ contract Whitelist is Initializable, OwnableUpgradeable {
      * @dev Only owner can do this operation
      * @param addrs addresses to be removed
      */
-    function removeFromWhitelist(address[] memory addrs) external onlyOwner {
+    function removeFromWhitelist(address[] memory addrs) external onlyOwnerOrWorker {
         require(
             addrs.length <= MAX_ARRAY_LENGTH,
             "removeFromWhitelist: users length shouldn't exceed MAX_ARRAY_LENGTH"
@@ -144,5 +155,20 @@ contract Whitelist is Initializable, OwnableUpgradeable {
             whitelistedUsers[_user].allowedPrivateSale,
             whitelistedUsers[_user].privateMaxAlloc
         );
+    }
+
+    /**
+     * @notice Set worker
+     * @param _worker worker's address
+     */
+    function setWorker(address _worker) external onlyOwner {
+        worker = _worker;
+    }
+
+    /**
+     * @notice Remove worker
+     */
+    function removeWorker() external onlyOwner {
+        worker = address(0);
     }
 }
