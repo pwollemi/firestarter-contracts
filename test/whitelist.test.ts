@@ -15,6 +15,8 @@ describe('Whitelist', () => {
   let signers: SignerWithAddress[];
   let fakeUsers: { wallet: string; isKycPassed: boolean; publicMaxAlloc: BigNumber; allowedPrivateSale: boolean, privateMaxAlloc: BigNumber;}[] = [];
 
+  const workerIndex = 1;
+
   before(async () => {
     signers = await ethers.getSigners();
 
@@ -29,13 +31,15 @@ describe('Whitelist', () => {
 
   beforeEach(async () => {
     whitelist = <Whitelist>await deployProxy("Whitelist");
+    await whitelist.setWorker(signers[workerIndex].address);
   });
 
   describe("addToWhitelist", () => {
     it("Security", async () => {
-      await expect(whitelist.connect(signers[2]).addToWhitelist(fakeUsers)).to.be.revertedWith("Ownable: caller is not the owner");
-      await expect(whitelist.connect(signers[3]).addToWhitelist(fakeUsers)).to.be.revertedWith("Ownable: caller is not the owner");
-      await expect(whitelist.connect(signers[4]).addToWhitelist(fakeUsers)).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(whitelist.connect(signers[2]).addToWhitelist(fakeUsers)).to.be.revertedWith("Whitelist: caller is not the owner nor the worker");
+      await expect(whitelist.connect(signers[3]).addToWhitelist(fakeUsers)).to.be.revertedWith("Whitelist: caller is not the owner nor the worker");
+      await expect(whitelist.connect(signers[4]).addToWhitelist(fakeUsers)).to.be.revertedWith("Whitelist: caller is not the owner nor the worker");
+      await whitelist.connect(signers[workerIndex]).addToWhitelist(fakeUsers.slice(0, 4));
       await whitelist.connect(signers[0]).addToWhitelist(fakeUsers.slice(0, 4));
     });
 
@@ -107,9 +111,10 @@ describe('Whitelist', () => {
 
   describe("removeFromWhitelist", () => {
     it("Security", async () => {
-      await expect(whitelist.connect(signers[2]).removeFromWhitelist([signers[0].address])).to.be.revertedWith("Ownable: caller is not the owner");
-      await expect(whitelist.connect(signers[3]).removeFromWhitelist([signers[0].address])).to.be.revertedWith("Ownable: caller is not the owner");
-      await expect(whitelist.connect(signers[4]).removeFromWhitelist([signers[0].address])).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(whitelist.connect(signers[2]).removeFromWhitelist([signers[0].address])).to.be.revertedWith("Whitelist: caller is not the owner nor the worker");
+      await expect(whitelist.connect(signers[3]).removeFromWhitelist([signers[0].address])).to.be.revertedWith("Whitelist: caller is not the owner nor the worker");
+      await expect(whitelist.connect(signers[4]).removeFromWhitelist([signers[0].address])).to.be.revertedWith("Whitelist: caller is not the owner nor the worker");
+      await whitelist.connect(signers[workerIndex]).removeFromWhitelist([signers[0].address]);
       await whitelist.connect(signers[0]).removeFromWhitelist([signers[0].address]);
     });
 
@@ -175,6 +180,26 @@ describe('Whitelist', () => {
         assert(event?.args?.user === fakeUser.wallet, "Wallet address should be matched.")
         assert(event?.args?.timestamp.eq(nextTimestamp), "Timestamp should be matched.")
       }));
+    });
+  });
+
+  describe("set/remove Worker", () => {
+    it("setWorker", async () => {
+      await expect(whitelist.connect(signers[2]).setWorker(signers[2].address)).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(whitelist.connect(signers[3]).setWorker(signers[2].address)).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(whitelist.connect(signers[4]).setWorker(signers[2].address)).to.be.revertedWith("Ownable: caller is not the owner");
+
+      await whitelist.setWorker(signers[2].address);
+      expect(await whitelist.worker()).to.be.equal(signers[2].address);
+    });
+
+    it("removeWorker", async () => {
+      await expect(whitelist.connect(signers[2]).removeWorker()).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(whitelist.connect(signers[3]).removeWorker()).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(whitelist.connect(signers[4]).removeWorker()).to.be.revertedWith("Ownable: caller is not the owner");
+
+      await whitelist.removeWorker();
+      expect(await whitelist.worker()).to.be.equal(ethers.constants.AddressZero);
     });
   });
 
