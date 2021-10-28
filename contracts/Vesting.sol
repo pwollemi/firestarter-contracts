@@ -86,6 +86,9 @@ contract Vesting is Initializable {
     mapping(address => uint256) internal indexOf;
     mapping(address => bool) internal inserted;
 
+    /// @notice Worker's address allowed to modify whitelist
+    address public worker;
+
     /// @notice An event emitted when the vesting schedule is updated.
     event VestingInfoUpdated(address indexed registeredAddress, uint256 totalAmount);
 
@@ -100,6 +103,14 @@ contract Vesting is Initializable {
 
     modifier onlyOwner() {
         require(owner == msg.sender, "Requires Owner Role");
+        _;
+    }
+
+    /**
+     * @dev Throws if called by any account other than the owner or the worker.
+     */
+    modifier onlyOwnerOrWorker() {
+        require(owner == msg.sender || worker == msg.sender, "Vesting: caller is not the owner nor the worker");
         _;
     }
 
@@ -156,7 +167,7 @@ contract Vesting is Initializable {
      * @param recp Address of Recipient
      * @param amount Amount of reward token
      */
-    function updateRecipient(address recp, uint256 amount) external onlyOwner {
+    function updateRecipient(address recp, uint256 amount) external onlyOwnerOrWorker {
         require(
             startTime == 0 || startTime >= block.timestamp,
             "updateRecipient: Cannot update the receipient after started"
@@ -268,5 +279,20 @@ contract Vesting is Initializable {
         uint256 vestedAmount = vested(beneficiary);
         uint256 withdrawnAmount = recipients[beneficiary].amountWithdrawn;
         return vestedAmount - withdrawnAmount;
+    }
+
+    /**
+     * @notice Set worker
+     * @param _worker worker's address
+     */
+    function setWorker(address _worker) external onlyOwner {
+        worker = _worker;
+    }
+
+    /**
+     * @notice Remove worker
+     */
+    function removeWorker() external onlyOwner {
+        worker = address(0);
     }
 }

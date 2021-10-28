@@ -28,6 +28,8 @@ describe('Vesting', () => {
   let flameToken: CustomToken;
   let signers: SignerWithAddress[];
 
+  const workerIndex = 1;
+
   before(async () => {
     signers = await ethers.getSigners();
   });
@@ -35,6 +37,8 @@ describe('Vesting', () => {
   beforeEach(async () => {
     flameToken = <CustomToken>await deployContract("CustomToken", "Flame token", "FLAME", totalSupply);
     vesting = <Vesting>await deployProxy("Vesting", flameToken.address, vestingParams);
+
+    await vesting.setWorker(signers[workerIndex].address);
 
     await flameToken.transfer(vesting.address, totalAmount);
   });
@@ -74,9 +78,11 @@ describe('Vesting', () => {
   });
 
   describe("updateRecipient", async () => {
-    it("Only owner can call this function", async () => {
-      await expect(vesting.connect(signers[2]).updateRecipient(signers[1].address, "1")).to.be.revertedWith("Requires Owner Role");
+    it("Only owner or worker can call this function", async () => {
+      await expect(vesting.connect(signers[2]).updateRecipient(signers[1].address, "1")).to.be.revertedWith("Vesting: caller is not the owner nor the worker");
+      await expect(vesting.connect(signers[3]).updateRecipient(signers[1].address, "1")).to.be.revertedWith("Vesting: caller is not the owner nor the worker");
       await vesting.connect(signers[0]).updateRecipient(signers[1].address, "1");
+      await vesting.connect(signers[workerIndex]).updateRecipient(signers[2].address, "2");
     });
 
     it("Cannot vest 0", async () => {
@@ -288,6 +294,26 @@ describe('Vesting', () => {
 
       // if no withdrawable amount, then reverts
       await expect(vesting.connect(signers[1]).withdraw()).to.be.revertedWith("Nothing to withdraw");
+    });
+  });
+
+  describe("set/remove Worker", () => {
+    it("setWorker", async () => {
+      await expect(vesting.connect(signers[2]).setWorker(signers[2].address)).to.be.revertedWith("Requires Owner Role");
+      await expect(vesting.connect(signers[3]).setWorker(signers[2].address)).to.be.revertedWith("Requires Owner Role");
+      await expect(vesting.connect(signers[4]).setWorker(signers[2].address)).to.be.revertedWith("Requires Owner Role");
+
+      await vesting.setWorker(signers[2].address);
+      expect(await vesting.worker()).to.be.equal(signers[2].address);
+    });
+
+    it("removeWorker", async () => {
+      await expect(vesting.connect(signers[2]).removeWorker()).to.be.revertedWith("Requires Owner Role");
+      await expect(vesting.connect(signers[3]).removeWorker()).to.be.revertedWith("Requires Owner Role");
+      await expect(vesting.connect(signers[4]).removeWorker()).to.be.revertedWith("Requires Owner Role");
+
+      await vesting.removeWorker();
+      expect(await vesting.worker()).to.be.equal(ethers.constants.AddressZero);
     });
   });
 
