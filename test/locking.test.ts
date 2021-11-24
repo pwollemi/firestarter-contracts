@@ -4,7 +4,7 @@ import { solidity } from "ethereum-waffle";
 import chai from 'chai';
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { CustomToken, TokenLock } from "../typechain";
-import { setNextBlockTimestamp, getLatestBlockTimestamp, mineBlock } from "../helper/utils";
+import { setNextBlockTimestamp, getLatestBlockTimestamp, mineBlock, duration } from "../helper/utils";
 import { deployContract, deployProxy } from "../helper/deployer";
 
 chai.use(solidity);
@@ -243,6 +243,22 @@ describe('Locking', () => {
         expect(burned1.sub(burned0)).to.be.equal(penalty);
     });
 
+    it("lockPeriod for specific wallet", async () => {
+      await tokenLock.setOwner(signers[0].address);
+
+      const lockAmount = totalAmount.div(10);
+      const lockPeriod = duration.days(30);
+      const timestamp = await getLatestBlockTimestamp() + 10;
+      await setNextBlockTimestamp(timestamp);
+      await tokenLock.connect(signers[1]).lock(lockAmount);
+
+      await tokenLock.setLockPeriod(signers[1].address, lockPeriod)
+      await expect(tokenLock.connect(signers[1]).unlock(lockAmount)).to.be.revertedWith("Still in the lock period");
+
+      await setNextBlockTimestamp(timestamp + lockPeriod.toNumber());
+      await tokenLock.connect(signers[1]).unlock(lockAmount);
+    });
+
     it("Unlocked event is emitted with correct params", async () => {
         const timestamp = await getLatestBlockTimestamp() + 10;
         const lockAmount = totalAmount.div(10);
@@ -254,5 +270,54 @@ describe('Locking', () => {
             .to.emit(tokenLock, "Unlocked")
             .withArgs(signers[1].address, lockAmount);
       });
+  });
+
+
+  describe("setOwner", async () => {
+    it("can set when owner is not set, can transfer ownership", async () => {
+      await tokenLock.setOwner(signers[2].address);
+      await expect(tokenLock.setOwner(signers[3].address)).to.be.revertedWith("You're not owner or owner is already set to another person");
+      await tokenLock.connect(signers[2]).setOwner(signers[3].address);
+      await tokenLock.connect(signers[3]).setOwner(signers[2].address);
+    });
+  });
+
+  describe("setLockPeriod", async () => {
+    it("owner can set it", async () => {
+      await tokenLock.setOwner(signers[0].address);
+      await expect(tokenLock.connect(signers[2]).setLockPeriod(signers[3].address, 1)).to.be.revertedWith("TokenLock: caller is not the owner nor the worker");
+      await expect(tokenLock.connect(signers[3]).setLockPeriod(signers[2].address, 1)).to.be.revertedWith("TokenLock: caller is not the owner nor the worker");
+      await tokenLock.connect(signers[0]).setLockPeriod(signers[2].address, 1);
+    });
+
+    it("owner can set it", async () => {
+      await tokenLock.setOwner(signers[1].address);
+      await expect(tokenLock.connect(signers[2]).setLockPeriod(signers[3].address, 1)).to.be.revertedWith("TokenLock: caller is not the owner nor the worker");
+      await expect(tokenLock.connect(signers[3]).setLockPeriod(signers[2].address, 1)).to.be.revertedWith("TokenLock: caller is not the owner nor the worker");
+      await tokenLock.connect(signers[1]).setWorker(signers[0].address);
+      await tokenLock.connect(signers[0]).setLockPeriod(signers[2].address, 1);
+    });
+  });
+
+  describe("set/remove Worker", () => {
+    it("setWorker", async () => {
+      await tokenLock.setOwner(signers[0].address);
+      await expect(tokenLock.connect(signers[2]).setWorker(signers[2].address)).to.be.revertedWith("Only owner can do this");
+      await expect(tokenLock.connect(signers[3]).setWorker(signers[2].address)).to.be.revertedWith("Only owner can do this");
+      await expect(tokenLock.connect(signers[4]).setWorker(signers[2].address)).to.be.revertedWith("Only owner can do this");
+
+      await tokenLock.setWorker(signers[2].address);
+      expect(await tokenLock.worker()).to.be.equal(signers[2].address);
+    });
+
+    it("removeWorker", async () => {
+      await tokenLock.setOwner(signers[0].address);
+      await expect(tokenLock.connect(signers[2]).removeWorker()).to.be.revertedWith("Only owner can do this");
+      await expect(tokenLock.connect(signers[3]).removeWorker()).to.be.revertedWith("Only owner can do this");
+      await expect(tokenLock.connect(signers[4]).removeWorker()).to.be.revertedWith("Only owner can do this");
+
+      await tokenLock.removeWorker();
+      expect(await tokenLock.worker()).to.be.equal(ethers.constants.AddressZero);
+    });
   });
 });

@@ -28,6 +28,31 @@ contract TokenLock is Initializable {
     /// @notice Locked Info List
     mapping(address => LockInfo) public lockedBalance;
 
+    /// @notice Locked period list
+    mapping(address => uint256) public lockPeriod;
+
+    /// @notice Owner of this contract
+    address public owner;
+
+    /// @notice Worker's address allowed to set lock period
+    address public worker;
+
+    /**
+     * @dev Throws if called by any account other than the owner or the worker.
+     */
+    modifier onlyOwnerOrWorker() {
+        require(owner == msg.sender || worker == msg.sender, "TokenLock: caller is not the owner nor the worker");
+        _;
+    }
+
+    /**
+     * @dev Throws if called by any account other than the owner.
+     */
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can do this");
+        _;
+    }
+
     /// @notice An event emitted when token is locked
     event Locked(address indexed locker, uint256 amount);
 
@@ -90,7 +115,9 @@ contract TokenLock is Initializable {
      */
     function unlock(uint256 _amount) external {
         LockInfo storage lockInfo = lockedBalance[msg.sender];
+        uint256 _lockPeriod = lockPeriod[msg.sender];
 
+        require(_lockPeriod == 0 || _lockPeriod + lockInfo.lastLockedTime <= block.timestamp, "Still in the lock period");
         require(lockInfo.amount > 0, "Not locked");
         require(lockInfo.amount >= _amount, "Exceeds locked amount");
 
@@ -130,5 +157,39 @@ contract TokenLock is Initializable {
         }
 
         return penaltyRate;
+    }
+
+    /**
+     * @notice Set worker
+     * @param _worker worker's address
+     */
+    function setWorker(address _worker) external onlyOwner {
+        worker = _worker;
+    }
+
+    /**
+     * @notice Remove worker
+     */
+    function removeWorker() external onlyOwner {
+        worker = address(0);
+    }
+
+    /**
+     * @notice setOwner
+     * @dev can call this when owner is not set or only by the current owner
+     * @param _owner new owner
+     */
+    function setOwner(address _owner) external  {
+        require(msg.sender == owner || owner == address(0), "You're not owner or owner is already set to another person");
+        owner = _owner;
+    }
+
+    /**
+     * @notice calculate entire locked amount
+     * @param wallet to set lock period
+     * @param period of being locked
+     */
+    function setLockPeriod(address wallet, uint256 period) external onlyOwnerOrWorker {
+        lockPeriod[wallet] = period;
     }
 }

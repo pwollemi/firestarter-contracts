@@ -3,10 +3,10 @@ import { ethers } from "hardhat";
 import { solidity } from "ethereum-waffle";
 import chai from 'chai';
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
+import { BigNumber } from "ethers";
 import { CustomToken, Vesting } from "../typechain";
 import { setNextBlockTimestamp, getLatestBlockTimestamp, mineBlock } from "../helper/utils";
 import { deployContract, deployProxy } from "../helper/deployer";
-import { BigNumber } from "@ethersproject/bignumber";
 
 chai.use(solidity);
 const { expect } = chai;

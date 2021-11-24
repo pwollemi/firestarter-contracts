@@ -66,6 +66,23 @@ contract Staking is Initializable, OwnableUpgradeable {
     /// @notice Info of each user that stakes LP tokens.
     mapping(address => UserInfo) public userInfo;
 
+    /// @notice Locked period list
+    mapping(address => uint256) public lockPeriod;
+
+    /// @notice Last claimed list
+    mapping(address => uint256) public lastClaimedAt;
+
+    /// @notice Worker's address allowed to set lock period
+    address public worker;
+
+    /**
+     * @dev Throws if called by any account other than the owner or the worker.
+     */
+    modifier onlyOwnerOrWorker() {
+        require(owner() == _msgSender() || worker == _msgSender(), "Staking: caller is not the owner nor the worker");
+        _;
+    }
+
     event Deposit(address indexed user, uint256 amount, address indexed to);
     event Withdraw(address indexed user, uint256 amount, address indexed to);
     event EmergencyWithdraw(address indexed user, uint256 amount, address indexed to);
@@ -271,6 +288,10 @@ contract Staking is Initializable, OwnableUpgradeable {
     function withdraw(uint256 amount, address to) public {
         updatePool();
         UserInfo storage user = userInfo[msg.sender];
+
+        require(lockPeriod[msg.sender] == 0 || lockPeriod[msg.sender] + lastClaimedAt[msg.sender] <= block.timestamp, "Still in the lock period");
+        lastClaimedAt[msg.sender] = block.timestamp;
+
         int256 accumulatedFlame = ((user.amount * accFlamePerShare) / ACC_FLAME_PRECISION)
             .toInt256();
         uint256 _pendingFlame = (accumulatedFlame - user.rewardDebt).toUint256();
@@ -303,6 +324,10 @@ contract Staking is Initializable, OwnableUpgradeable {
     function harvest(address to) public {
         updatePool();
         UserInfo storage user = userInfo[msg.sender];
+
+        require(lockPeriod[msg.sender] == 0 || lockPeriod[msg.sender] + lastClaimedAt[msg.sender] <= block.timestamp, "Still in the lock period");
+        lastClaimedAt[msg.sender] = block.timestamp;
+
         int256 accumulatedFlame = ((user.amount * accFlamePerShare) / ACC_FLAME_PRECISION)
             .toInt256();
         uint256 _pendingFlame = (accumulatedFlame - user.rewardDebt).toUint256();
@@ -389,5 +414,29 @@ contract Staking is Initializable, OwnableUpgradeable {
 
     function renounceOwnership() public override onlyOwner {
         revert();
+    }
+
+    /**
+     * @notice Set worker
+     * @param _worker worker's address
+     */
+    function setWorker(address _worker) external onlyOwner {
+        worker = _worker;
+    }
+
+    /**
+     * @notice Remove worker
+     */
+    function removeWorker() external onlyOwner {
+        worker = address(0);
+    }
+
+    /**
+     * @notice calculate entire locked amount
+     * @param wallet to set lock period
+     * @param period of being locked
+     */
+    function setLockPeriod(address wallet, uint256 period) external onlyOwnerOrWorker {
+        lockPeriod[wallet] = period;
     }
 }

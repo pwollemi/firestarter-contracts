@@ -469,6 +469,19 @@ describe('Staking Pool', () => {
       expect(await staking.pendingFlame(alice.address)).to.be.equal(0);
     });
 
+    it("lockPeriod for specific wallet", async () => {
+      const lockPeriod = duration.days(30).toNumber();
+      const period = duration.days(30).toNumber();
+
+      await setNextBlockTimestamp(startTime);
+      await staking.deposit(getBigNumber(1), alice.address);
+      await advanceTime(period);
+      await staking.connect(alice).harvest(alice.address);
+
+      await staking.setLockPeriod(alice.address, lockPeriod);
+      await expect(staking.connect(alice).harvest(alice.address)).to.be.revertedWith("Still in the lock period");
+    });
+
     it("Harvest with empty user balance", async () => {
       await staking.connect(alice).harvest(alice.address);
     })
@@ -518,6 +531,19 @@ describe('Staking Pool', () => {
       expect((await staking.userInfo(alice.address)).rewardDebt).to.be.equal(expectedFlame.mul(3).div(4));
     });
 
+    it("lockPeriod for specific wallet", async () => {
+      const lockPeriod = duration.days(30).toNumber();
+      const period = duration.days(30).toNumber();
+
+      await setNextBlockTimestamp(startTime);
+      await staking.deposit(getBigNumber(1), alice.address);
+      await advanceTime(period);
+      await staking.connect(alice).withdraw(getBigNumber(1).div(2), alice.address);
+
+      await staking.setLockPeriod(alice.address, lockPeriod);
+      await expect(staking.connect(alice).withdraw(getBigNumber(1).div(2), alice.address)).to.be.revertedWith("Still in the lock period");
+    });
+
     it("Withraw 0", async () => {
       await expect(staking.connect(alice).withdraw(0, bob.address))
         .to.emit(staking, "Withdraw")
@@ -538,6 +564,40 @@ describe('Staking Pool', () => {
   describe("Renoucne Ownership", () => {
     it("Should revert when call renoucne ownership", async () => {
       await expect(staking.connect(deployer).renounceOwnership()).to.be.reverted;
+    });
+  });
+
+
+  describe("setLockPeriod", async () => {
+    it("owner can set it", async () => {
+      await expect(staking.connect(alice).setLockPeriod(bob.address, 1)).to.be.revertedWith("Staking: caller is not the owner nor the worker");
+      await expect(staking.connect(bob).setLockPeriod(alice.address, 1)).to.be.revertedWith("Staking: caller is not the owner nor the worker");
+      await staking.setLockPeriod(alice.address, 1);
+    });
+
+    it("owner can set it", async () => {
+      await expect(staking.connect(alice).setLockPeriod(bob.address, 1)).to.be.revertedWith("Staking: caller is not the owner nor the worker");
+      await expect(staking.connect(bob).setLockPeriod(alice.address, 1)).to.be.revertedWith("Staking: caller is not the owner nor the worker");
+      await staking.setWorker(alice.address);
+      await staking.connect(alice).setLockPeriod(bob.address, 1);
+    });
+  });
+
+  describe("set/remove Worker", () => {
+    it("setWorker", async () => {
+      await expect(staking.connect(alice).setWorker(alice.address)).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(staking.connect(bob).setWorker(alice.address)).to.be.revertedWith("Ownable: caller is not the owner");
+
+      await staking.setWorker(alice.address);
+      expect(await staking.worker()).to.be.equal(alice.address);
+    });
+
+    it("removeWorker", async () => {
+      await expect(staking.connect(alice).removeWorker()).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(staking.connect(bob).removeWorker()).to.be.revertedWith("Ownable: caller is not the owner");
+
+      await staking.removeWorker();
+      expect(await staking.worker()).to.be.equal(ethers.constants.AddressZero);
     });
   });
 });
