@@ -28,8 +28,8 @@ contract TokenLock is Initializable {
     /// @notice Locked Info List
     mapping(address => LockInfo) public lockedBalance;
 
-    /// @notice Locked period list
-    mapping(address => uint256) public lockPeriod;
+    /// @notice Lock expire time for a wallet
+    mapping(address => uint256) public lockExpiresAt;
 
     /// @notice Owner of this contract
     address public owner;
@@ -58,6 +58,9 @@ contract TokenLock is Initializable {
 
     /// @notice An event emitted when token is unlocked
     event Unlocked(address indexed locker, uint256 amount);
+
+    /// @notice An event emitted when lock is set
+    event LockExpiresAt(address indexed wallet, uint256 timestamp);
 
     function initialize(address _token) external initializer {
         require(_token != address(0), "initialize: token address cannot be zero");
@@ -115,11 +118,10 @@ contract TokenLock is Initializable {
      */
     function unlock(uint256 _amount) external {
         LockInfo storage lockInfo = lockedBalance[msg.sender];
-        uint256 _lockPeriod = lockPeriod[msg.sender];
 
-        require(_lockPeriod == 0 || _lockPeriod + lockInfo.lastLockedTime <= block.timestamp, "Still in the lock period");
         require(lockInfo.amount > 0, "Not locked");
         require(lockInfo.amount >= _amount, "Exceeds locked amount");
+        require(lockExpiresAt[msg.sender] <= block.timestamp, "Still in the lock period");
 
         totalLocked = totalLocked - _amount;
         lockInfo.amount = lockInfo.amount - _amount;
@@ -185,11 +187,28 @@ contract TokenLock is Initializable {
     }
 
     /**
-     * @notice calculate entire locked amount
-     * @param wallet to set lock period
-     * @param period of being locked
+     * @notice set lock expiring time of a wallet
+     * @param wallet to set lock expiring time
+     * @param timestamp of being unlocked
      */
-    function setLockPeriod(address wallet, uint256 period) external onlyOwnerOrWorker {
-        lockPeriod[wallet] = period;
+    function setLockExpiresAt(address wallet, uint256 timestamp) external onlyOwnerOrWorker {
+        _setLockExpiresAt(wallet, timestamp);
+    }
+
+    /**
+     * @notice set lock period of several wallets
+     * @param wallets to set lock period
+     * @param timestamps of being unlocked
+     */
+    function setBatchLockExpiresAt(address[] memory wallets, uint256[] memory timestamps) external onlyOwnerOrWorker {
+        require(wallets.length <= 100, "Input array length shouldn't exceed 100");
+        for (uint256 i = 0; i < wallets.length; i = i + 1) {
+            _setLockExpiresAt(wallets[i], timestamps[i]);
+        }
+    }
+
+    function _setLockExpiresAt(address wallet, uint256 timestamp) internal {
+        lockExpiresAt[wallet] = timestamp;
+        emit LockExpiresAt(wallet, timestamp);
     }
 }

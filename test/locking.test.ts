@@ -243,22 +243,41 @@ describe('Locking', () => {
         expect(burned1.sub(burned0)).to.be.equal(penalty);
     });
 
-    it("lockPeriod for specific wallet", async () => {
+    it("lockExpiresAt for specific wallet", async () => {
       await tokenLock.setOwner(signers[0].address);
 
       const lockAmount = totalAmount.div(10);
-      const lockPeriod = duration.days(30);
       const timestamp = await getLatestBlockTimestamp() + 10;
+      const lockExpiresAt = duration.days(30).toNumber() + timestamp;
       await setNextBlockTimestamp(timestamp);
       await tokenLock.connect(signers[1]).lock(lockAmount);
 
-      await tokenLock.setLockPeriod(signers[1].address, lockPeriod)
+      await tokenLock.setLockExpiresAt(signers[1].address, lockExpiresAt)
       await expect(tokenLock.connect(signers[1]).unlock(lockAmount)).to.be.revertedWith("Still in the lock period");
 
-      await setNextBlockTimestamp(timestamp + lockPeriod.toNumber());
+      await setNextBlockTimestamp(lockExpiresAt);
       await tokenLock.connect(signers[1]).unlock(lockAmount);
     });
 
+    it("set batch lockExpiresAt for specific wallets", async () => {
+      await tokenLock.setOwner(signers[0].address);
+
+      const lockAmount = totalAmount.div(10);
+      const timestamp = await getLatestBlockTimestamp() + 10;
+      const lockExpiresAt = duration.days(30).toNumber() + timestamp;
+      await setNextBlockTimestamp(timestamp);
+      await tokenLock.connect(signers[1]).lock(lockAmount);
+      await tokenLock.connect(signers[2]).lock(lockAmount);
+
+      await tokenLock.setBatchLockExpiresAt([signers[1].address, signers[2].address], [lockExpiresAt, lockExpiresAt])
+      await expect(tokenLock.connect(signers[1]).unlock(lockAmount)).to.be.revertedWith("Still in the lock period");
+      await expect(tokenLock.connect(signers[2]).unlock(lockAmount)).to.be.revertedWith("Still in the lock period");
+
+      await setNextBlockTimestamp(lockExpiresAt);
+      await tokenLock.connect(signers[1]).unlock(lockAmount);
+      await tokenLock.connect(signers[2]).unlock(lockAmount);
+    });
+    
     it("Unlocked event is emitted with correct params", async () => {
         const timestamp = await getLatestBlockTimestamp() + 10;
         const lockAmount = totalAmount.div(10);
@@ -282,20 +301,24 @@ describe('Locking', () => {
     });
   });
 
-  describe("setLockPeriod", async () => {
+  describe("setLockExpiresAt", async () => {
     it("owner can set it", async () => {
+      const timestamp = await getLatestBlockTimestamp() + 10;
+      const lockExpiresAt = duration.days(30).toNumber() + timestamp;
       await tokenLock.setOwner(signers[0].address);
-      await expect(tokenLock.connect(signers[2]).setLockPeriod(signers[3].address, 1)).to.be.revertedWith("TokenLock: caller is not the owner nor the worker");
-      await expect(tokenLock.connect(signers[3]).setLockPeriod(signers[2].address, 1)).to.be.revertedWith("TokenLock: caller is not the owner nor the worker");
-      await tokenLock.connect(signers[0]).setLockPeriod(signers[2].address, 1);
+      await expect(tokenLock.connect(signers[2]).setLockExpiresAt(signers[3].address, lockExpiresAt)).to.be.revertedWith("TokenLock: caller is not the owner nor the worker");
+      await expect(tokenLock.connect(signers[3]).setLockExpiresAt(signers[2].address, lockExpiresAt)).to.be.revertedWith("TokenLock: caller is not the owner nor the worker");
+      await tokenLock.connect(signers[0]).setLockExpiresAt(signers[2].address, lockExpiresAt);
     });
 
     it("owner can set it", async () => {
+      const timestamp = await getLatestBlockTimestamp() + 10;
+      const lockExpiresAt = duration.days(30).toNumber() + timestamp;
       await tokenLock.setOwner(signers[1].address);
-      await expect(tokenLock.connect(signers[2]).setLockPeriod(signers[3].address, 1)).to.be.revertedWith("TokenLock: caller is not the owner nor the worker");
-      await expect(tokenLock.connect(signers[3]).setLockPeriod(signers[2].address, 1)).to.be.revertedWith("TokenLock: caller is not the owner nor the worker");
+      await expect(tokenLock.connect(signers[2]).setLockExpiresAt(signers[3].address, lockExpiresAt)).to.be.revertedWith("TokenLock: caller is not the owner nor the worker");
+      await expect(tokenLock.connect(signers[3]).setLockExpiresAt(signers[2].address, lockExpiresAt)).to.be.revertedWith("TokenLock: caller is not the owner nor the worker");
       await tokenLock.connect(signers[1]).setWorker(signers[0].address);
-      await tokenLock.connect(signers[0]).setLockPeriod(signers[2].address, 1);
+      await tokenLock.connect(signers[0]).setLockExpiresAt(signers[2].address, lockExpiresAt);
     });
   });
 

@@ -469,17 +469,17 @@ describe('Staking Pool', () => {
       expect(await staking.pendingFlame(alice.address)).to.be.equal(0);
     });
 
-    it("lockPeriod for specific wallet", async () => {
-      const lockPeriod = duration.days(30).toNumber();
-      const period = duration.days(30).toNumber();
+    it("lockExpiresAt for specific wallet", async () => {
+      const lockExpireAt = startTime + duration.days(30).toNumber();
 
       await setNextBlockTimestamp(startTime);
       await staking.deposit(getBigNumber(1), alice.address);
-      await advanceTime(period);
-      await staking.connect(alice).harvest(alice.address);
 
-      await staking.setLockPeriod(alice.address, lockPeriod);
+      await staking.setLockExpiresAt(alice.address, lockExpireAt);
       await expect(staking.connect(alice).harvest(alice.address)).to.be.revertedWith("Still in the lock period");
+
+      await setNextBlockTimestamp(lockExpireAt);
+      await staking.connect(alice).harvest(alice.address);
     });
 
     it("Harvest with empty user balance", async () => {
@@ -531,17 +531,32 @@ describe('Staking Pool', () => {
       expect((await staking.userInfo(alice.address)).rewardDebt).to.be.equal(expectedFlame.mul(3).div(4));
     });
 
-    it("lockPeriod for specific wallet", async () => {
-      const lockPeriod = duration.days(30).toNumber();
-      const period = duration.days(30).toNumber();
+    it("lockExpiresAt for specific wallet", async () => {
+      const lockExpiresAt = startTime + duration.days(30).toNumber();
 
       await setNextBlockTimestamp(startTime);
       await staking.deposit(getBigNumber(1), alice.address);
-      await advanceTime(period);
-      await staking.connect(alice).withdraw(getBigNumber(1).div(2), alice.address);
 
-      await staking.setLockPeriod(alice.address, lockPeriod);
+      await staking.setLockExpiresAt(alice.address, lockExpiresAt);
       await expect(staking.connect(alice).withdraw(getBigNumber(1).div(2), alice.address)).to.be.revertedWith("Still in the lock period");
+      await setNextBlockTimestamp(lockExpiresAt);
+      await staking.connect(alice).withdraw(getBigNumber(1).div(2), alice.address);
+    });
+
+    it("batch lockExpiresAt for specific wallets", async () => {
+      const lockExpiresAt = startTime + duration.days(30).toNumber();
+
+      await setNextBlockTimestamp(startTime);
+      await staking.deposit(getBigNumber(1), alice.address);
+      await staking.deposit(getBigNumber(1), bob.address);
+
+      await staking.setBatchLockExpiresAt([alice.address, bob.address], [lockExpiresAt, lockExpiresAt]);
+      await expect(staking.connect(alice).withdraw(getBigNumber(1).div(2), alice.address)).to.be.revertedWith("Still in the lock period");
+      await expect(staking.connect(bob).withdraw(getBigNumber(1).div(2), alice.address)).to.be.revertedWith("Still in the lock period");
+
+      await setNextBlockTimestamp(lockExpiresAt);
+      await staking.connect(alice).withdraw(getBigNumber(1).div(2), alice.address);
+      await staking.connect(bob).withdraw(getBigNumber(1).div(2), alice.address);
     });
 
     it("Withraw 0", async () => {
@@ -568,18 +583,18 @@ describe('Staking Pool', () => {
   });
 
 
-  describe("setLockPeriod", async () => {
+  describe("setLockExpiresAt", async () => {
     it("owner can set it", async () => {
-      await expect(staking.connect(alice).setLockPeriod(bob.address, 1)).to.be.revertedWith("Staking: caller is not the owner nor the worker");
-      await expect(staking.connect(bob).setLockPeriod(alice.address, 1)).to.be.revertedWith("Staking: caller is not the owner nor the worker");
-      await staking.setLockPeriod(alice.address, 1);
+      await expect(staking.connect(alice).setLockExpiresAt(bob.address, 1)).to.be.revertedWith("Staking: caller is not the owner nor the worker");
+      await expect(staking.connect(bob).setLockExpiresAt(alice.address, 1)).to.be.revertedWith("Staking: caller is not the owner nor the worker");
+      await staking.setLockExpiresAt(alice.address, 1);
     });
 
     it("owner can set it", async () => {
-      await expect(staking.connect(alice).setLockPeriod(bob.address, 1)).to.be.revertedWith("Staking: caller is not the owner nor the worker");
-      await expect(staking.connect(bob).setLockPeriod(alice.address, 1)).to.be.revertedWith("Staking: caller is not the owner nor the worker");
+      await expect(staking.connect(alice).setLockExpiresAt(bob.address, 1)).to.be.revertedWith("Staking: caller is not the owner nor the worker");
+      await expect(staking.connect(bob).setLockExpiresAt(alice.address, 1)).to.be.revertedWith("Staking: caller is not the owner nor the worker");
       await staking.setWorker(alice.address);
-      await staking.connect(alice).setLockPeriod(bob.address, 1);
+      await staking.connect(alice).setLockExpiresAt(bob.address, 1);
     });
   });
 
