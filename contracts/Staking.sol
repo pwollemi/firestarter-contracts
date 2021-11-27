@@ -66,6 +66,20 @@ contract Staking is Initializable, OwnableUpgradeable {
     /// @notice Info of each user that stakes LP tokens.
     mapping(address => UserInfo) public userInfo;
 
+    /// @notice Lock expire time for a wallet
+    mapping(address => uint256) public lockExpiresAt;
+
+    /// @notice Worker's address allowed to set lock period
+    address public worker;
+
+    /**
+     * @dev Throws if called by any account other than the owner or the worker.
+     */
+    modifier onlyOwnerOrWorker() {
+        require(owner() == _msgSender() || worker == _msgSender(), "Staking: caller is not the owner nor the worker");
+        _;
+    }
+
     event Deposit(address indexed user, uint256 amount, address indexed to);
     event Withdraw(address indexed user, uint256 amount, address indexed to);
     event EmergencyWithdraw(address indexed user, uint256 amount, address indexed to);
@@ -75,6 +89,7 @@ contract Staking is Initializable, OwnableUpgradeable {
     event LogFlamePerSecond(uint256 flamePerSecond);
     event LogStakingInfo(uint256 startTime, uint256 stakingPeriod);
     event LogEarlyWithdrawal(uint256 earlyWithdrawal);
+    event LockExpiresAt(address indexed wallet, uint256 timestamp);
 
     /**
      * @param _flame The FLAME token contract address.
@@ -269,8 +284,11 @@ contract Staking is Initializable, OwnableUpgradeable {
      * @param to Receiver of the LP tokens and FLAME rewards.
      */
     function withdraw(uint256 amount, address to) public {
+        require(lockExpiresAt[msg.sender] <= block.timestamp, "Still in the lock period");
+
         updatePool();
         UserInfo storage user = userInfo[msg.sender];
+
         int256 accumulatedFlame = ((user.amount * accFlamePerShare) / ACC_FLAME_PRECISION)
             .toInt256();
         uint256 _pendingFlame = (accumulatedFlame - user.rewardDebt).toUint256();
@@ -301,8 +319,12 @@ contract Staking is Initializable, OwnableUpgradeable {
      * @param to Receiver of FLAME rewards.
      */
     function harvest(address to) public {
+        require(lockExpiresAt[msg.sender] <= block.timestamp, "Still in the lock period");
+
         updatePool();
         UserInfo storage user = userInfo[msg.sender];
+
+
         int256 accumulatedFlame = ((user.amount * accFlamePerShare) / ACC_FLAME_PRECISION)
             .toInt256();
         uint256 _pendingFlame = (accumulatedFlame - user.rewardDebt).toUint256();
@@ -389,5 +411,46 @@ contract Staking is Initializable, OwnableUpgradeable {
 
     function renounceOwnership() public override onlyOwner {
         revert();
+    }
+
+    /**
+     * @notice Set worker
+     * @param _worker worker's address
+     */
+    function setWorker(address _worker) external onlyOwner {
+        worker = _worker;
+    }
+
+    /**
+     * @notice Remove worker
+     */
+    function removeWorker() external onlyOwner {
+        worker = address(0);
+    }
+
+    /**
+     * @notice set lock expiring time of a wallet
+     * @param wallet to set lock expiring time
+     * @param timestamp of being unlocked
+     */
+    function setLockExpiresAt(address wallet, uint256 timestamp) external onlyOwnerOrWorker {
+        _setLockExpiresAt(wallet, timestamp);
+    }
+
+    /**
+     * @notice set lock period of several wallets
+     * @param wallets to set lock period
+     * @param timestamps of being unlocked
+     */
+    function setBatchLockExpiresAt(address[] memory wallets, uint256[] memory timestamps) external onlyOwnerOrWorker {
+        require(wallets.length <= 100, "Input array length shouldn't exceed 100");
+        for (uint256 i = 0; i < wallets.length; i = i + 1) {
+            _setLockExpiresAt(wallets[i], timestamps[i]);
+        }
+    }
+
+    function _setLockExpiresAt(address wallet, uint256 timestamp) internal {
+        lockExpiresAt[wallet] = timestamp;
+        emit LockExpiresAt(wallet, timestamp);
     }
 }
