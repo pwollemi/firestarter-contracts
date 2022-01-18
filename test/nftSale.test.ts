@@ -132,14 +132,14 @@ describe("Presale", () => {
           merkleRoot: merkleRoot,
           isPublic: false,
         })
-      ).to.be.revertedWith("");
+      ).to.be.revertedWith("NFTSale: startTime > now");
     });
 
     it("buy", () => {
       it("buyPublic", async () => {
         const buyer1 = signers[1];
         await expect(nftSale.connect(buyer1).buyPublic(1)).to.be.revertedWith(
-          ""
+          "NFTSale: isPublic = false"
         );
       });
 
@@ -163,7 +163,7 @@ describe("Presale", () => {
         // buyer1 already bought
         await expect(
           nftSale.connect(buyer1).buyPrivate(1, 1, buyer1Proof)
-        ).to.be.revertedWith("");
+        ).to.be.revertedWith("NFTSale: balance + amount > alloc");
 
         // buyer2 has 2 alloc
         const buyer2 = signers[2];
@@ -226,7 +226,7 @@ describe("Presale", () => {
         const buyer1 = signers[1];
         await expect(
           nftSale.connect(buyer1).buyPrivate(1, 1, [])
-        ).to.be.revertedWith("");
+        ).to.be.revertedWith("NFTSale: isPublic = true");
       });
 
       it("buyPublic", async () => {
@@ -246,7 +246,7 @@ describe("Presale", () => {
 
         // buyer1 already bought
         await expect(nftSale.connect(buyer1).buyPublic(1)).to.be.revertedWith(
-          ""
+          "NFTSale: balance + amount > globalCap"
         );
 
         const buyer2 = signers[2];

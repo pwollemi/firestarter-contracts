@@ -68,7 +68,7 @@ contract NFTSale is Initializable, OwnableUpgradeable, ERC721HolderUpgradeable {
      * @notice Update the sale setting before it starts
      */
     function updateSaleSetting(SaleSetting memory _saleSetting) external onlyOwner {
-        require(saleSetting.startTime > block.timestamp);
+        require(saleSetting.startTime > block.timestamp, "NFTSale: startTime > now");
         _updateSaleSetting(_saleSetting);
     }
 
@@ -76,7 +76,7 @@ contract NFTSale is Initializable, OwnableUpgradeable, ERC721HolderUpgradeable {
      * @notice Withdraw the sale tokens after the sale ends
      */
     function withdrawFund() external onlyOwner {
-        require(saleSetting.endTime < block.timestamp);
+        require(saleSetting.endTime < block.timestamp, "NFTSale: endTime > now");
         address owner = owner();
         IERC20Upgradeable fundToken = saleSetting.fundToken;
         fundToken.safeTransfer(owner, fundToken.balanceOf(owner));
@@ -86,7 +86,7 @@ contract NFTSale is Initializable, OwnableUpgradeable, ERC721HolderUpgradeable {
      * @notice Withdraw an unsold nft
      */
     function withdrawNFT(uint256 tokenId) external onlyOwner {
-        require(saleSetting.endTime < block.timestamp);
+        require(saleSetting.endTime < block.timestamp, "NFTSale: endTime > now");
         address owner = owner();
         ICollection collection = saleSetting.collection;
         collection.safeTransferFrom(address(this), owner, tokenId);
@@ -96,7 +96,7 @@ contract NFTSale is Initializable, OwnableUpgradeable, ERC721HolderUpgradeable {
      * @notice Batch withdraw the unsold nft
      */
     function batchWithdrawNFT(uint256[] calldata tokenIds) external onlyOwner {
-        require(saleSetting.endTime < block.timestamp);
+        require(saleSetting.endTime < block.timestamp, "NFTSale: endTime > now");
         address owner = owner();
         ICollection collection = saleSetting.collection;
         for (uint256 i = 0; i < tokenIds.length; i++) {
@@ -118,10 +118,10 @@ contract NFTSale is Initializable, OwnableUpgradeable, ERC721HolderUpgradeable {
 
     function buyPublic(uint256 amount) external {
         SaleSetting memory setting = saleSetting;
-        require(amount > 0);
-        require(setting.startTime <= block.timestamp && setting.endTime >= block.timestamp);
-        require(setting.isPublic);
-        require(balance[msg.sender] + amount <= setting.globalCap);
+        require(amount > 0, "NFTSale: amount = 0");
+        require(setting.startTime <= block.timestamp && setting.endTime >= block.timestamp, "NFTSale: not in saleTime");
+        require(setting.isPublic, "NFTSale: isPublic = false");
+        require(balance[msg.sender] + amount <= setting.globalCap,  "NFTSale: balance + amount > globalCap");
 
         _buy(setting, amount);
     }
@@ -132,12 +132,12 @@ contract NFTSale is Initializable, OwnableUpgradeable, ERC721HolderUpgradeable {
         bytes32[] calldata proof
     ) external {
         SaleSetting memory setting = saleSetting;
-        require(amount > 0);
-        require(setting.startTime <= block.timestamp && setting.endTime >= block.timestamp);
-        require(!setting.isPublic);
+        require(amount > 0, "NFTSale: amount = 0");
+        require(setting.startTime <= block.timestamp && setting.endTime >= block.timestamp, "NFTSale: not in saleTime");
+        require(!setting.isPublic, "NFTSale: isPublic = true");
         bytes32 node = keccak256(abi.encode(msg.sender, alloc));
-        require(MerkleProofUpgradeable.verify(proof, setting.merkleRoot, node));
-        require(balance[msg.sender] + amount <= alloc);
+        require(MerkleProofUpgradeable.verify(proof, setting.merkleRoot, node), "NFTSale: verification failed");
+        require(balance[msg.sender] + amount <= alloc, "NFTSale: balance + amount > alloc");
 
         _buy(setting, amount);
     }
@@ -161,12 +161,11 @@ contract NFTSale is Initializable, OwnableUpgradeable, ERC721HolderUpgradeable {
     }
 
     function _updateSaleSetting(SaleSetting memory _saleSetting) private {
-        require(address(_saleSetting.collection) != address(0));
-        require(address(_saleSetting.fundToken) != address(0));
-        require(_saleSetting.startTime > block.timestamp);
-        require(_saleSetting.endTime > _saleSetting.startTime);
-        require(_saleSetting.salePrice > 0);
-        require(_saleSetting.isPublic || _saleSetting.merkleRoot != 0x0);
+        require(address(_saleSetting.collection) != address(0), "NFTSale: collection = address(0)");
+        require(address(_saleSetting.fundToken) != address(0), "NFTSale: fundToken = address(0)");
+        require(_saleSetting.startTime > block.timestamp, "NFTSale: startTime < now");
+        require(_saleSetting.endTime > _saleSetting.startTime, "NFTSale: endTime < startTime");
+        require(_saleSetting.salePrice > 0, "NFTSale: salePrice = 0");
         require(!_saleSetting.isPublic || _saleSetting.globalCap > 0);
 
         saleSetting = _saleSetting;
