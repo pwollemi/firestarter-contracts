@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
+pragma abicoder v2;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol";
 
-contract MerkleWhitelist is Initializable, OwnableUpgradeable {
+import "./interfaces/IMerkleWhitelist.sol";
+
+contract MerkleWhitelist is IMerkleWhitelist, Initializable, OwnableUpgradeable {
     /// @notice The merkle root of the the merkle tree
     bytes32 public root;
 
@@ -37,20 +40,18 @@ contract MerkleWhitelist is Initializable, OwnableUpgradeable {
      * @notice Set the merkle root
      * @param _root bytes32
      */
-    function setMerkleRoot(bytes32 _root) external onlyOwnerOrWorker {
+    function setMerkleRoot(bytes32 _root) external override onlyOwnerOrWorker {
         root = _root;
     }
 
     /**
      * @notice Verify the user infos
-     * @param wallet        The account address
-     * @param isKycPassed   True if the account is passed KYC 
-     * @param amount        The amount of nfts that the account can buy
+     * @param userInfo      The whitelist info of the user
      * @param merkleProof   The merkle proof
      * @return True if verified
      */
-    function verify(address wallet, bool isKycPassed, uint256 amount, bytes32[] calldata merkleProof) public view returns (bool) {
-        bytes32 node = keccak256(abi.encode(wallet, isKycPassed, amount));
+    function verify(UserData memory userInfo, bytes32[] memory merkleProof) public override view returns (bool) {
+        bytes32 node = keccak256(abi.encode(userInfo.wallet, userInfo.isKycPassed, userInfo.publicMaxAlloc, userInfo.allowedPrivateSale, userInfo.privateMaxAlloc));
         return MerkleProofUpgradeable.verify(merkleProof, root, node);
     }
 }

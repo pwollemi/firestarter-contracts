@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "./interfaces/IWhitelist.sol";
-import "./interfaces/IVesting.sol";
+import "../interfaces/IWhitelist.sol";
+import "../interfaces/IVesting.sol";
 import "./Presale.sol";
 
 /// @title Firestarter Presale Contract
@@ -15,26 +15,31 @@ contract ProjectPresale is Presale {
     /**
      * @notice Deposit fund token to the pool in private presale
      * @dev Only allowed users can do this operation.
-     * @param amount        amount of fund token
-     * @param alloInfo      whitelist info of the user
-     * @param merkleProof   proof array
+     * @param amount amount of fund token
      */
-    function depositPrivateSale(uint256 amount, IMerkleWhitelist.UserData memory alloInfo, bytes32[] memory merkleProof) external whileDeposited {
+    function depositPrivateSale(uint256 amount) external whileDeposited {
         require(isPrivateSaleOver == false, "depositPrivateSale: Private Sale is ended!");
 
         // check if user is in white list
-        require(msg.sender == alloInfo.wallet, "depositPrivateSale: Invalid alloInfo");
-        require(IMerkleWhitelist(whitelist).verify(alloInfo, merkleProof), "depositPrivateSale: Not exist on the whitelist");
-        require(alloInfo.isKycPassed, "depositPrivateSale: Not passed KYC");
+        (
+            address user,
+            bool isKycPassed,
+            ,
+            bool allowedPrivateSale,
+            uint256 privateMaxAlloc
+        ) = IWhitelist(whitelist).getUser(msg.sender);
+
+        require(user != address(0), "depositPrivateSale: Not exist on the whitelist");
+        require(isKycPassed, "depositPrivateSale: Not passed KYC");
         require(
-            alloInfo.allowedPrivateSale == true,
+            allowedPrivateSale == true,
             "depositPrivateSale: Not allowed to participate in private sale"
         );
 
         // calculate fund token balance after deposit
         Recipient storage recp = recipients[msg.sender];
         uint256 newFundBalance = recp.ftBalance + amount;
-        require(alloInfo.privateMaxAlloc >= newFundBalance, "Deposit: Can't exceed the privateMaxAlloc!");
+        require(privateMaxAlloc >= newFundBalance, "Deposit: Can't exceed the privateMaxAlloc!");
         IERC20Upgradeable(fundToken).safeTransferFrom(msg.sender, address(this), amount);
 
         uint256 rtAmount = (amount * (10**IERC20Extended(rewardToken).decimals()) * ACCURACY) /
@@ -44,12 +49,12 @@ contract ProjectPresale is Presale {
         recp.ftBalance = newFundBalance;
         recp.rtBalance = recp.rtBalance + rtAmount;
         privateSoldAmount = privateSoldAmount + rtAmount;
-        privateSoldFunds[msg.sender] = privateSoldFunds[msg.sender] + amount;
+        privateSoldFunds[user] = privateSoldFunds[user] + amount;
 
-        if (inserted[msg.sender] == false) {
-            inserted[msg.sender] = true;
-            indexOf[msg.sender] = participants.length;
-            participants.push(msg.sender);
+        if (inserted[user] == false) {
+            inserted[user] = true;
+            indexOf[user] = participants.length;
+            participants.push(user);
         }
 
         IVesting(vesting).updateRecipient(msg.sender, recp.rtBalance);
