@@ -3,9 +3,11 @@ import { solidity } from "ethereum-waffle";
 import chai from 'chai';
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { BigNumber, BigNumberish } from "ethers";
-import { CustomToken, ProjectPresale, ProjectPresaleV2, Vesting, Whitelist } from "../typechain";
+import MerkleTree from "merkletreejs";
+import { CustomToken, MerkleWhitelist, ProjectPresale, ProjectPresaleV2, Vesting, Whitelist } from "../typechain";
 import { setNextBlockTimestamp, getLatestBlockTimestamp, mineBlock } from "../helper/utils";
 import { deployContract, deployCampaign, deployProxy } from "../helper/deployer";
+import { generateTree, getNode } from "../helper/merkle";
 
 chai.use(solidity);
 const { expect } = chai;
@@ -14,7 +16,7 @@ describe('Project Presale', () => {
     const totalTokenSupply = ethers.utils.parseUnits("1000000000000", 18);
 
     let signers: SignerWithAddress[];
-    let whitelist: Whitelist;
+    let whitelist: MerkleWhitelist;
     let vesting: Vesting;
     let presale: ProjectPresaleV2;
     let fundToken: CustomToken;
@@ -25,6 +27,9 @@ describe('Project Presale', () => {
     let privateSaleStartTime: number;
     let fakeUsers: { wallet: string; isKycPassed: boolean; publicMaxAlloc: BigNumber; allowedPrivateSale: boolean, privateMaxAlloc: BigNumberish;}[] = [];
     let ACCURACY: BigNumber;
+
+    let merkleTree: MerkleTree;
+    const alloInfos: any = {};
 
     before(async () => {
         signers = await ethers.getSigners();
@@ -60,9 +65,9 @@ describe('Project Presale', () => {
             initialRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
         };
 
-        whitelist = <Whitelist>await deployProxy("Whitelist");
+        whitelist = <MerkleWhitelist>await deployProxy("MerkleWhitelist");
         vesting = <Vesting>await deployProxy("Vesting", addresses.rewardToken, vestingParams);
-        presale = <ProjectPresaleV2>await deployProxy("ProjectPresaleV2", {
+        presale = <ProjectPresaleV2>await deployProxy("contracts/ProjectPresaleV2.sol:ProjectPresaleV2", {
             ...addresses,
             whitelist: whitelist.address,
             vesting: vesting.address
@@ -100,7 +105,13 @@ describe('Project Presale', () => {
 
         fakeUsers[3].allowedPrivateSale = false;
         fakeUsers[4].allowedPrivateSale = false;
-        await whitelist.addToWhitelist(fakeUsers);
+
+        fakeUsers.forEach((el) => {
+            alloInfos[el.wallet] = el;
+        });
+        
+        merkleTree = generateTree(fakeUsers);
+        await whitelist.setMerkleRoot(merkleTree.getHexRoot());                
 
         ACCURACY = await presale.ACCURACY();
     });
@@ -136,63 +147,82 @@ describe('Project Presale', () => {
 
     describe("Deposit PrivateSale", async () => {
         it("Can do this only when enough amount is deposited", async () => {
-            await expect(presale.depositPrivateSale(1)).to.be.revertedWith("Deposit enough rewardToken tokens to the vesting contract first!");
-            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+            const alloInfo = alloInfos[signers[0].address];
+            const proof = merkleTree.getHexProof(getNode(alloInfo));
             await setNextBlockTimestamp(privateSaleStartTime);
-            await presale.depositPrivateSale(1);
-        });
-
-        it("Can do this only when private sale start time is passed", async () => {
+            await expect(presale.depositPrivateSale(1, alloInfo, proof)).to.be.revertedWith("Deposit enough rewardToken tokens to the vesting contract first!");
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
-            await expect(presale.depositPrivateSale(1)).to.be.revertedWith("depositPrivateSale: Private Sale is not started");
-            await setNextBlockTimestamp(privateSaleStartTime);
-            await presale.depositPrivateSale(1);
+            await presale.depositPrivateSale(1, alloInfo, proof);
         });
 
         it("Can't deposit if private sale is over", async () => {
+            const alloInfo = alloInfos[signers[0].address];
+            const proof = merkleTree.getHexProof(getNode(alloInfo));
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await setNextBlockTimestamp(privateSaleStartTime);
-            await presale.depositPrivateSale(1);
+            await presale.depositPrivateSale(1, alloInfo, proof);
             await presale.endPrivateSale();
-            await expect(presale.depositPrivateSale(1)).to.be.revertedWith("depositPrivateSale: Private Sale is ended!");
+            await expect(presale.depositPrivateSale(1, alloInfo, proof)).to.be.revertedWith("depositPrivateSale: Private Sale is ended!");
         });
 
         it("Must be whitelisted user", async () => { 
+            const fakeAllo = alloInfos[signers[0].address];
+            const proof = merkleTree.getHexProof(getNode(fakeAllo));
+            fakeAllo.wallet = signers[7].address;
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await setNextBlockTimestamp(privateSaleStartTime);
-            await expect(presale.connect(signers[7]).depositPrivateSale("1")).to.be.revertedWith("depositPrivateSale: Not exist on the whitelist");
+            await expect(presale.connect(signers[7]).depositPrivateSale("1", fakeAllo, proof)).to.be.revertedWith("depositPrivateSale: Not exist on the whitelist");
+        });
+
+        it("Must be owner of the leaf", async () => { 
+            const alloInfo = alloInfos[signers[0].address];
+            const proof = merkleTree.getHexProof(getNode(alloInfo));
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+            await setNextBlockTimestamp(privateSaleStartTime);
+            await expect(presale.connect(signers[7]).depositPrivateSale("1", alloInfo, proof)).to.be.revertedWith("depositPrivateSale: Invalid alloInfo");
         });
 
         it("Must be kyc passed user", async () => { 
+            const alloInfo = alloInfos[signers[6].address];
+            const proof = merkleTree.getHexProof(getNode(alloInfo));
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await setNextBlockTimestamp(privateSaleStartTime);
-            await expect(presale.connect(signers[6]).depositPrivateSale("1")).to.be.revertedWith("depositPrivateSale: Not passed KYC");
+            await expect(presale.connect(signers[6]).depositPrivateSale("1", alloInfo, proof)).to.be.revertedWith("depositPrivateSale: Not passed KYC");
         });
 
         it("Must be private sale allowed user", async () => { 
+            const alloInfo3 = alloInfos[signers[3].address];
+            const proof3 = merkleTree.getHexProof(getNode(alloInfo3));
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await setNextBlockTimestamp(privateSaleStartTime);
-            await expect(presale.connect(signers[3]).depositPrivateSale("1")).to.be.revertedWith("depositPrivateSale: Not allowed to participate in private sale");
-            await expect(presale.connect(signers[4]).depositPrivateSale("1")).to.be.revertedWith("depositPrivateSale: Not allowed to participate in private sale");
+            await expect(presale.connect(signers[3]).depositPrivateSale("1", alloInfo3, proof3)).to.be.revertedWith("depositPrivateSale: Not allowed to participate in private sale");
+
+            const alloInfo4 = alloInfos[signers[4].address];
+            const proof4 = merkleTree.getHexProof(getNode(alloInfo4));
+            await expect(presale.connect(signers[4]).depositPrivateSale("1", alloInfo4, proof4)).to.be.revertedWith("depositPrivateSale: Not allowed to participate in private sale");
         });
 
         it("Can't exceed publicMaxAlloc", async () => { 
+            const alloInfo = alloInfos[signers[1].address];
+            const proof = merkleTree.getHexProof(getNode(alloInfo));
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
-            await setNextBlockTimestamp(privateSaleStartTime);
             const depositAmount = BigNumber.from(fakeUsers[1].privateMaxAlloc);
-            await expect(presale.connect(signers[1]).depositPrivateSale(depositAmount.add(1))).to.be.revertedWith("Deposit: Can't exceed the privateMaxAlloc!");
+            await setNextBlockTimestamp(privateSaleStartTime);
+            await expect(presale.connect(signers[1]).depositPrivateSale(depositAmount.add(1), alloInfo, proof)).to.be.revertedWith("Deposit: Can't exceed the privateMaxAlloc!");
 
             // but succeeds with max allocation
-            await presale.connect(signers[1]).depositPrivateSale(depositAmount);
+            await presale.connect(signers[1]).depositPrivateSale(depositAmount, alloInfo, proof);
         });
 
         it("Deposit updates correct states", async () => { 
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
-            await setNextBlockTimestamp(privateSaleStartTime);
 
+            const alloInfo = alloInfos[signers[1].address];
+            const proof = merkleTree.getHexProof(getNode(alloInfo));
             const depositAmount = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(2);
             const rewardAmount = depositAmount.mul(ACCURACY).div(presaleParams.rate);
-            await presale.connect(signers[1]).depositPrivateSale(depositAmount);
+            await setNextBlockTimestamp(privateSaleStartTime);
+            await presale.connect(signers[1]).depositPrivateSale(depositAmount, alloInfo, proof);
 
             const recpInfo = await presale.recipients(signers[1].address);
             expect(recpInfo.ftBalance).to.be.equal(depositAmount);
@@ -209,17 +239,19 @@ describe('Project Presale', () => {
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await setNextBlockTimestamp(privateSaleStartTime);
 
+            const alloInfo = alloInfos[signers[1].address];
+            const proof = merkleTree.getHexProof(getNode(alloInfo));
             const depositAmount1 = BigNumber.from(fakeUsers[1].privateMaxAlloc);
             const depositAmount2 = fakeUsers[1].publicMaxAlloc;
             const rewardAmount1 = depositAmount1.mul(ACCURACY).div(presaleParams.rate);
             const rewardAmount2 = depositAmount2.mul(ACCURACY).div(presaleParams.rate);
 
-            await presale.connect(signers[1]).depositPrivateSale(depositAmount1);
+            await presale.connect(signers[1]).depositPrivateSale(depositAmount1, alloInfo, proof);
             await presale.endPrivateSale();
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
             await presale.startPresale();
-            await presale.connect(signers[1]).deposit(depositAmount2);
+            await presale.connect(signers[1]).deposit(depositAmount2, alloInfo, proof);
 
             const totalDepositAmount = depositAmount1.add(depositAmount2);
             const totalRwdAmount = totalDepositAmount.mul(ACCURACY).div(presaleParams.rate);
@@ -235,10 +267,13 @@ describe('Project Presale', () => {
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             await setNextBlockTimestamp(privateSaleStartTime);
 
+            const alloInfo = alloInfos[signers[1].address];
+            const proof = merkleTree.getHexProof(getNode(alloInfo));
+
             // 1st
             const depositAmount1 = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(2);
             const rewardAmount1 = depositAmount1.mul(ACCURACY).div(presaleParams.rate);
-            await presale.connect(signers[1]).depositPrivateSale(depositAmount1);
+            await presale.connect(signers[1]).depositPrivateSale(depositAmount1, alloInfo, proof);
 
             const recpInfo1 = await presale.recipients(signers[1].address);
             expect(recpInfo1.ftBalance).to.be.equal(depositAmount1);
@@ -253,7 +288,7 @@ describe('Project Presale', () => {
             // 2nd
             const depositAmount2 = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(4);
             const rewardAmount2 = depositAmount2.mul(ACCURACY).div(presaleParams.rate);
-            await presale.connect(signers[1]).depositPrivateSale(depositAmount2);
+            await presale.connect(signers[1]).depositPrivateSale(depositAmount2, alloInfo, proof);
 
             const recpInfo2 = await presale.recipients(signers[1].address);
             expect(recpInfo2.ftBalance).to.be.equal(depositAmount1.add(depositAmount2));
@@ -271,11 +306,13 @@ describe('Project Presale', () => {
             await setNextBlockTimestamp(privateSaleStartTime);
             await mineBlock();
 
+            const alloInfo = alloInfos[signers[1].address];
+            const proof = merkleTree.getHexProof(getNode(alloInfo));
             const depositAmount = BigNumber.from(fakeUsers[1].privateMaxAlloc).div(2);
             const rewardAmount = depositAmount.mul(ACCURACY).div(presaleParams.rate);
             const nextTimestamp = await getLatestBlockTimestamp() + 10;
             await setNextBlockTimestamp(nextTimestamp);
-            await expect(presale.connect(signers[1]).depositPrivateSale(depositAmount))
+            await expect(presale.connect(signers[1]).depositPrivateSale(depositAmount, alloInfo, proof))
                 .to.emit(presale, "Vested")
                 .withArgs(signers[1].address, rewardAmount, true, nextTimestamp);
         });
@@ -288,9 +325,15 @@ describe('Project Presale', () => {
             await setNextBlockTimestamp(privateSaleStartTime);
 
             // private sale
-            await presale.connect(signers[0]).depositPrivateSale(amount);
-            await presale.connect(signers[1]).depositPrivateSale(amount);
-            await presale.connect(signers[2]).depositPrivateSale(amount);
+            const alloInfo0 = alloInfos[signers[0].address];
+            const proof0 = merkleTree.getHexProof(getNode(alloInfo0));
+            await presale.connect(signers[0]).depositPrivateSale(amount, alloInfo0, proof0);
+            const alloInfo1 = alloInfos[signers[1].address];
+            const proof1 = merkleTree.getHexProof(getNode(alloInfo1));
+            await presale.connect(signers[1]).depositPrivateSale(amount, alloInfo1, proof1);
+            const alloInfo2 = alloInfos[signers[2].address];
+            const proof2 = merkleTree.getHexProof(getNode(alloInfo2));
+            await presale.connect(signers[2]).depositPrivateSale(amount, alloInfo2, proof2);
 
             // public sale
             const startTime = await getLatestBlockTimestamp() + 10000;
@@ -298,8 +341,12 @@ describe('Project Presale', () => {
             await presale.endPrivateSale();
             await presale.startPresale();
 
-            await presale.connect(signers[3]).deposit(1);
-            await presale.connect(signers[4]).deposit(1);
+            const alloInfo3 = alloInfos[signers[3].address];
+            const proof3 = merkleTree.getHexProof(getNode(alloInfo3));
+            await presale.connect(signers[3]).deposit(1, alloInfo3, proof3);
+            const alloInfo4 = alloInfos[signers[4].address];
+            const proof4 = merkleTree.getHexProof(getNode(alloInfo4));
+            await presale.connect(signers[4]).deposit(1, alloInfo4, proof4);
 
             // check list
             const participants = await presale.getParticipants(0, 5);
@@ -320,9 +367,15 @@ describe('Project Presale', () => {
             await setNextBlockTimestamp(privateSaleStartTime);
 
             // private sale
-            await presale.connect(signers[0]).depositPrivateSale(amount);
-            await presale.connect(signers[1]).depositPrivateSale(amount);
-            await presale.connect(signers[2]).depositPrivateSale(amount);
+            const alloInfo0 = alloInfos[signers[0].address];
+            const proof0 = merkleTree.getHexProof(getNode(alloInfo0));
+            await presale.connect(signers[0]).depositPrivateSale(amount, alloInfo0, proof0);
+            const alloInfo1 = alloInfos[signers[1].address];
+            const proof1 = merkleTree.getHexProof(getNode(alloInfo1));
+            await presale.connect(signers[1]).depositPrivateSale(amount, alloInfo1, proof1);
+            const alloInfo2 = alloInfos[signers[2].address];
+            const proof2 = merkleTree.getHexProof(getNode(alloInfo2));
+            await presale.connect(signers[2]).depositPrivateSale(amount, alloInfo2, proof2);
 
             // public sale
             const startTime = await getLatestBlockTimestamp() + 10000;
@@ -330,11 +383,13 @@ describe('Project Presale', () => {
             await presale.endPrivateSale();
             await presale.startPresale();
 
-            await presale.connect(signers[1]).deposit(1);
-            await presale.connect(signers[2]).deposit(1);
-            await presale.connect(signers[4]).deposit(1);
-            await presale.connect(signers[1]).deposit(1);
-            await presale.connect(signers[4]).deposit(1);
+            const alloInfo4 = alloInfos[signers[4].address];
+            const proof4 = merkleTree.getHexProof(getNode(alloInfo4));
+            await presale.connect(signers[1]).deposit(1, alloInfo1, proof1);
+            await presale.connect(signers[2]).deposit(1, alloInfo2, proof2);
+            await presale.connect(signers[4]).deposit(1, alloInfo4, proof4);
+            await presale.connect(signers[1]).deposit(1, alloInfo1, proof1);
+            await presale.connect(signers[4]).deposit(1, alloInfo4, proof4);
 
             // check list
             const participants = await presale.getParticipants(0, 4);
@@ -354,9 +409,15 @@ describe('Project Presale', () => {
             await setNextBlockTimestamp(privateSaleStartTime);
 
             // private sale
-            await presale.connect(signers[0]).depositPrivateSale(amount);
-            await presale.connect(signers[1]).depositPrivateSale(amount);
-            await presale.connect(signers[2]).depositPrivateSale(amount);
+            const alloInfo0 = alloInfos[signers[0].address];
+            const proof0 = merkleTree.getHexProof(getNode(alloInfo0));
+            await presale.connect(signers[0]).depositPrivateSale(amount, alloInfo0, proof0);
+            const alloInfo1 = alloInfos[signers[1].address];
+            const proof1 = merkleTree.getHexProof(getNode(alloInfo1));
+            await presale.connect(signers[1]).depositPrivateSale(amount, alloInfo1, proof1);
+            const alloInfo2 = alloInfos[signers[2].address];
+            const proof2 = merkleTree.getHexProof(getNode(alloInfo2));
+            await presale.connect(signers[2]).depositPrivateSale(amount, alloInfo2, proof2);
 
             // public sale
             const startTime = await getLatestBlockTimestamp() + 10000;
@@ -364,8 +425,12 @@ describe('Project Presale', () => {
             await presale.endPrivateSale();
             await presale.startPresale();
 
-            await presale.connect(signers[3]).deposit(1);
-            await presale.connect(signers[4]).deposit(1);
+            const alloInfo3 = alloInfos[signers[3].address];
+            const proof3 = merkleTree.getHexProof(getNode(alloInfo3));
+            await presale.connect(signers[3]).deposit(1, alloInfo3, proof3);
+            const alloInfo4 = alloInfos[signers[4].address];
+            const proof4 = merkleTree.getHexProof(getNode(alloInfo4));
+            await presale.connect(signers[4]).deposit(1, alloInfo4, proof4);
 
             // check list
             expect(await presale.getParticipants(1, 2)).to.be.eql([

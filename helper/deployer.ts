@@ -1,9 +1,6 @@
 import { Contract } from "ethers";
 import hre, { ethers, upgrades } from "hardhat";
-import { FirestarterPresale, Presale, ProjectPresale, Vesting, Whitelist, } from "../typechain";
-
-declare type ContractName = "CustomToken" | "Whitelist" | "Vesting" | "TokenLock" | "FirestarterPresale" | "ProjectPresale" | "Presale" | "Staking" | "MerkleWhitelist"
-declare type CampaignType = "FirestarterPresale" | "ProjectPresale" | "Presale";
+import { FirestarterPresale, MerkleWhitelist, Presale, ProjectPresale, Vesting, Whitelist, } from "../typechain";
 
 async function verifyContract(address: string, ...constructorArguments: any[]) : Promise<void> {
     await hre.run("verify:verify", {
@@ -12,22 +9,22 @@ async function verifyContract(address: string, ...constructorArguments: any[]) :
     });
 }
 
-async function deployContract(name: ContractName, ...constructorArgs: any[]) : Promise<any> {
+async function deployContract(name: string, ...constructorArgs: any[]) : Promise<any> {
     const factory = await ethers.getContractFactory(name);
     const contract = await factory.deploy(...constructorArgs);
     await contract.deployed();
     return contract;
 }
 
-async function deployProxy(name: ContractName, ...constructorArgs: any[]) : Promise<any> {
+async function deployProxy(name: string, ...constructorArgs: any[]) : Promise<any> {
     const factory = await ethers.getContractFactory(name);
     const contract = await upgrades.deployProxy(factory, constructorArgs);
     await contract.deployed();
     return contract;
 }
 
-async function deployCampaign(type: CampaignType, vestingParams = {}, addresses: any, presaleParams: any): Promise<{ whitelist: Whitelist; vesting: Vesting; presale: FirestarterPresale | ProjectPresale | Presale; }> {
-    const whitelist = <Whitelist>await deployProxy("Whitelist");
+async function deployCampaign(type: string, vestingParams = {}, addresses: any, presaleParams: any): Promise<{ whitelist: MerkleWhitelist; vesting: Vesting; presale: FirestarterPresale | ProjectPresale | Presale; }> {
+    const whitelist = <MerkleWhitelist>await deployProxy("MerkleWhitelist");
     const vesting = <Vesting>await deployProxy("Vesting", addresses.rewardToken, vestingParams);
     const presale = <FirestarterPresale | ProjectPresale>await deployProxy(type, {
         ...addresses,

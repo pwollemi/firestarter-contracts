@@ -4,10 +4,10 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "./libraries/AddressPagination.sol";
-import "./interfaces/IERC20Extended.sol";
-import "./interfaces/IMerkleWhitelist.sol";
-import "./interfaces/IVesting.sol";
+import "../libraries/AddressPagination.sol";
+import "../interfaces/IERC20Extended.sol";
+import "../interfaces/IWhitelist.sol";
+import "../interfaces/IVesting.sol";
 
 /// @title Firestarter Presale Contract
 /// @author Michael, Daniel Lee
@@ -283,15 +283,14 @@ contract Presale is Initializable, OwnableUpgradeable {
     /**
      * @notice Deposit fund token to the pool
      * @dev Receive funds token from the participants with checking the requirements.
-     * @param amount        amount of fund token
-     * @param alloInfo      whitelist info of the user
-     * @param merkleProof   proof array
+     * @param amount amount of fund token
      */
-    function deposit(uint256 amount, IMerkleWhitelist.UserData memory alloInfo, bytes32[] memory merkleProof) external whileOnGoing {
+    function deposit(uint256 amount) external whileOnGoing {
         // check if user is in white list
-        require(msg.sender == alloInfo.wallet, "Deposit: Invalid alloInfo");
-        require(IMerkleWhitelist(whitelist).verify(alloInfo, merkleProof), "Deposit: Not exist on the whitelist");
-        require(alloInfo.isKycPassed, "Deposit: Not passed KYC");
+        (address user, bool isKycPassed, uint256 publicMaxAlloc, , ) = IWhitelist(whitelist)
+            .getUser(msg.sender);
+        require(user != address(0), "Deposit: Not exist on the whitelist");
+        require(isKycPassed, "Deposit: Not passed KYC");
 
         // calculate fund token balance after deposit
         // we assume private sale is always finished before public sale starts
@@ -302,7 +301,7 @@ contract Presale is Initializable, OwnableUpgradeable {
         // `newFundBalance` includes sold token amount both in private presale and public presale,
         // but `publicMaxAlloc` is only for public presale
         require(
-            alloInfo.publicMaxAlloc + privateSoldFunds[msg.sender] >= newFundBalance,
+            publicMaxAlloc + privateSoldFunds[user] >= newFundBalance,
             "Deposit: Can't exceed the publicMaxAlloc!"
         );
 
@@ -317,10 +316,10 @@ contract Presale is Initializable, OwnableUpgradeable {
         recp.rtBalance = recp.rtBalance + rtAmount;
         publicSoldAmount = publicSoldAmount + rtAmount;
 
-        if (inserted[msg.sender] == false) {
-            inserted[msg.sender] = true;
-            indexOf[msg.sender] = participants.length;
-            participants.push(msg.sender);
+        if (inserted[user] == false) {
+            inserted[user] = true;
+            indexOf[user] = participants.length;
+            participants.push(user);
         }
 
         IVesting(vesting).updateRecipient(msg.sender, recp.rtBalance);

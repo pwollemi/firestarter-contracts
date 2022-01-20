@@ -39,10 +39,15 @@ const config: HardhatUserConfig = {
       chainId: 97,
       ...defaultConfig
     },
+    rinkeby: {
+      url: "https://eth-rinkeby.alchemyapi.io/v2/ULzKnrrt6iflDEREoi2qNJzqRL6N6y6X",
+      chainId: 4,
+      ...defaultConfig,
+    },
     matic: {
-      url: 'https://rpc-mainnet.matic.network',
+      url: 'https://polygon-mainnet.g.alchemy.com/v2/cANvWkbPj4YVMamvJ6oumU17g3aMgpkB',
       chainId: 137,
-      ...defaultConfig
+      ...defaultConfig,
     },
     mumbai: {
       url: 'https://rpc-mumbai.maticvigil.com/v1/6f270be03821c413f67b6a21826d4048ce33114c',
@@ -53,17 +58,6 @@ const config: HardhatUserConfig = {
       url: 'https://bsc-dataseed.binance.org/',
       chainId: 56,
       ...defaultConfig
-    },
-    hardhat: {
-      forking: {
-        url:
-          "https://data-seed-prebsc-1-s1.binance.org:8545",
-      },
-      accounts: {
-        mnemonic,
-        accountsBalance: "10000000000000000000000",
-      },
-      chainId: 1337,
     },
   },
   etherscan: {
