@@ -77,11 +77,10 @@ contract NFTSale is Initializable, OwnableUpgradeable, ERC721HolderUpgradeable {
     /**
      * @notice Withdraw the sale tokens after the sale ends
      */
-    function withdrawFund() external onlyOwner {
+    function withdrawFund(address to) external onlyOwner {
         require(saleSetting.endTime < block.timestamp, "NFTSale: endTime > now");
-        address owner = owner();
         IERC20Upgradeable fundToken = saleSetting.fundToken;
-        fundToken.safeTransfer(owner, fundToken.balanceOf(owner));
+        fundToken.safeTransfer(to, fundToken.balanceOf(address(this)));
     }
 
     /**
