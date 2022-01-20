@@ -7,7 +7,6 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol";
 
 import "./interfaces/IMerkleWhitelist.sol";
-import "hardhat/console.sol";
 
 contract MerkleWhitelist is IMerkleWhitelist, Initializable, OwnableUpgradeable {
     /// @notice The merkle root of the the merkle tree
