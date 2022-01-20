@@ -35,7 +35,9 @@ contract NFTSale is Initializable, OwnableUpgradeable, ERC721HolderUpgradeable {
         uint256 endTime;
         // nft price in terms of fund token
         uint256 salePrice;
-        // global buy limit incase sale is public
+        // buy limit for an address in case the sale is public
+        uint256 userCap;
+        // max number of nfts to be sold
         uint256 globalCap;
         // merkle root incase sale is private
         bytes32 merkleRoot;
@@ -85,22 +87,23 @@ contract NFTSale is Initializable, OwnableUpgradeable, ERC721HolderUpgradeable {
     /**
      * @notice Withdraw an unsold nft
      */
-    function withdrawNFT(uint256 tokenId) external onlyOwner {
+    function withdrawNFT(uint256 tokenId, address to) external onlyOwner {
         require(saleSetting.endTime < block.timestamp, "NFTSale: endTime > now");
         address owner = owner();
         ICollection collection = saleSetting.collection;
-        collection.safeTransferFrom(address(this), owner, tokenId);
+        collection.safeTransferFrom(address(this), to, tokenId);
     }
 
     /**
      * @notice Batch withdraw the unsold nft
      */
-    function batchWithdrawNFT(uint256[] calldata tokenIds) external onlyOwner {
+    function batchWithdrawNFT(uint256[] calldata tokenIds, address[] calldata to) external onlyOwner {
         require(saleSetting.endTime < block.timestamp, "NFTSale: endTime > now");
+        require(tokenIds.length == to.length, "NFTSale: tokenIds.length != to.length");
         address owner = owner();
         ICollection collection = saleSetting.collection;
         for (uint256 i = 0; i < tokenIds.length; i++) {
-            collection.safeTransferFrom(address(this), owner, tokenIds[i]);
+            collection.safeTransferFrom(address(this), to[i], tokenIds[i]);
         }
     }
 
@@ -121,7 +124,8 @@ contract NFTSale is Initializable, OwnableUpgradeable, ERC721HolderUpgradeable {
         require(amount > 0, "NFTSale: amount = 0");
         require(setting.startTime <= block.timestamp && setting.endTime >= block.timestamp, "NFTSale: not in saleTime");
         require(setting.isPublic, "NFTSale: isPublic = false");
-        require(balance[msg.sender] + amount <= setting.globalCap,  "NFTSale: balance + amount > globalCap");
+        require(balance[msg.sender] + amount <= setting.userCap,  "NFTSale: balance + amount > userCap");
+        require(nextTokenId <= setting.globalCap, "NFTSale: nextTokenId > gloalCap");
 
         _buy(setting, amount);
     }
@@ -138,6 +142,7 @@ contract NFTSale is Initializable, OwnableUpgradeable, ERC721HolderUpgradeable {
         bytes32 node = keccak256(abi.encode(msg.sender, alloc));
         require(MerkleProofUpgradeable.verify(proof, setting.merkleRoot, node), "NFTSale: verification failed");
         require(balance[msg.sender] + amount <= alloc, "NFTSale: balance + amount > alloc");
+        require(nextTokenId <= setting.globalCap, "NFTSale: nextTokenId > gloalCap");
 
         _buy(setting, amount);
     }
@@ -166,7 +171,7 @@ contract NFTSale is Initializable, OwnableUpgradeable, ERC721HolderUpgradeable {
         require(_saleSetting.startTime > block.timestamp, "NFTSale: startTime < now");
         require(_saleSetting.endTime > _saleSetting.startTime, "NFTSale: endTime < startTime");
         require(_saleSetting.salePrice > 0, "NFTSale: salePrice = 0");
-        require(!_saleSetting.isPublic || _saleSetting.globalCap > 0);
+        require(!_saleSetting.isPublic || _saleSetting.userCap > 0);
 
         saleSetting = _saleSetting;
     }

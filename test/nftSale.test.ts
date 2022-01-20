@@ -73,7 +73,8 @@ describe("Presale", () => {
         startTime: timestamp + 10,
         endTime: timestamp + 1000,
         salePrice: ethers.utils.parseUnits("10"),
-        globalCap: 0,
+        userCap: 0,
+        globalCap: 100,
         merkleRoot,
         isPublic: false,
       });
@@ -88,7 +89,7 @@ describe("Presale", () => {
       expect(saleSetting.startTime).to.equal(timestamp + 10);
       expect(saleSetting.endTime).to.equal(timestamp + 1000);
       expect(saleSetting.salePrice).to.equal(ethers.utils.parseUnits("10"));
-      expect(saleSetting.globalCap).to.equal(ZERO);
+      expect(saleSetting.globalCap).to.equal(100);
       expect(saleSetting.merkleRoot).to.equal(merkleRoot);
       expect(saleSetting.isPublic).to.equal(false);
       expect(await collection.ownerOf(1)).to.equal(nftSale.address);
@@ -104,7 +105,8 @@ describe("Presale", () => {
         startTime: timestamp + 10,
         endTime: timestamp + 1000,
         salePrice: ethers.utils.parseUnits("10"),
-        globalCap: 0,
+        userCap: 0,
+        globalCap: 100,
         merkleRoot: merkleRoot,
         isPublic: false,
       });
@@ -115,7 +117,7 @@ describe("Presale", () => {
       expect(saleSetting.startTime).to.equal(timestamp + 10);
       expect(saleSetting.endTime).to.equal(timestamp + 1000);
       expect(saleSetting.salePrice).to.equal(ethers.utils.parseUnits("10"));
-      expect(saleSetting.globalCap).to.equal(ZERO);
+      expect(saleSetting.globalCap).to.equal(100);
       expect(saleSetting.merkleRoot).to.equal(merkleRoot);
       expect(saleSetting.isPublic).to.equal(false);
 
@@ -128,7 +130,8 @@ describe("Presale", () => {
           startTime: timestamp + 10,
           endTime: timestamp + 1000,
           salePrice: ethers.utils.parseUnits("10"),
-          globalCap: 0,
+          userCap: 0,
+          globalCap: 100,
           merkleRoot: merkleRoot,
           isPublic: false,
         })
@@ -199,7 +202,8 @@ describe("Presale", () => {
         startTime: timestamp + 10,
         endTime: timestamp + 1000,
         salePrice: ethers.utils.parseUnits("10"),
-        globalCap: 2,
+        userCap: 2,
+        globalCap: 100,
         merkleRoot:
           "0xef20c827f5570915a479b1a6ccdf4ccaae654e9d202c8c646b378328dc3483b7",
         isPublic: true,
@@ -215,7 +219,7 @@ describe("Presale", () => {
       expect(saleSetting.startTime).to.equal(timestamp + 10);
       expect(saleSetting.endTime).to.equal(timestamp + 1000);
       expect(saleSetting.salePrice).to.equal(ethers.utils.parseUnits("10"));
-      expect(saleSetting.globalCap).to.equal(BigNumber.from(2));
+      expect(saleSetting.userCap).to.equal(BigNumber.from(2));
       expect(saleSetting.isPublic).to.equal(true);
       expect(await collection.ownerOf(1)).to.equal(nftSale.address);
       expect(await collection.ownerOf(2)).to.equal(nftSale.address);
@@ -239,14 +243,14 @@ describe("Presale", () => {
           .connect(buyer1)
           .approve(nftSale.address, ethers.constants.MaxUint256);
 
-        // globalCap is 2
+        // userCap is 2
         await nftSale.connect(buyer1).buyPublic(2);
         expect(await collection.ownerOf(1)).to.equal(buyer1.address);
         expect(await nftSale.getBalance(buyer1.address)).to.equal(2);
 
         // buyer1 already bought
         await expect(nftSale.connect(buyer1).buyPublic(1)).to.be.revertedWith(
-          "NFTSale: balance + amount > globalCap"
+          "NFTSale: balance + amount > userCap"
         );
 
         const buyer2 = signers[2];
@@ -256,7 +260,7 @@ describe("Presale", () => {
         await fundToken
           .connect(buyer2)
           .approve(nftSale.address, ethers.constants.MaxUint256);
-        // globalCap is 2
+        // userCap is 2
         // mint#3
         await nftSale.connect(buyer2).buyPublic(1);
         // mint#4
