@@ -260,6 +260,11 @@ contract Presale is Initializable, OwnableUpgradeable {
         emit PresaleManuallyStarted(block.timestamp);
     }
 
+    function extendPeriod(uint256 extendTime) external onlyOwner {
+        presalePeriod = presalePeriod + extendTime;
+        currentPresalePeriod = currentPresalePeriod + extendTime;
+    }
+
     /**
      * @notice Pause the ongoing presale by mergency
      * @dev Remaining time is not considered
