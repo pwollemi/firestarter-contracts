@@ -116,6 +116,10 @@ contract NFTSale is Initializable, OwnableUpgradeable, ERC721HolderUpgradeable {
         return balance[buyer];
     }
 
+    function getNextTokenId() public view returns (uint256) {
+        return nextTokenId;
+    }
+
     /* ============ User Interacts Functions ============ */
 
     function buyPublic(uint256 amount) external {
@@ -149,6 +153,7 @@ contract NFTSale is Initializable, OwnableUpgradeable, ERC721HolderUpgradeable {
     /* ============ Internal Functions ============ */
 
     function _buy(SaleSetting memory setting, uint256 amount) private {
+        balance[msg.sender] += amount;
         uint256 fundAmount = setting.salePrice * amount;
         setting.fundToken.safeTransferFrom(msg.sender, address(this), fundAmount);
         
