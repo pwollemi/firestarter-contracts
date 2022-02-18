@@ -115,6 +115,14 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         }));
     }
 
+    function addTierInfo(TierInfo calldata _tier) external onlyOwner {
+        tiers.push(_tier);
+    }
+
+    function setTierInfo(uint256 _tierIndex, TierInfo calldata _tier) validTierIndex(_tierIndex) external onlyOwner {
+        tiers[_tierIndex] = _tier;
+    } 
+
     function stake(uint256 _amount, uint256 _tierIndex) external validTierIndex(_tierIndex) {
         token.safeTransferFrom(msg.sender, address(this), _amount);
 
@@ -172,10 +180,42 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         return stakeInfo.amount * tier.penalty / PENALTY_BASE;
     }
 
-    function getStakingPower(uint256 _stakeId) validStakeId(_stakeId) public view returns(uint256) {
+    function getPowerOfStake(uint256 _stakeId) validStakeId(_stakeId) public view returns(uint256) {
         uint256 tierIndex = userStakeOf[_stakeId].tierIndex;
 
-        return tiers[tierIndex].power;
+        return tiers[tierIndex].power * userStakeOf[_stakeId].amount / POWER_BASE;
     }
 
+    function getPowerOfAccount(address _account) public view returns(uint256) {
+        uint256 power;
+
+        for (uint256 i = 0; i < stakeIdsOf[_account].length(); i++) {
+            uint256 stakeId = stakeIdsOf[_account].at(i);
+            StakeInfo memory userStake = userStakeOf[stakeId];
+
+            if (userStake.unstakedAt == 0) {
+                power += getPowerOfStake(stakeId);
+            }
+        }
+
+        return power;
+    }
+
+    function getUserStakesCount(address _account) external view returns (uint256) {
+        return stakeIdsOf[_account].length();
+    }
+
+    function getUserStakeId(address _account, uint256 idx) external view returns (uint256) {
+        return stakeIdsOf[_account].at(idx);
+    }
+
+    function getUserStakeIds(address _account) external view returns (uint256[] memory) {
+        uint256[] memory stakeIds;
+
+        for(uint256 i = 0; i < stakeIdsOf[_account].length(); i++) {
+            stakeIds[i] = stakeIdsOf[_account].at(i);
+        }
+
+        return stakeIds;
+    }
 }
