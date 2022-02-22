@@ -230,6 +230,17 @@ contract Presale is Initializable, OwnableUpgradeable {
     }
 
     /**
+     * @notice Finish Public Sale
+     * @dev Only owner can end presale
+     */
+    function endPresale() external onlyOwner {
+        require(isPresaleGoing());
+
+        presalePeriod = presalePeriod + block.timestamp - currentPresalePeriod - startTime;
+        currentPresalePeriod = block.timestamp - startTime;
+    }
+
+    /**
      * @notice Set presale start time
      * @dev This should be called before presale starts
      * @param newStartTime New start time
