@@ -857,4 +857,50 @@ describe('Presale', () => {
                 .withArgs(addresses.projectOwner, unsoldAmount, withdrawTime);
         });
     });
+
+    describe("Withdraw Unsold tokens, Funds and start Vesting", async () => {
+        it("Correct amount is withdrawn", async () => {
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+            await presale.endPrivateSale();
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.startPresale();
+
+            const alloInfo1 = alloInfos[signers[1].address];
+            const proof1 = merkleTree.getHexProof(getNode(alloInfo1));
+            const depositAmount = BigNumber.from(fakeUsers[1].publicMaxAlloc).div(2);
+            await presale.connect(signers[1]).deposit(depositAmount, alloInfo1, proof1);
+            const alloInfo2 = alloInfos[signers[2].address];
+            const proof2 = merkleTree.getHexProof(getNode(alloInfo2));
+            await presale.connect(signers[2]).deposit(depositAmount, alloInfo2, proof2);
+            const alloInfo3 = alloInfos[signers[3].address];
+            const proof3 = merkleTree.getHexProof(getNode(alloInfo3));
+            await presale.connect(signers[3]).deposit(depositAmount, alloInfo3, proof3);
+            const alloInfo4 = alloInfos[signers[4].address];
+            const proof4 = merkleTree.getHexProof(getNode(alloInfo4));
+            await presale.connect(signers[4]).deposit(depositAmount, alloInfo4, proof4);
+
+
+            const treasury = signers[9].address;
+            const totalAmount = depositAmount.mul(4);
+            const soldAmount = totalAmount.mul(ACCURACY).div(presaleParams.rate);
+            const unsoldAmount = presaleParams.initialRewardsAmount.sub(soldAmount);
+            const feeAmount = totalAmount.mul(presaleParams.serviceFee).div(ACCURACY);
+            
+            const ownerRewardBalance0 = await rewardToken.balanceOf(addresses.projectOwner);
+            const ownerFundBalance0 = await fundToken.balanceOf(addresses.projectOwner);
+            const feeBalance0 = await fundToken.balanceOf(treasury);
+
+            await setNextBlockTimestamp(startTime + presaleParams.period + 1);
+            await presale.processFundsAndStartVestingImmediately(treasury);
+
+            const ownerRewardBalance1 = await rewardToken.balanceOf(addresses.projectOwner);
+            const ownerFundBalance1 = await fundToken.balanceOf(addresses.projectOwner);
+            const feeBalance1 = await fundToken.balanceOf(treasury);
+
+            expect(ownerRewardBalance1.sub(ownerRewardBalance0)).to.be.equal(unsoldAmount);
+            expect(ownerFundBalance1.sub(ownerFundBalance0)).to.be.equal(totalAmount.sub(feeAmount));
+            expect(feeBalance1.sub(feeBalance0)).to.be.equal(feeAmount);            
+        });
+    });
 });
