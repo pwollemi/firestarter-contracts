@@ -334,22 +334,43 @@ contract Presale is Initializable, OwnableUpgradeable {
     }
 
     /**
+     * @notice Process fund tokens and start vesting at given time
+     *
+     *  - accepts two parameters (treasury address and start vesting time)
+     *  - withdraws both fund and reward tokens
+     *  - starts vesting from parameter
+     *
+     * @param treasury     address of the participant
+     * @param vestingTime  time to start vesting
+     */
+    function processFundsAndStartVesting(address treasury, uint256 vestingTime) external whileFinished onlyOwner {
+        _withdrawFunds(treasury);
+        _withdrawUnsoldToken();
+        _startVesting(vestingTime);
+    }
+
+    /**
+     * @notice Process fund tokens and start vesting immediately
+     *
+     *  - accepts two parameters (treasury address and start vesting time)
+     *  - withdraws both fund and reward tokens
+     *  - starts vesting immediately
+     *
+     * @param treasury     address of the participant
+     */
+    function processFundsAndStartVestingImmediately(address treasury) external whileFinished onlyOwner {
+        _withdrawFunds(treasury);
+        _withdrawUnsoldToken();
+        _startVesting(block.timestamp + 1);
+    }
+
+    /**
      * @notice Withdraw fund tokens to the project owner / charge service fee
      * @dev After presale ends, we withdraw funds to project owner by charging a service fee
      * @param treasury address of the participant
      */
     function withdrawFunds(address treasury) external whileFinished onlyOwner {
-        require(treasury != address(0), "withdraw: Treasury can't be zero address");
-
-        uint256 balance = IERC20Upgradeable(fundToken).balanceOf(address(this));
-        uint256 feeAmount = (balance * serviceFee) / ACCURACY;
-        uint256 actualFunds = balance - feeAmount;
-
-        emit WithdrawFunds(projectOwner, actualFunds, block.timestamp);
-        emit WithdrawFunds(treasury, feeAmount, block.timestamp);
-
-        IERC20Upgradeable(fundToken).safeTransfer(projectOwner, actualFunds);
-        IERC20Upgradeable(fundToken).safeTransfer(treasury, feeAmount);
+        _withdrawFunds(treasury);
     }
 
     /**
@@ -357,15 +378,7 @@ contract Presale is Initializable, OwnableUpgradeable {
      * @dev After presale ends, we withdraw unsold rewardToken token to project owner.
      */
     function withdrawUnsoldToken() external whileFinished onlyOwner {
-        unsoldTokenWithdrawn = true;
-
-        uint256 totalBalance = _getDepositedRewardTokenAmount();
-        uint256 totalSoldAmount = privateSoldAmount + publicSoldAmount;
-        uint256 unsoldAmount = totalBalance - totalSoldAmount;
-
-        emit WithdrawUnsoldToken(projectOwner, unsoldAmount, block.timestamp);
-
-        IERC20Upgradeable(rewardToken).safeTransferFrom(address(vesting), projectOwner, unsoldAmount);
+        _withdrawUnsoldToken();
     }
 
     /**
@@ -373,12 +386,7 @@ contract Presale is Initializable, OwnableUpgradeable {
      * @dev Check if presale is finished
      */
     function startVesting() external whileFinished onlyOwner {
-        require(
-            unsoldTokenWithdrawn,
-            "startVesting: can only start vesting after withdrawing unsold tokens"
-        );
-
-        IVesting(vesting).setStartTime(block.timestamp + 1);
+        _startVesting(block.timestamp + 1);
     }
 
     /**
@@ -401,5 +409,53 @@ contract Presale is Initializable, OwnableUpgradeable {
      */
     function _getDepositedRewardTokenAmount() internal view returns (uint256) {
         return IERC20Upgradeable(rewardToken).balanceOf(vesting);
+    }
+
+    /**
+     * @notice Withdraw fund tokens to the project owner / charge service fee
+     * @dev After presale ends, we withdraw funds to project owner by charging a service fee
+     * @param treasury address of the participant
+     */
+    function _withdrawFunds(address treasury) internal {
+        require(treasury != address(0), "withdraw: Treasury can't be zero address");
+
+        uint256 balance = IERC20Upgradeable(fundToken).balanceOf(address(this));
+        uint256 feeAmount = (balance * serviceFee) / ACCURACY;
+        uint256 actualFunds = balance - feeAmount;
+
+        emit WithdrawFunds(projectOwner, actualFunds, block.timestamp);
+        emit WithdrawFunds(treasury, feeAmount, block.timestamp);
+
+        IERC20Upgradeable(fundToken).safeTransfer(projectOwner, actualFunds);
+        IERC20Upgradeable(fundToken).safeTransfer(treasury, feeAmount);
+    }
+
+    /**
+     * @notice Withdraw Unsold reward token to the project owner
+     * @dev After presale ends, we withdraw unsold rewardToken token to project owner.
+     */
+    function _withdrawUnsoldToken() internal {
+        unsoldTokenWithdrawn = true;
+
+        uint256 totalBalance = _getDepositedRewardTokenAmount();
+        uint256 totalSoldAmount = privateSoldAmount + publicSoldAmount;
+        uint256 unsoldAmount = totalBalance - totalSoldAmount;
+
+        emit WithdrawUnsoldToken(projectOwner, unsoldAmount, block.timestamp);
+
+        IERC20Upgradeable(rewardToken).safeTransferFrom(address(vesting), projectOwner, unsoldAmount);
+    }
+
+    /**
+     * @notice Start vesting
+     * @dev Check if presale is finished
+     */
+    function _startVesting(uint256 vestingTime) internal {
+        require(
+            unsoldTokenWithdrawn,
+            "startVesting: can only start vesting after withdrawing unsold tokens"
+        );
+
+        IVesting(vesting).setStartTime(vestingTime);
     }
 }

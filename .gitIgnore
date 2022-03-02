@@ -17,3 +17,5 @@ coverage
 coverage.json
 
 /merged
+
+dist
