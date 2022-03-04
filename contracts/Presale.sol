@@ -236,7 +236,7 @@ contract Presale is Initializable, OwnableUpgradeable {
      */
     function setStartTime(uint256 newStartTime) external onlyOwner {
         require(
-            startTime >= block.timestamp || isPrivateSaleOver == false,
+            startTime >= block.timestamp,
             "setStartTime: Presale already started"
         );
         require(newStartTime > block.timestamp, "setStartTime: Should be time in future");
@@ -394,7 +394,7 @@ contract Presale is Initializable, OwnableUpgradeable {
      * @return True: in Presale, False: not started or already ended
      */
     function isPresaleGoing() public view returns (bool) {
-        if (isPresalePaused || isPrivateSaleOver == false) return false;
+        if (isPresalePaused) return false;
 
         if (_getDepositedRewardTokenAmount() < initialRewardAmount) return false;
 
