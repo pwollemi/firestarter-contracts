@@ -63,7 +63,6 @@ contract NFTSale is Initializable, OwnableUpgradeable, ERC721HolderUpgradeable {
         __ERC721Holder_init();
 
         _updateSaleSetting(_saleSetting);
-        nextTokenId = 1;
     }
 
     /**
