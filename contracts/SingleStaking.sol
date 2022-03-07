@@ -185,13 +185,12 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         uint256 penaltyAmount;
         if(tier.penaltyMode == PenaltyMode.STATIC) {
             penaltyAmount = stakeInfo.amount * tier.penalty / PENALTY_BASE;
+        } else if(duration <= tier.fullPenaltyCliff) {
+            penaltyAmount = stakeInfo.amount * tier.penalty / PENALTY_BASE;
         } else {
-            if(duration <= tier.fullPenaltyCliff) {
-                penaltyAmount = stakeInfo.amount;
-            } else {
-                penaltyAmount = stakeInfo.amount * duration / tier.lockPeriod;
-            }
+            penaltyAmount = stakeInfo.amount * duration * tier.penalty / tier.lockPeriod / PENALTY_BASE;
         }
+        
         //  stakeInfo.amount * tier.penalty / PENALTY_BASE;
         stakeInfo.unstakedAt = block.timestamp;
 
@@ -210,12 +209,10 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         uint256 penaltyAmount;
         if(tier.penaltyMode == PenaltyMode.STATIC) {
             penaltyAmount = stakeInfo.amount * tier.penalty / PENALTY_BASE;
+        } else if(duration <= tier.fullPenaltyCliff) {
+            penaltyAmount = stakeInfo.amount * tier.penalty / PENALTY_BASE;
         } else {
-            if(duration <= tier.fullPenaltyCliff) {
-                penaltyAmount = stakeInfo.amount;
-            } else {
-                penaltyAmount = stakeInfo.amount * duration / tier.lockPeriod;
-            }
+            penaltyAmount = stakeInfo.amount * duration * tier.penalty / tier.lockPeriod / PENALTY_BASE;
         }
 
         return penaltyAmount;
