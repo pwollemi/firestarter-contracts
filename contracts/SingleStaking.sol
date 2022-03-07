@@ -11,6 +11,11 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;
 
+    enum PenaltyMode {
+        STATIC,
+        LINEAR
+    }
+
     uint256 constant APY_BASE = 1e18;
 
     uint256 constant POWER_BASE = 100;
@@ -25,6 +30,8 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         uint256 power;
         uint256 penalty;
         uint256 lockPeriod;
+        uint256 fullPenaltyCliff;
+        PenaltyMode penaltyMode;
     }
 
     struct StakeInfo {
@@ -62,7 +69,7 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         uint256 unstakedAt
     );
 
-    event EmergencyWithdraw(
+    event UnStakeEarly(
         address indexed account,
         uint256 indexed stakeId,
         uint256 amount,
@@ -87,31 +94,39 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         token = _token;
 
         tiers.push(TierInfo({
-            apy: 4 * APY_BASE / 100, // 4%
+            apy: 0, // 4%
             power: POWER_BASE, // 1x
-            penalty: 20 * PENALTY_BASE / 100, // 20%,
-            lockPeriod: 60 days // 60 days
-        }));
-
-        tiers.push(TierInfo({
-            apy: 6 * APY_BASE / 100, // 6%
-            power: 130 * POWER_BASE / 100, // 1.3x
             penalty: 50 * PENALTY_BASE / 100, // 50%,
-            lockPeriod: ONE_YEAR // 1 year
+            lockPeriod: 30 days, // 30 days
+            fullPenaltyCliff: 0,
+            penaltyMode: PenaltyMode.STATIC
         }));
 
         tiers.push(TierInfo({
-            apy: 8 * APY_BASE / 100, // 8%
-            power: 142 * POWER_BASE / 100, // 1.42x
-            penalty: 50 * PENALTY_BASE / 100, // 50%,
-            lockPeriod: 2 * ONE_YEAR // 2 years
+            apy: 9 * APY_BASE / 100, // 9%
+            power: 110 * POWER_BASE / 100, // 1.1x
+            penalty: 40 * PENALTY_BASE / 100, // 40%,
+            lockPeriod: 180 days, // 180 days,
+            fullPenaltyCliff: 0,
+            penaltyMode: PenaltyMode.STATIC
         }));
 
         tiers.push(TierInfo({
-            apy: 10 * APY_BASE / 100, // 10%
+            apy: 15 * APY_BASE / 100, // 15%
+            power: 120 * POWER_BASE / 100, // 1.2x
+            penalty: 35 * PENALTY_BASE / 100, // 35%,
+            lockPeriod: ONE_YEAR, // 1 years
+            fullPenaltyCliff: 30 days,
+            penaltyMode: PenaltyMode.LINEAR
+        }));
+
+        tiers.push(TierInfo({
+            apy: 25 * APY_BASE / 100, // 25%
             power: 2 * POWER_BASE, // 2x
-            penalty: 65 * PENALTY_BASE / 100, // 65%,
-            lockPeriod: 3 * ONE_YEAR // 3 years
+            penalty: 30 * PENALTY_BASE / 100, // 30%,
+            lockPeriod: 3 * ONE_YEAR, // 3 years
+            fullPenaltyCliff: 90 days,
+            penaltyMode: PenaltyMode.LINEAR
         }));
     }
 
@@ -157,27 +172,53 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
     }
 
 
-    function emergencyWithdraw(uint256 _stakeId) external validStakeId(_stakeId) {
+    function unstakeEarly(uint256 _stakeId) external validStakeId(_stakeId) {
         StakeInfo storage stakeInfo = userStakeOf[_stakeId];
         TierInfo memory tier = tiers[stakeInfo.tierIndex];
 
         require(stakeInfo.account == msg.sender, "Invalid account");
         require(stakeInfo.unstakedAt == 0, "Invalid unstakedAt");
-        require(stakeInfo.stakedAt + tier.lockPeriod > block.timestamp, "Invalid lock period");
 
-        uint256 penaltyAmount = stakeInfo.amount * tier.penalty / PENALTY_BASE;
+        uint256 duration = block.timestamp - stakeInfo.stakedAt;
+        require(duration > tier.lockPeriod, "Invalid lock period");
+
+        uint256 penaltyAmount;
+        if(tier.penaltyMode == PenaltyMode.STATIC) {
+            penaltyAmount = stakeInfo.amount * tier.penalty / PENALTY_BASE;
+        } else {
+            if(duration <= tier.fullPenaltyCliff) {
+                penaltyAmount = stakeInfo.amount;
+            } else {
+                penaltyAmount = stakeInfo.amount * duration / tier.lockPeriod;
+            }
+        }
+        //  stakeInfo.amount * tier.penalty / PENALTY_BASE;
         stakeInfo.unstakedAt = block.timestamp;
 
         token.safeTransfer(msg.sender, stakeInfo.amount - penaltyAmount);
 
-        emit EmergencyWithdraw(msg.sender, _stakeId, stakeInfo.amount, penaltyAmount, block.timestamp);
+        emit UnStakeEarly(msg.sender, _stakeId, stakeInfo.amount, penaltyAmount, block.timestamp);
     }
 
     function getPaneltyAmount(uint256 _stakeId) validStakeId(_stakeId) public view returns(uint256) {
         StakeInfo memory stakeInfo = userStakeOf[_stakeId];
         TierInfo memory tier = tiers[stakeInfo.tierIndex];
 
-        return stakeInfo.amount * tier.penalty / PENALTY_BASE;
+        uint256 duration = block.timestamp - stakeInfo.stakedAt;
+        require(duration > tier.lockPeriod, "Invalid lock period");
+
+        uint256 penaltyAmount;
+        if(tier.penaltyMode == PenaltyMode.STATIC) {
+            penaltyAmount = stakeInfo.amount * tier.penalty / PENALTY_BASE;
+        } else {
+            if(duration <= tier.fullPenaltyCliff) {
+                penaltyAmount = stakeInfo.amount;
+            } else {
+                penaltyAmount = stakeInfo.amount * duration / tier.lockPeriod;
+            }
+        }
+
+        return penaltyAmount;
     }
 
     function getPowerOfStake(uint256 _stakeId) validStakeId(_stakeId) public view returns(uint256) {
