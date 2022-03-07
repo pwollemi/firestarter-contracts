@@ -135,15 +135,6 @@ describe('Presale', () => {
             await presale.connect(signers[0]).endPrivateSale();
         });
 
-        it("Set startTime to now if presale is already started", async () => {
-            const startTime = await getLatestBlockTimestamp() + 10000;
-            await presale.setStartTime(startTime);
-            await setNextBlockTimestamp(startTime + 100);
-            await presale.endPrivateSale();
-            const expectedStartTime = await getLatestBlockTimestamp();
-            expect(await presale.startTime()).to.be.equal(expectedStartTime);
-        });
-
         it("PrivateSaleDone event is emitted with correct params", async () => {
             const nextTimestamp = await getLatestBlockTimestamp() + 100;
             await setNextBlockTimestamp(nextTimestamp);
@@ -178,11 +169,11 @@ describe('Presale', () => {
             await presale.setStartTime(startTime + 100);
         });
 
-        it("Can set if private sale is not over, though presale is already started", async () => {
+        it("Can't set if private sale is not over, though presale is already started", async () => {
             const startTime = await getLatestBlockTimestamp() + 10000;
             await presale.setStartTime(startTime);
             await setNextBlockTimestamp(startTime + 10);
-            await presale.setStartTime(startTime + 100);
+            await expect(presale.setStartTime(startTime + 100)).to.be.revertedWith("setStartTime: Presale already started");
         });
 
         it("Must set future time", async () => {
@@ -391,7 +382,7 @@ describe('Presale', () => {
             expect(await presale.isPresaleGoing()).to.be.equal(true);
         });
 
-        it("Ongoing auto start and end - should be false if private sale not ended", async () => {
+        it("Ongoing auto start and end - should be true though private sale not ended", async () => {
             expect(await presale.isPresaleGoing()).to.be.equal(false);
             await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
             const startTime = await getLatestBlockTimestamp() + 10000;
@@ -399,7 +390,7 @@ describe('Presale', () => {
 
             await setNextBlockTimestamp(startTime);
             await mineBlock();
-            expect(await presale.isPresaleGoing()).to.be.equal(false);
+            expect(await presale.isPresaleGoing()).to.be.equal(true);
 
             await presale.endPrivateSale();
             expect(await presale.isPresaleGoing()).to.be.equal(true);
