@@ -94,7 +94,7 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         token = _token;
 
         tiers.push(TierInfo({
-            apy: 0, // 4%
+            apy: 0, // 0%
             power: POWER_BASE, // 1x
             penalty: 50 * PENALTY_BASE / 100, // 50%,
             lockPeriod: 30 days, // 30 days
@@ -174,24 +174,13 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
 
     function unstakeEarly(uint256 _stakeId) external validStakeId(_stakeId) {
         StakeInfo storage stakeInfo = userStakeOf[_stakeId];
-        TierInfo memory tier = tiers[stakeInfo.tierIndex];
 
         require(stakeInfo.account == msg.sender, "Invalid account");
         require(stakeInfo.unstakedAt == 0, "Invalid unstakedAt");
 
-        uint256 duration = block.timestamp - stakeInfo.stakedAt;
-        require(duration > tier.lockPeriod, "Invalid lock period");
-
-        uint256 penaltyAmount;
-        if(tier.penaltyMode == PenaltyMode.STATIC) {
-            penaltyAmount = stakeInfo.amount * tier.penalty / PENALTY_BASE;
-        } else if(duration <= tier.fullPenaltyCliff) {
-            penaltyAmount = stakeInfo.amount * tier.penalty / PENALTY_BASE;
-        } else {
-            penaltyAmount = stakeInfo.amount * duration * tier.penalty / tier.lockPeriod / PENALTY_BASE;
-        }
+        uint256 penaltyAmount  = getPenaltyAmount(_stakeId);
+        require(penaltyAmount > 0, "Invalid penaltyAmount");
         
-        //  stakeInfo.amount * tier.penalty / PENALTY_BASE;
         stakeInfo.unstakedAt = block.timestamp;
 
         token.safeTransfer(msg.sender, stakeInfo.amount - penaltyAmount);
@@ -199,20 +188,25 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         emit UnStakeEarly(msg.sender, _stakeId, stakeInfo.amount, penaltyAmount, block.timestamp);
     }
 
-    function getPaneltyAmount(uint256 _stakeId) validStakeId(_stakeId) public view returns(uint256) {
+    function getPenaltyAmount(uint256 _stakeId) validStakeId(_stakeId) public view returns(uint256) {
         StakeInfo memory stakeInfo = userStakeOf[_stakeId];
         TierInfo memory tier = tiers[stakeInfo.tierIndex];
 
         uint256 duration = block.timestamp - stakeInfo.stakedAt;
-        require(duration > tier.lockPeriod, "Invalid lock period");
+        if(duration > tier.lockPeriod) {
+            return 0;
+        }
 
         uint256 penaltyAmount;
         if(tier.penaltyMode == PenaltyMode.STATIC) {
             penaltyAmount = stakeInfo.amount * tier.penalty / PENALTY_BASE;
-        } else if(duration <= tier.fullPenaltyCliff) {
-            penaltyAmount = stakeInfo.amount * tier.penalty / PENALTY_BASE;
+        } else if(duration < tier.fullPenaltyCliff) {
+            penaltyAmount = stakeInfo.amount;
         } else {
-            penaltyAmount = stakeInfo.amount * duration * tier.penalty / tier.lockPeriod / PENALTY_BASE;
+            uint256 total = (tier.lockPeriod - tier.fullPenaltyCliff) / 30 days;
+            uint256 current = (duration - tier.fullPenaltyCliff) / 30 days;
+            uint256 penaltyPercent = tier.penalty - tier.penalty * current / total;
+            penaltyAmount = stakeInfo.amount *  penaltyPercent  /  PENALTY_BASE;
         }
 
         return penaltyAmount;
