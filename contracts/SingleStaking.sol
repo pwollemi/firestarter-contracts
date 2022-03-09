@@ -32,6 +32,7 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         uint256 lockPeriod;
         uint256 fullPenaltyCliff;
         PenaltyMode penaltyMode;
+        bool isActive;
     }
 
     struct StakeInfo {
@@ -99,7 +100,8 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
             penalty: 50 * PENALTY_BASE / 100, // 50%,
             lockPeriod: 30 days, // 30 days
             fullPenaltyCliff: 0,
-            penaltyMode: PenaltyMode.STATIC
+            penaltyMode: PenaltyMode.STATIC,
+            isActive: true
         }));
 
         tiers.push(TierInfo({
@@ -108,7 +110,8 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
             penalty: 40 * PENALTY_BASE / 100, // 40%,
             lockPeriod: 180 days, // 180 days,
             fullPenaltyCliff: 0,
-            penaltyMode: PenaltyMode.STATIC
+            penaltyMode: PenaltyMode.STATIC,
+            isActive: true
         }));
 
         tiers.push(TierInfo({
@@ -117,7 +120,8 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
             penalty: 35 * PENALTY_BASE / 100, // 35%,
             lockPeriod: ONE_YEAR, // 1 years
             fullPenaltyCliff: 30 days,
-            penaltyMode: PenaltyMode.LINEAR
+            penaltyMode: PenaltyMode.LINEAR,
+            isActive: true
         }));
 
         tiers.push(TierInfo({
@@ -126,7 +130,8 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
             penalty: 30 * PENALTY_BASE / 100, // 30%,
             lockPeriod: 3 * ONE_YEAR, // 3 years
             fullPenaltyCliff: 90 days,
-            penaltyMode: PenaltyMode.LINEAR
+            penaltyMode: PenaltyMode.LINEAR,
+            isActive: true
         }));
     }
 
@@ -139,6 +144,8 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
     } 
 
     function stake(uint256 _amount, uint256 _tierIndex) external validTierIndex(_tierIndex) {
+        require(tiers[_tierIndex].isActive, "Inactive tier");
+
         token.safeTransferFrom(msg.sender, address(this), _amount);
 
         StakeInfo storage stakeInfo = userStakeOf[currentStakeId];
