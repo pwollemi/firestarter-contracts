@@ -16,11 +16,7 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         LINEAR
     }
 
-    uint256 constant APY_BASE = 1e18;
-
-    uint256 constant POWER_BASE = 100;
-
-    uint256 constant PENALTY_BASE = 100;
+    uint256 constant DECIMAL_BASE = 100;
 
     uint256 constant ONE_YEAR = 365 days;
 
@@ -96,8 +92,8 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
 
         tiers.push(TierInfo({
             apy: 0, // 0%
-            power: POWER_BASE, // 1x
-            penalty: 50 * PENALTY_BASE / 100, // 50%,
+            power: DECIMAL_BASE, // 1x
+            penalty: 50 * DECIMAL_BASE / 100, // 50%,
             lockPeriod: 30 days, // 30 days
             fullPenaltyCliff: 0,
             penaltyMode: PenaltyMode.STATIC,
@@ -105,9 +101,9 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         }));
 
         tiers.push(TierInfo({
-            apy: 9 * APY_BASE / 100, // 9%
-            power: 110 * POWER_BASE / 100, // 1.1x
-            penalty: 40 * PENALTY_BASE / 100, // 40%,
+            apy: 9 * DECIMAL_BASE / 100, // 9%
+            power: 110 * DECIMAL_BASE / 100, // 1.1x
+            penalty: 40 * DECIMAL_BASE / 100, // 40%,
             lockPeriod: 180 days, // 180 days,
             fullPenaltyCliff: 0,
             penaltyMode: PenaltyMode.STATIC,
@@ -115,9 +111,9 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         }));
 
         tiers.push(TierInfo({
-            apy: 15 * APY_BASE / 100, // 15%
-            power: 120 * POWER_BASE / 100, // 1.2x
-            penalty: 35 * PENALTY_BASE / 100, // 35%,
+            apy: 15 * DECIMAL_BASE / 100, // 15%
+            power: 120 * DECIMAL_BASE / 100, // 1.2x
+            penalty: 35 * DECIMAL_BASE / 100, // 35%,
             lockPeriod: ONE_YEAR, // 1 years
             fullPenaltyCliff: 30 days,
             penaltyMode: PenaltyMode.LINEAR,
@@ -125,9 +121,9 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         }));
 
         tiers.push(TierInfo({
-            apy: 25 * APY_BASE / 100, // 25%
-            power: 2 * POWER_BASE, // 2x
-            penalty: 30 * PENALTY_BASE / 100, // 30%,
+            apy: 25 * DECIMAL_BASE / 100, // 25%
+            power: 2 * DECIMAL_BASE, // 2x
+            penalty: 30 * DECIMAL_BASE / 100, // 30%,
             lockPeriod: 3 * ONE_YEAR, // 3 years
             fullPenaltyCliff: 90 days,
             penaltyMode: PenaltyMode.LINEAR,
@@ -170,7 +166,7 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         require(stakeInfo.unstakedAt == 0, "Invalid unstakedAt");
         require(stakeInfo.stakedAt + tier.lockPeriod <= block.timestamp, "Invalid lock period");
         
-        uint256 rewardAmount = stakeInfo.amount * tier.apy / APY_BASE;
+        uint256 rewardAmount = stakeInfo.amount * tier.apy / DECIMAL_BASE;
         stakeInfo.unstakedAt = block.timestamp;
 
         token.safeTransfer(msg.sender, rewardAmount + stakeInfo.amount);
@@ -206,14 +202,14 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
 
         uint256 penaltyAmount;
         if(tier.penaltyMode == PenaltyMode.STATIC) {
-            penaltyAmount = stakeInfo.amount * tier.penalty / PENALTY_BASE;
+            penaltyAmount = stakeInfo.amount * tier.penalty / DECIMAL_BASE;
         } else if(duration < tier.fullPenaltyCliff) {
             penaltyAmount = stakeInfo.amount;
         } else {
             uint256 total = (tier.lockPeriod - tier.fullPenaltyCliff) / 30 days;
             uint256 current = (duration - tier.fullPenaltyCliff) / 30 days;
             uint256 penaltyPercent = tier.penalty - tier.penalty * current / total;
-            penaltyAmount = stakeInfo.amount *  penaltyPercent  /  PENALTY_BASE;
+            penaltyAmount = stakeInfo.amount *  penaltyPercent  /  DECIMAL_BASE;
         }
 
         return penaltyAmount;
@@ -222,7 +218,7 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
     function getPowerOfStake(uint256 _stakeId) validStakeId(_stakeId) public view returns(uint256) {
         uint256 tierIndex = userStakeOf[_stakeId].tierIndex;
 
-        return tiers[tierIndex].power * userStakeOf[_stakeId].amount / POWER_BASE;
+        return tiers[tierIndex].power * userStakeOf[_stakeId].amount / DECIMAL_BASE;
     }
 
     function getPowerOfAccount(address _account) public view returns(uint256) {
