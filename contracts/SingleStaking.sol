@@ -108,8 +108,8 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
 
         tiers.push(TierInfo({
             apy: 0, // 0%
-            power: DECIMAL_BASE, // 1x
-            penalty: 50 * DECIMAL_BASE / 100, // 50%,
+            power: 100, // 1x
+            penalty: 50, // 50%,
             lockPeriod: 30 days, // 30 days
             fullPenaltyCliff: 0,
             penaltyMode: PenaltyMode.STATIC,
@@ -117,9 +117,9 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         }));
 
         tiers.push(TierInfo({
-            apy: 9 * DECIMAL_BASE / 100, // 9%
-            power: 110 * DECIMAL_BASE / 100, // 1.1x
-            penalty: 40 * DECIMAL_BASE / 100, // 40%,
+            apy: 9, // 9%
+            power: 110, // 1.1x
+            penalty: 40, // 40%,
             lockPeriod: 180 days, // 180 days,
             fullPenaltyCliff: 0,
             penaltyMode: PenaltyMode.STATIC,
@@ -127,9 +127,9 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         }));
 
         tiers.push(TierInfo({
-            apy: 15 * DECIMAL_BASE / 100, // 15%
-            power: 120 * DECIMAL_BASE / 100, // 1.2x
-            penalty: 35 * DECIMAL_BASE / 100, // 35%,
+            apy: 15, // 15%
+            power: 120, // 1.2x
+            penalty: 35, // 35%,
             lockPeriod: ONE_YEAR, // 1 years
             fullPenaltyCliff: 30 days,
             penaltyMode: PenaltyMode.LINEAR,
@@ -137,9 +137,9 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         }));
 
         tiers.push(TierInfo({
-            apy: 25 * DECIMAL_BASE / 100, // 25%
-            power: 2 * DECIMAL_BASE, // 2x
-            penalty: 30 * DECIMAL_BASE / 100, // 30%,
+            apy: 25, // 25%
+            power: 200, // 2x
+            penalty: 30, // 30%,
             lockPeriod: 3 * ONE_YEAR, // 3 years
             fullPenaltyCliff: 90 days,
             penaltyMode: PenaltyMode.LINEAR,
@@ -270,8 +270,9 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
 
     function getPowerOfStake(uint256 _stakeId) validStakeId(_stakeId) public view returns(uint256) {
         uint256 tierIndex = userStakeOf[_stakeId].tierIndex;
+        uint256 rewardAmount = getAccumulatedRewardAmount(_stakeId);
 
-        return tiers[tierIndex].power * userStakeOf[_stakeId].amount / DECIMAL_BASE;
+        return tiers[tierIndex].power * (userStakeOf[_stakeId].amount + rewardAmount) / DECIMAL_BASE;
     }
 
     function getPowerOfAccount(address _account) public view returns(uint256) {
