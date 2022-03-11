@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
@@ -45,6 +46,10 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
 
     IERC20Upgradeable public token;
 
+    IERC721Upgradeable public hiro;
+
+    address public hiroTreasury;
+
     mapping(uint256 => StakeInfo) public userStakeOf;
 
     mapping(address => EnumerableSetUpgradeable.UintSet) private stakeIdsOf;
@@ -74,6 +79,15 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         uint256 unstakedAt
     );
 
+    event UnstakeWithHiro(
+        address indexed account,
+        uint256 indexed stakeId,
+        uint256 indexed tokenId,
+        uint256 amount,
+        uint256 rewardAmount,
+        uint256 unstakedAt
+    );
+
     modifier validTierIndex(uint256 index) {
         require(index < tiers.length, "SingleStaking: invalid tier index");
         _;
@@ -84,11 +98,13 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         _;
     }
 
-    function initialize(IERC20Upgradeable _token) external initializer {
+    function initialize(IERC20Upgradeable _token, IERC721Upgradeable _hiro, address _hiroTreasury) external initializer {
         __Ownable_init();
 
         require(address(_token) != address(0), "SingleStaking: token address cannot be zero");
         token = _token;
+        hiro = _hiro;
+        hiroTreasury = _hiroTreasury;
 
         tiers.push(TierInfo({
             apy: 0, // 0%
@@ -135,14 +151,16 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         tiers.push(_tier);
     }
 
-    function setTierInfo(uint256 _tierIndex, TierInfo calldata _tier) validTierIndex(_tierIndex) external onlyOwner {
-        tiers[_tierIndex] = _tier;
+    function setTierStatus(uint256 _tierIndex, bool _isActive) validTierIndex(_tierIndex) external onlyOwner {
+        tiers[_tierIndex].isActive = _isActive;
     } 
+
+    function setHiroTreasury(address _hiroTreasury) external onlyOwner {
+        hiroTreasury = _hiroTreasury;
+    }
 
     function stake(uint256 _amount, uint256 _tierIndex) external validTierIndex(_tierIndex) {
         require(tiers[_tierIndex].isActive, "Inactive tier");
-
-        token.safeTransferFrom(msg.sender, address(this), _amount);
 
         StakeInfo storage stakeInfo = userStakeOf[currentStakeId];
 
@@ -150,12 +168,13 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         stakeInfo.amount = _amount;
         stakeInfo.stakedAt = block.timestamp;
         stakeInfo.tierIndex = _tierIndex;
-
+        
         stakeIdsOf[msg.sender].add(currentStakeId);
+        currentStakeId ++;
+
+        token.safeTransferFrom(msg.sender, address(this), _amount);
 
         emit Stake(msg.sender, currentStakeId, _amount, block.timestamp, _tierIndex);
-
-        currentStakeId ++;
     }
 
     function unstake(uint256 _stakeId) external validStakeId(_stakeId) {
@@ -166,14 +185,13 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         require(stakeInfo.unstakedAt == 0, "Invalid unstakedAt");
         require(stakeInfo.stakedAt + tier.lockPeriod <= block.timestamp, "Invalid lock period");
         
-        uint256 rewardAmount = stakeInfo.amount * tier.apy / DECIMAL_BASE;
+        uint256 rewardAmount = stakeInfo.amount * tier.apy * tier.lockPeriod / DECIMAL_BASE / ONE_YEAR;
         stakeInfo.unstakedAt = block.timestamp;
 
         token.safeTransfer(msg.sender, rewardAmount + stakeInfo.amount);
 
         emit Unstake(msg.sender, _stakeId, stakeInfo.amount, rewardAmount, block.timestamp);
     }
-
 
     function unstakeEarly(uint256 _stakeId) external validStakeId(_stakeId) {
         StakeInfo storage stakeInfo = userStakeOf[_stakeId];
@@ -189,6 +207,41 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         token.safeTransfer(msg.sender, stakeInfo.amount - penaltyAmount);
 
         emit UnStakeEarly(msg.sender, _stakeId, stakeInfo.amount, penaltyAmount, block.timestamp);
+    }
+
+    function unstakeEarlyUsingHiro(uint256 _stakeId, uint256 _tokenId) external validStakeId(_stakeId) {
+        StakeInfo storage stakeInfo = userStakeOf[_stakeId];
+        TierInfo memory tier = tiers[stakeInfo.tierIndex];
+
+        require(stakeInfo.account == msg.sender, "Invalid account");
+        require(stakeInfo.unstakedAt == 0, "Invalid unstakedAt");
+
+        uint256 duration = block.timestamp - stakeInfo.stakedAt;
+        require(duration < tier.lockPeriod, "Invalid lock period");
+
+        uint256 rewardAmount = stakeInfo.amount * tier.apy * duration / DECIMAL_BASE / ONE_YEAR;
+        stakeInfo.unstakedAt = block.timestamp;
+
+        token.safeTransfer(msg.sender, rewardAmount + stakeInfo.amount);
+        hiro.safeTransferFrom(msg.sender, hiroTreasury, _tokenId);
+
+        emit UnstakeWithHiro(msg.sender, _stakeId, _tokenId, stakeInfo.amount, rewardAmount, block.timestamp);
+    }
+
+    function getAccumulatedRewardAmount(uint256 _stakeId) validStakeId(_stakeId) public view returns (uint256) {
+        StakeInfo memory stakeInfo = userStakeOf[_stakeId];
+        TierInfo memory tier = tiers[stakeInfo.tierIndex];
+
+        if(stakeInfo.unstakedAt > 0) {
+            return 0;
+        }
+
+        uint256 duration = block.timestamp - stakeInfo.stakedAt;
+        if(duration > tier.lockPeriod) {
+            duration = tier.lockPeriod;
+        }
+
+        return stakeInfo.amount * tier.apy * duration / DECIMAL_BASE / ONE_YEAR;
     }
 
     function getPenaltyAmount(uint256 _stakeId) validStakeId(_stakeId) public view returns(uint256) {
