@@ -105,46 +105,6 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         token = _token;
         hiro = _hiro;
         hiroTreasury = _hiroTreasury;
-
-        tiers.push(TierInfo({
-            apy: 0, // 0%
-            power: 100, // 1x
-            penalty: 50, // 50%,
-            lockPeriod: 30 days, // 30 days
-            fullPenaltyCliff: 0,
-            penaltyMode: PenaltyMode.STATIC,
-            isActive: true
-        }));
-
-        tiers.push(TierInfo({
-            apy: 9, // 9%
-            power: 110, // 1.1x
-            penalty: 40, // 40%,
-            lockPeriod: 180 days, // 180 days,
-            fullPenaltyCliff: 0,
-            penaltyMode: PenaltyMode.STATIC,
-            isActive: true
-        }));
-
-        tiers.push(TierInfo({
-            apy: 15, // 15%
-            power: 120, // 1.2x
-            penalty: 35, // 35%,
-            lockPeriod: ONE_YEAR, // 1 years
-            fullPenaltyCliff: 30 days,
-            penaltyMode: PenaltyMode.LINEAR,
-            isActive: true
-        }));
-
-        tiers.push(TierInfo({
-            apy: 25, // 25%
-            power: 200, // 2x
-            penalty: 30, // 30%,
-            lockPeriod: 3 * ONE_YEAR, // 3 years
-            fullPenaltyCliff: 90 days,
-            penaltyMode: PenaltyMode.LINEAR,
-            isActive: true
-        }));
     }
 
     function addTierInfo(TierInfo calldata _tier) external onlyOwner {
