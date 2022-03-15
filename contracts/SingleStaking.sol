@@ -259,12 +259,6 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
     }
 
     function getUserStakeIds(address _account) external view returns (uint256[] memory) {
-        uint256[] memory stakeIds;
-
-        for(uint256 i = 0; i < stakeIdsOf[_account].length(); i++) {
-            stakeIds[i] = stakeIdsOf[_account].at(i);
-        }
-
-        return stakeIds;
+        return stakeIdsOf[_account].values();
     }
 }
