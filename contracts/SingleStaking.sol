@@ -88,6 +88,16 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         uint256 unstakedAt
     );
 
+    event AddTierInfo(
+        uint256 indexed tierIndex,
+        TierInfo tierInfo
+    );
+
+    event SetTierStatus(
+        uint256 indexed tierIndex,
+        bool status
+    );
+
     modifier validTierIndex(uint256 index) {
         require(index < tiers.length, "SingleStaking: invalid tier index");
         _;
@@ -108,11 +118,16 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
     }
 
     function addTierInfo(TierInfo calldata _tier) external onlyOwner {
+        uint256 tierIndex = tiers.length;
         tiers.push(_tier);
+
+        emit AddTierInfo(tierIndex, _tier);
     }
 
     function setTierStatus(uint256 _tierIndex, bool _isActive) validTierIndex(_tierIndex) external onlyOwner {
         tiers[_tierIndex].isActive = _isActive;
+
+        emit SetTierStatus(_tierIndex, _isActive);
     } 
 
     function setHiroTreasury(address _hiroTreasury) external onlyOwner {
