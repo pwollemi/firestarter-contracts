@@ -71,7 +71,7 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
         uint256 unstakedAt
     );
 
-    event UnStakeEarly(
+    event UnstakeEarly(
         address indexed account,
         uint256 indexed stakeId,
         uint256 amount,
@@ -181,7 +181,7 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
 
         token.safeTransfer(msg.sender, stakeInfo.amount - penaltyAmount);
 
-        emit UnStakeEarly(msg.sender, _stakeId, stakeInfo.amount, penaltyAmount, block.timestamp);
+        emit UnstakeEarly(msg.sender, _stakeId, stakeInfo.amount, penaltyAmount, block.timestamp);
     }
 
     function unstakeEarlyUsingHiro(uint256 _stakeId, uint256 _tokenId) external validStakeId(_stakeId) {
