@@ -149,7 +149,7 @@ contract SingleStaking is Initializable, OwnableUpgradeable, ReentrancyGuardUpgr
 
         token.safeTransferFrom(msg.sender, address(this), _amount);
 
-        emit Stake(msg.sender, currentStakeId, _amount, block.timestamp, _tierIndex);
+        emit Stake(msg.sender, currentStakeId - 1, _amount, block.timestamp, _tierIndex);
     }
 
     function unstake(uint256 _stakeId) external validStakeId(_stakeId) {
