@@ -78,6 +78,9 @@ contract Presale is Initializable, OwnableUpgradeable {
     /// @notice Presale Period
     uint256 public presalePeriod;
 
+    /// @notice Period to fill the cap
+    uint256 public closePeriod;
+
     /// @notice Presale Start Time
     uint256 public startTime;
 
@@ -193,10 +196,18 @@ contract Presale is Initializable, OwnableUpgradeable {
         exchangeRate = _presale.rate;
         startTime = _presale.startTime;
         presalePeriod = _presale.period;
+        closePeriod = 3600;
         serviceFee = _presale.serviceFee;
         initialRewardAmount = _presale.initialRewardsAmount;
 
         currentPresalePeriod = presalePeriod;
+    }
+
+    /**
+     * @notice Set the fill period
+     */
+    function setClosePeriod(uint256 _closePeriod) external onlyOwner {
+        closePeriod = _closePeriod;
     }
 
     /**
@@ -297,6 +308,10 @@ contract Presale is Initializable, OwnableUpgradeable {
         require(msg.sender == alloInfo.wallet, "Deposit: Invalid alloInfo");
         require(IMerkleWhitelist(whitelist).verify(alloInfo, merkleProof), "Deposit: Not exist on the whitelist");
         require(alloInfo.isKycPassed, "Deposit: Not passed KYC");
+
+        if (alloInfo.privateMaxAlloc > 0) {
+            require(isClosePeriod(), "Deposit: Must be in fill period for private participants to buy in public");
+        }
 
         // calculate fund token balance after deposit
         // we assume private sale is always finished before public sale starts
@@ -400,6 +415,15 @@ contract Presale is Initializable, OwnableUpgradeable {
 
         uint256 endTime = startTime + currentPresalePeriod;
         return block.timestamp >= startTime && block.timestamp <= endTime;
+    }
+
+    /**
+     * @notice Check if current is fill period
+     * @return True: in fill period, False: still public sale phase or presale finished
+     */
+    function isClosePeriod() public view returns (bool) {
+        uint256 endTime = startTime + currentPresalePeriod;
+        return block.timestamp >= (endTime - closePeriod) && block.timestamp <= endTime;
     }
 
     /**
