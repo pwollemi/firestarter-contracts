@@ -31,6 +31,8 @@ describe('Presale', () => {
     let merkleTree: MerkleTree;
     const alloInfos: any = {};
 
+    const closePeriod = 3600;
+
     before(async () => {
         signers = await ethers.getSigners();
         // 0, 1: owners
@@ -60,7 +62,6 @@ describe('Presale', () => {
             rate: "450000000", // 1 Flame = 0.045 USD
             startTime: timestamp + 86400, // tomorrow
             period: 86400 * 7, // 1 week,
-            fillPeriod: 3600,
             serviceFee: "5000000000", // 5%,
             initialRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
         };
@@ -597,7 +598,7 @@ describe('Presale', () => {
             const rewardAmount = depositAmount.mul(ACCURACY).div(presaleParams.rate);
             await expect(presale.connect(signers[1]).deposit(depositAmount, alloInfo, proof)).to.be.revertedWith("Deposit: Must be in fill period for private participants to buy in public");
 
-            await setNextBlockTimestamp(endTime - presaleParams.fillPeriod + 1);
+            await setNextBlockTimestamp(endTime - closePeriod + 1);
             await presale.connect(signers[1]).deposit(depositAmount, alloInfo, proof);
             const recpInfo = await presale.recipients(signers[1].address);
             expect(recpInfo.ftBalance).to.be.equal(depositAmount);
