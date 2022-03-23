@@ -44,6 +44,8 @@ contract Presale is Initializable, OwnableUpgradeable {
         uint256 startTime;
         // Presale period
         uint256 period;
+        // Period to fill the cap
+        uint256 fillPeriod;
         // Service Fee : if `ACCURACY` is 1e10(default), 1e9 is 10%
         uint256 serviceFee;
         // Initial Deposited rewardToken amount
@@ -77,6 +79,9 @@ contract Presale is Initializable, OwnableUpgradeable {
 
     /// @notice Presale Period
     uint256 public presalePeriod;
+
+    /// @notice Period to fill the cap
+    uint256 public fillPeriod;
 
     /// @notice Presale Start Time
     uint256 public startTime;
@@ -193,10 +198,18 @@ contract Presale is Initializable, OwnableUpgradeable {
         exchangeRate = _presale.rate;
         startTime = _presale.startTime;
         presalePeriod = _presale.period;
+        fillPeriod = _presale.fillPeriod;
         serviceFee = _presale.serviceFee;
         initialRewardAmount = _presale.initialRewardsAmount;
 
         currentPresalePeriod = presalePeriod;
+    }
+
+    /**
+     * @notice Set the fill period
+     */
+    function setFillPeriod(uint256 _fillPeriod) external onlyOwner {
+        fillPeriod = _fillPeriod;
     }
 
     /**
@@ -297,6 +310,10 @@ contract Presale is Initializable, OwnableUpgradeable {
         require(msg.sender == alloInfo.wallet, "Deposit: Invalid alloInfo");
         require(IMerkleWhitelist(whitelist).verify(alloInfo, merkleProof), "Deposit: Not exist on the whitelist");
         require(alloInfo.isKycPassed, "Deposit: Not passed KYC");
+
+        if (alloInfo.privateMaxAlloc > 0) {
+            require(isFillPeriod(), "Deposit: Must be in fill period for private participants to buy in public");
+        }
 
         // calculate fund token balance after deposit
         // we assume private sale is always finished before public sale starts
@@ -400,6 +417,15 @@ contract Presale is Initializable, OwnableUpgradeable {
 
         uint256 endTime = startTime + currentPresalePeriod;
         return block.timestamp >= startTime && block.timestamp <= endTime;
+    }
+
+    /**
+     * @notice Check if current is fill period
+     * @return True: in fill period, False: still public sale phase or presale finished
+     */
+    function isFillPeriod() public view returns (bool) {
+        uint256 endTime = startTime + currentPresalePeriod;
+        return block.timestamp >= (endTime - fillPeriod) && block.timestamp <= endTime;
     }
 
     /**

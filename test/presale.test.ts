@@ -60,6 +60,7 @@ describe('Presale', () => {
             rate: "450000000", // 1 Flame = 0.045 USD
             startTime: timestamp + 86400, // tomorrow
             period: 86400 * 7, // 1 week,
+            fillPeriod: 3600,
             serviceFee: "5000000000", // 5%,
             initialRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
         };
@@ -570,6 +571,42 @@ describe('Presale', () => {
             await expect(presale.connect(signers[1]).deposit(depositAmount, alloInfo, proof))
                 .to.emit(presale, "Vested")
                 .withArgs(signers[1].address, rewardAmount, false, nextTimestamp);
+        });
+
+        it.only("Deposit in fill period", async () => { 
+            const alloInfo = {
+                wallet: signers[1].address,
+                isKycPassed: true,
+                publicMaxAlloc: totalTokenSupply.div(10000),
+                allowedPrivateSale: false,
+                privateMaxAlloc: totalTokenSupply.div(10000)
+              };
+    
+            const merkleTree1 = generateTree([alloInfo]);
+            const proof = merkleTree1.getHexProof(getNode(alloInfo));
+            await whitelist.setMerkleRoot(merkleTree1.getHexRoot());
+
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+            await presale.endPrivateSale();
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            const endTime = startTime + presaleParams.period;
+            await presale.setStartTime(startTime);
+            await setNextBlockTimestamp(startTime);
+
+            const depositAmount = BigNumber.from(fakeUsers[1].publicMaxAlloc).div(2);
+            const rewardAmount = depositAmount.mul(ACCURACY).div(presaleParams.rate);
+            await expect(presale.connect(signers[1]).deposit(depositAmount, alloInfo, proof)).to.be.revertedWith("Deposit: Must be in fill period for private participants to buy in public");
+
+            await setNextBlockTimestamp(endTime - presaleParams.fillPeriod + 1);
+            await presale.connect(signers[1]).deposit(depositAmount, alloInfo, proof);
+            const recpInfo = await presale.recipients(signers[1].address);
+            expect(recpInfo.ftBalance).to.be.equal(depositAmount);
+            expect(recpInfo.rtBalance).to.be.equal(rewardAmount);
+
+            expect(await presale.publicSoldAmount()).to.be.equal(rewardAmount);
+
+            const vestInfo = await vesting.recipients(signers[1].address);
+            expect(vestInfo.totalAmount).to.be.equal(rewardAmount);
         });
     });
 
