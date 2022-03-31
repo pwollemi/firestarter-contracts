@@ -25,7 +25,7 @@ async function main() {
   });
   await staking.addTierInfo({
     apy: 9,
-    power: 110,
+    power: 140,
     penalty: 40,
     lockPeriod: 180 * day,
     fullPenaltyCliff: 0,
@@ -34,7 +34,7 @@ async function main() {
   });
   await staking.addTierInfo({
     apy: 15,
-    power: 120,
+    power: 190,
     penalty: 35,
     lockPeriod: 365 * day,
     fullPenaltyCliff: 30 * day,
@@ -43,7 +43,7 @@ async function main() {
   });
   await staking.addTierInfo({
     apy: 25,
-    power: 200,
+    power: 260,
     penalty: 30,
     lockPeriod: 3 * 365 * day,
     fullPenaltyCliff: 90 * day,
