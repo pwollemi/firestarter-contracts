@@ -61,7 +61,10 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
         uint256 tokenId,
         uint256 vestAmount
     ) external onlyMinter {
-        vestingInfos[tokenId].totalAmount = vestAmount > 0 ? vestAmount : vestAmountPerToken;
+        vestAmount = vestAmount > 0 ? vestAmount : vestAmountPerToken;
+        require(vestAmount > 0, "Vest amount can't be zero");
+
+        vestingInfos[tokenId].totalAmount = vestAmount;
 
         _safeMint(to, tokenId);
     }
