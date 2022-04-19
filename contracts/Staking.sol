@@ -197,7 +197,7 @@ contract Staking is Initializable, OwnableUpgradeable {
      */
     function totalRewards() public view returns (uint256 total) {
         total = accTotalRewards;
-        total = ((total + flamePerSecond * stakingPeriod).toInt256() - totalRewardDebt).toUint256();
+        total = _toUint256((total + flamePerSecond * stakingPeriod).toInt256() - totalRewardDebt);
     }
 
     /**
@@ -223,8 +223,8 @@ contract Staking is Initializable, OwnableUpgradeable {
                 accFlamePerShare_ +
                 ((flameReward * ACC_FLAME_PRECISION) / lpSupply);
         }
-        pending = (((user.amount * accFlamePerShare_) / ACC_FLAME_PRECISION).toInt256() -
-            user.rewardDebt).toUint256();
+        pending = _toUint256(((user.amount * accFlamePerShare_) / ACC_FLAME_PRECISION).toInt256() -
+            user.rewardDebt);
     }
 
     /**
@@ -290,7 +290,7 @@ contract Staking is Initializable, OwnableUpgradeable {
 
         int256 accumulatedFlame = ((user.amount * accFlamePerShare) / ACC_FLAME_PRECISION)
             .toInt256();
-        uint256 _pendingFlame = (accumulatedFlame - user.rewardDebt).toUint256();
+        uint256 _pendingFlame = _toUint256(accumulatedFlame - user.rewardDebt);
 
         // Effects
         user.rewardDebt =
@@ -326,7 +326,7 @@ contract Staking is Initializable, OwnableUpgradeable {
 
         int256 accumulatedFlame = ((user.amount * accFlamePerShare) / ACC_FLAME_PRECISION)
             .toInt256();
-        uint256 _pendingFlame = (accumulatedFlame - user.rewardDebt).toUint256();
+        uint256 _pendingFlame = _toUint256(accumulatedFlame - user.rewardDebt);
 
         // Effects
         user.rewardDebt = accumulatedFlame;
@@ -451,5 +451,10 @@ contract Staking is Initializable, OwnableUpgradeable {
     function _setLockExpiresAt(address wallet, uint256 timestamp) internal {
         lockExpiresAt[wallet] = timestamp;
         emit LockExpiresAt(wallet, timestamp);
+    }
+
+    function _toUint256(int256 value) internal pure returns (uint256) {
+        if (value < 0) return 0;
+        return value.toUint256();
     }
 }
