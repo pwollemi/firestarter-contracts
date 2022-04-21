@@ -16,6 +16,8 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
 
     uint256 public defaultVestAmountPerToken;
 
+    uint256 public nextTokenId;
+
     mapping(uint256 => VestingInfo) private vestingInfos;
 
     modifier onlyMinter() {
@@ -59,15 +61,34 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
 
     function mint(
         address to,
-        uint256 tokenId,
         uint256 vestAmount
     ) external onlyMinter {
         vestAmount = vestAmount > 0 ? vestAmount : defaultVestAmountPerToken;
         require(vestAmount > 0, "Vest amount can't be zero");
 
-        vestingInfos[tokenId].totalAmount = vestAmount;
+        vestingInfos[nextTokenId].totalAmount = vestAmount;
 
-        _safeMint(to, tokenId);
+        _safeMint(to, nextTokenId);
+
+        nextTokenId ++;
+    }
+
+    function batchMint(
+        address[] calldata users,
+        uint256[] calldata vestAmounts
+    ) external onlyMinter {
+        require(users.length == vestAmounts.length, "Invalid params");
+
+        for(uint256 i = 0; i < users.length; i ++) {
+            uint256 vestAmount = vestAmounts[i] > 0 ? vestAmounts[i] : defaultVestAmountPerToken;
+            require(vestAmount > 0, "Vest amount can't be zero");
+
+            vestingInfos[nextTokenId].totalAmount = vestAmount;
+
+            _safeMint(users[i], nextTokenId);
+
+            nextTokenId ++;
+        }
     }
 
     function updateAmountWithdrawn(uint256 _tokenId, uint256 _withdrawn) external override {

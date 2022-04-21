@@ -23,6 +23,7 @@
     "@types/chai": "^4.2.14",
     "@types/mocha": "^8.2.0",
     "chai": "^4.2.0",
+    "csv-parse": "^5.0.4",
     "dotenv": "^8.2.0",
     "ethereum-waffle": "^3.2.1",
     "ethers": "^5.0.26",
