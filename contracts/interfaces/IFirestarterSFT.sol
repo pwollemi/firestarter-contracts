@@ -7,6 +7,8 @@ interface IFirestarterSFT {
         uint256 totalAmount;
         // The amount that has been withdrawn.
         uint256 amountWithdrawn;
+        // If true minter can specify the totalAmount after mint
+        bool unset;
     }
 
     function getVestingInfo(uint256 tokenId) external view returns (VestingInfo memory);

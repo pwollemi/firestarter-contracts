@@ -61,12 +61,18 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
 
     function mint(
         address to,
-        uint256 vestAmount
+        uint256 vestAmount,
+        bool unset
     ) external onlyMinter {
-        vestAmount = vestAmount > 0 ? vestAmount : defaultVestAmountPerToken;
-        require(vestAmount > 0, "Vest amount can't be zero");
+        if(unset) {
+            require(vestAmount == 0, "Invalid vestAmount");
+        } else {
+            vestAmount = vestAmount > 0 ? vestAmount : defaultVestAmountPerToken;
+            require(vestAmount > 0, "Vest amount can't be zero");
+        }
 
         vestingInfos[nextTokenId].totalAmount = vestAmount;
+        vestingInfos[nextTokenId].unset = unset;
 
         _safeMint(to, nextTokenId);
 
@@ -75,20 +81,38 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
 
     function batchMint(
         address[] calldata users,
-        uint256[] calldata vestAmounts
+        uint256[] calldata vestAmounts,
+        bool[] calldata unsets
     ) external onlyMinter {
         require(users.length == vestAmounts.length, "Invalid params");
+        require(users.length == unsets.length, "Invalid params");
 
         for(uint256 i = 0; i < users.length; i ++) {
-            uint256 vestAmount = vestAmounts[i] > 0 ? vestAmounts[i] : defaultVestAmountPerToken;
-            require(vestAmount > 0, "Vest amount can't be zero");
-
+            uint256 vestAmount = 0;
+            if(unsets[i]) {
+                require(vestAmounts[i] == 0, "Invalid vestAmount");
+            } else {
+                vestAmount = vestAmounts[i] > 0 ? vestAmounts[i] : defaultVestAmountPerToken;
+                require(vestAmount > 0, "Vest amount can't be zero");
+            }
+            
             vestingInfos[nextTokenId].totalAmount = vestAmount;
+             vestingInfos[nextTokenId].unset = unsets[i];
 
             _safeMint(users[i], nextTokenId);
 
             nextTokenId ++;
         }
+    }
+
+    function setVestAmountForUnset(uint256 _tokenId, uint256 amount) external onlyMinter {
+        require(_exists(_tokenId), "Nonexistent token");
+        VestingInfo memory vestInfo = vestingInfos[_tokenId];
+
+        require(vestInfo.unset == true, "Already set");
+        vestInfo.totalAmount = amount;
+        vestInfo.unset = false;
+        vestingInfos[_tokenId] = vestInfo;
     }
 
     function updateAmountWithdrawn(uint256 _tokenId, uint256 _withdrawn) external override {
