@@ -124,12 +124,12 @@ describe("FirestarterSftVesting", () => {
   describe("Mint SFT", async () => {
     it("Only minter can mint SFTs", async () => {
       await expect(
-        sft.connect(worker).mint(sftCollector.address, sftId, 0)
+        sft.connect(worker).mint(sftCollector.address, 0, false)
       ).to.be.revertedWith("Not Minter!");
     });
 
     it("Mint SFT", async () => {
-      await sft.mint(sftCollector.address, sftId, 0);
+      await sft.mint(sftCollector.address, 0, false);
     });
   });
 
@@ -164,9 +164,9 @@ describe("FirestarterSftVesting", () => {
       const startTime = (await getLatestBlockTimestamp()) + 10000;
       const lockEndTime = startTime + vestingParams.lockPeriod;
 
-      const amount = totalAmount.div(5);
+      const amount = totalAmount.div(10);
       await vesting.setStartTime(startTime);
-      await sft.mint(sftCollector.address, sftId, amount);
+      await sft.mint(sftCollector.address, 0, false);
 
       const initialUnlockAmoumnt = amount
         .mul(vestingParams.initialUnlock)
@@ -215,7 +215,7 @@ describe("FirestarterSftVesting", () => {
 
       const vestingAmount = totalAmount.div(5);
       await vesting.setStartTime(startTime);
-      await sft.mint(sftCollector.address, sftId, vestingAmount);
+      await sft.mint(sftCollector.address, vestingAmount, false);
 
       const initialUnlockAmoumnt = vestingAmount
         .mul(vestingParams.initialUnlock)
@@ -248,7 +248,7 @@ describe("FirestarterSftVesting", () => {
 
       const vestingAmount = totalAmount.div(5);
       await vesting.setStartTime(startTime);
-      await sft.mint(sftCollector.address, sftId, vestingAmount);
+      await sft.mint(sftCollector.address, vestingAmount, false);
       await setNextBlockTimestamp(vestingEndTime + 1);
       await mineBlock();
 
@@ -261,7 +261,7 @@ describe("FirestarterSftVesting", () => {
       const startTime = (await getLatestBlockTimestamp()) + 10000;
       const vestingAmount = totalAmount.div(5);
       await vesting.setStartTime(startTime);
-      await sft.mint(sftCollector.address, sftId, vestingAmount);
+      await sft.mint(sftCollector.address, vestingAmount, false);
 
       const passedTime = vestingParams.releaseInterval * 10000 + 1;
       const initialUnlockAmoumnt = vestingAmount
@@ -291,7 +291,7 @@ describe("FirestarterSftVesting", () => {
       const startTime = (await getLatestBlockTimestamp()) + 10000;
       const vestingAmount = totalAmount.div(5);
       await vesting.setStartTime(startTime);
-      await sft.mint(sftCollector.address, sftId, vestingAmount);
+      await sft.mint(sftCollector.address, vestingAmount, false);
 
       const passedTime = vestingParams.releaseInterval * 10000 + 1;
       const initialUnlockAmoumnt = vestingAmount
@@ -318,7 +318,7 @@ describe("FirestarterSftVesting", () => {
       const startTime = (await getLatestBlockTimestamp()) + 10000;
       const vestingAmount = totalAmount.div(5);
       await vesting.setStartTime(startTime);
-      await sft.mint(sftCollector.address, sftId, vestingAmount);
+      await sft.mint(sftCollector.address, vestingAmount, false);
 
       // calculate time to withdraw all
       const ACCURACY = await vesting.ACCURACY();
