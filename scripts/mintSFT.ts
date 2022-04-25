@@ -6,6 +6,7 @@ import fs from "fs";
 interface CSVData {
   address: string;
   amount: string;
+  unset: boolean;
 }
 
 async function main() {
@@ -14,7 +15,7 @@ async function main() {
   const splits = 200;
 
   const firestarterSft = <FirestarterSft>(
-    await ethers.getContractAt("FirestarterSft", firestarterSftAddress)
+    await ethers.getContractAt("FirestarterSFT", firestarterSftAddress)
   );
 
   const csvData: CSVData[] = [];
@@ -25,6 +26,7 @@ async function main() {
       csvData.push({
         address: (csvrow[0] as string).split(",")[0],
         amount: (csvrow[0] as string).split(",")[1],
+        unset: (csvrow[0] as string).split(",")[2] === "true",
       });
     });
     fd.on("end", () => resolve(csvData));
@@ -37,9 +39,10 @@ async function main() {
     const end = csvData.length > i + splits ? i + splits : csvData.length;
     const users = csvData.slice(i, end).map((el) => el.address);
     const amounts = csvData.slice(i, end).map((el) => el.amount);
+    const unsets = csvData.slice(i, end).map((el) => el.unset);
 
     console.log(`minting from ${i} to ${end}`);
-    await firestarterSft.batchMint(users, amounts);
+    await firestarterSft.batchMint(users, amounts, unsets);
   }
 }
 
