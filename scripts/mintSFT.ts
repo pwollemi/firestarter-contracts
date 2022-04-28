@@ -11,7 +11,7 @@ interface CSVData {
 
 async function main() {
   const firestarterSftAddress = "";
-  const csvPath = "./scripts/data.csv";
+  const csvPath = ""; // ./scripts/data.csv
   const splits = 200;
 
   const firestarterSft = <FirestarterSft>(
@@ -19,14 +19,14 @@ async function main() {
   );
 
   const csvData: CSVData[] = [];
-  const fd = fs.createReadStream(csvPath).pipe(parse({ delimiter: ":" }));
+  const fd = fs.createReadStream(csvPath).pipe(parse({ columns: true }));
 
   const streamPromise = new Promise(function (resolve, reject) {
     fd.on("data", function (csvrow) {
       csvData.push({
-        address: (csvrow[0] as string).split(",")[0],
-        amount: (csvrow[0] as string).split(",")[1],
-        unset: (csvrow[0] as string).split(",")[2] === "true",
+        address: csvrow.address,
+        amount: csvrow.amount,
+        unset: csvrow.unset === "true",
       });
     });
     fd.on("end", () => resolve(csvData));
@@ -34,6 +34,19 @@ async function main() {
   });
 
   await streamPromise;
+
+  for (let i = 0; i < csvData.length; i++) {
+    const { address, amount, unset } = csvData[i];
+    if (!ethers.utils.isAddress(address)) {
+      console.log("Invalid Ethereum Address at line ", i);
+      return;
+    }
+
+    if (unset && amount !== "0") {
+      console.log("The amount must be zero when unset flag is true at line", i);
+      return;
+    }
+  }
 
   for (let i = 0; i < csvData.length; i += splits) {
     const end = csvData.length > i + splits ? i + splits : csvData.length;
