@@ -152,6 +152,38 @@ contract FirestarterSFTVesting is Initializable {
     }
 
     /**
+     * @notice Update user vesting information
+     * @dev This is called by presale contract
+     * @param recp Address of Recipient
+     * @param amount Amount of reward token
+     */
+    function updateRecipient(address recp, uint256 amount) external onlyOwnerOrWorker {
+        require(
+            startTime == 0 || startTime >= block.timestamp,
+            "updateRecipient: Cannot update the receipient after started"
+        );
+        require(amount > 0, "updateRecipient: Cannot vest 0");
+
+        vestingSFT.mint(recp, amount, false);
+
+        totalVestingAmount = totalVestingAmount + amount;
+
+        uint256 depositedAmount = IERC20Upgradeable(rewardToken).balanceOf(address(this));
+        require(
+            depositedAmount >= totalVestingAmount,
+            "updateRecipient: Vesting amount exceeds current balance"
+        );
+
+        if (inserted[recp] == false) {
+            inserted[recp] = true;
+            indexOf[recp] = participants.length;
+            participants.push(recp);
+        }
+
+        emit VestingInfoUpdated(recp, amount);
+    }
+
+    /**
      * @notice Set vesting start time
      * @dev This should be called before vesting starts
      * @param newStartTime New start time

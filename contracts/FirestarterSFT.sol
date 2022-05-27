@@ -63,7 +63,7 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
         address to,
         uint256 vestAmount,
         bool unset
-    ) external onlyMinter {
+    ) external override onlyMinter {
         if(unset) {
             require(vestAmount == 0, "Invalid vestAmount");
         } else {

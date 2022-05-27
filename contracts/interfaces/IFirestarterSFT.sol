@@ -14,4 +14,6 @@ interface IFirestarterSFT {
     function getVestingInfo(uint256 tokenId) external view returns (VestingInfo memory);
 
     function updateAmountWithdrawn(uint256 tokenId, uint256 withdrawn) external;
+
+    function mint(address to, uint256 vestAmount, bool unset) external;
 }

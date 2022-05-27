@@ -133,6 +133,30 @@ describe("FirestarterSftVesting", () => {
     });
   });
 
+  describe("Update Recipient mints new SFT", async () => {
+    it("Only worker can update recipient", async () => {
+      await expect(
+        vesting.connect(sftCollector).updateRecipient(sftCollector.address, ethers.utils.parseUnits("1", 18))
+      ).to.be.revertedWith("Vesting: caller is not the owner nor the worker");
+    });
+
+    it("Update Recipient mints a new SFT", async () => {
+      const amount = ethers.utils.parseUnits("100", 18);
+
+      await sft.setMinter(vesting.address);
+      const balance0 = await sft.balanceOf(sftCollector.address);
+      const tokenId = await sft.nextTokenId();
+      await vesting.connect(worker).updateRecipient(sftCollector.address, amount);
+      const balance1 = await sft.balanceOf(sftCollector.address);
+
+      const tokenInfo = await sft.getVestingInfo(tokenId);
+      expect(balance1.sub(balance0)).to.be.equal(1);
+      expect(await sft.ownerOf(tokenId)).to.be.equal(sftCollector.address);
+      expect(tokenInfo.totalAmount).to.be.equal(amount);
+      expect(tokenInfo.unset).to.be.equal(false);
+    });
+  });
+
   describe("setStartTime", async () => {
     it("Cannot set if alredy started", async () => {
       const startTime = (await getLatestBlockTimestamp()) + 10000;
