@@ -16,6 +16,8 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
 
     uint256 public defaultVestAmountPerToken;
 
+    uint256 public maxVestAmountForUnset;
+
     uint256 public nextTokenId;
 
     mapping(uint256 => VestingInfo) private vestingInfos;
@@ -35,7 +37,8 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
         string memory _symbol,
         address _minter,
         address _vesting,
-        uint256 _vestAmountPerToken
+        uint256 _vestAmountPerToken,
+        uint256 _maxVestAmountForUnset
     ) external initializer {
         __Ownable_init();
         __ERC165_init_unchained();
@@ -45,6 +48,7 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
         minter = _minter;
         vesting = IFirestarterSFTVesting(_vesting);
         defaultVestAmountPerToken = _vestAmountPerToken;
+        maxVestAmountForUnset = _maxVestAmountForUnset;
     }
 
     function setMinter(address _minter) external onlyOwner {
@@ -110,6 +114,7 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
         VestingInfo memory vestInfo = vestingInfos[_tokenId];
 
         require(vestInfo.unset == true, "Already set");
+        require(maxVestAmountForUnset >= amount, "Invalid amount");
         vestInfo.totalAmount = amount;
         vestInfo.unset = false;
         vestingInfos[_tokenId] = vestInfo;

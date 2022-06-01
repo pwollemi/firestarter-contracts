@@ -67,7 +67,8 @@ describe("FirestarterSftVesting", () => {
       "FSFT",
       deployer.address,
       vesting.address,
-      totalAmount.div(10)
+      totalAmount.div(10000),
+      ethers.utils.parseUnits("10000", 18)
     );
 
     await vesting.initialize(flameToken.address, sft.address, vestingParams);
@@ -136,7 +137,12 @@ describe("FirestarterSftVesting", () => {
   describe("Update Recipient mints new SFT", async () => {
     it("Only worker can update recipient", async () => {
       await expect(
-        vesting.connect(sftCollector).updateRecipient(sftCollector.address, ethers.utils.parseUnits("1", 18))
+        vesting
+          .connect(sftCollector)
+          .updateRecipient(
+            sftCollector.address,
+            ethers.utils.parseUnits("1", 18)
+          )
       ).to.be.revertedWith("Vesting: caller is not the owner nor the worker");
     });
 
@@ -146,7 +152,9 @@ describe("FirestarterSftVesting", () => {
       await sft.setMinter(vesting.address);
       const balance0 = await sft.balanceOf(sftCollector.address);
       const tokenId = await sft.nextTokenId();
-      await vesting.connect(worker).updateRecipient(sftCollector.address, amount);
+      await vesting
+        .connect(worker)
+        .updateRecipient(sftCollector.address, amount);
       const balance1 = await sft.balanceOf(sftCollector.address);
 
       const tokenInfo = await sft.getVestingInfo(tokenId);
