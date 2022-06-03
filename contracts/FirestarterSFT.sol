@@ -32,6 +32,13 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
         _;
     }
 
+    event SetMinter(address indexed minter);
+    event SetVesting(address indexed vesting);
+    event SetBaseTokenUri(string baseTokenUri);
+    event Mint(uint256 indexed tokenId, address indexed user, uint256 vestAmount, bool unset);
+    event SetVestAmountForUnset(uint256 indexed tokenId, uint256 vestAmount);
+    event UpdateAmountWithdraw(uint256 indexed tokenId, uint256 updatedAmount);
+
     function initialize(
         string memory _name,
         string memory _symbol,
@@ -53,14 +60,17 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
 
     function setMinter(address _minter) external onlyOwner {
         minter = _minter;
+        emit SetMinter(_minter);
     }
 
     function setVesting(address _vesting) external onlyOwner {
         vesting = IFirestarterSFTVesting(_vesting);
+        emit SetVesting(_vesting);
     }
 
     function setBaseTokenURI(string calldata _newBaseURI) external onlyOwner {
         _baseTokenURI = _newBaseURI;
+        emit SetBaseTokenUri(_newBaseURI);
     }
 
     function mint(
@@ -79,6 +89,8 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
         vestingInfos[nextTokenId].unset = unset;
 
         _safeMint(to, nextTokenId);
+
+        emit Mint(nextTokenId, to, vestAmount, unset);
 
         nextTokenId ++;
     }
@@ -105,6 +117,8 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
 
             _safeMint(users[i], nextTokenId);
 
+            emit Mint(nextTokenId, users[i], vestAmount, unsets[i]);
+
             nextTokenId ++;
         }
     }
@@ -118,9 +132,12 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
         vestInfo.totalAmount = amount;
         vestInfo.unset = false;
         vestingInfos[_tokenId] = vestInfo;
+
+        emit SetVestAmountForUnset(_tokenId, amount);
     }
 
     function updateAmountWithdrawn(uint256 _tokenId, uint256 _withdrawn) external override {
+        require(msg.sender == address(vesting), "Not vesting contract");
         require(_exists(_tokenId), "Nonexistent token");
 
         VestingInfo storage vestingInfo = vestingInfos[_tokenId];
@@ -128,6 +145,7 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
         require(vestingInfo.totalAmount >= updatedAmount, "Exceed!");
 
         vestingInfo.amountWithdrawn = updatedAmount;
+        emit UpdateAmountWithdraw(_tokenId, updatedAmount);
     }
 
     function _baseURI() internal view override returns (string memory) {
