@@ -78,6 +78,8 @@ contract FirestarterSFTVesting is Initializable {
     /// @notice Worker's address allowed to modify whitelist
     address public worker;
 
+    event InitVesting(address indexed rewardToken, address indexed sft, VestingParams params);
+
     /// @notice An event emitted when the vesting schedule is updated.
     event VestingInfoUpdated(address indexed registeredAddress, uint256 totalAmount);
 
@@ -123,6 +125,8 @@ contract FirestarterSFTVesting is Initializable {
         releaseRate = _params.releaseRate;
         lockPeriod = _params.lockPeriod;
         vestingPeriod = _params.vestingPeriod;
+
+        emit InitVesting(_rewardToken, _vestingSFT, _params);
     }
 
     /**
@@ -169,10 +173,7 @@ contract FirestarterSFTVesting is Initializable {
         totalVestingAmount = totalVestingAmount + amount;
 
         uint256 depositedAmount = IERC20Upgradeable(rewardToken).balanceOf(address(this));
-        require(
-            depositedAmount >= totalVestingAmount,
-            "updateRecipient: Vesting amount exceeds current balance"
-        );
+        require(depositedAmount >= totalVestingAmount, "updateRecipient: Vesting amount exceeds current balance");
 
         if (inserted[recp] == false) {
             inserted[recp] = true;
