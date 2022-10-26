@@ -43,8 +43,8 @@ contract FlamePool is Initializable, OwnableUpgradeable {
     ) external initializer {
         __Ownable_init();
 
-        require(flameToken != address(0), "Invalid token address");
-        require(rewardToken != address(0), "Invalid token address");
+        require(_flameToken != address(0), "Invalid token address");
+        require(_rewardToken != address(0), "Invalid token address");
 
         flameToken = _flameToken;
         rewardToken = _rewardToken;
@@ -70,8 +70,8 @@ contract FlamePool is Initializable, OwnableUpgradeable {
         UserInfo storage user = userInfo[_user];
         uint256 flameSupply = IERC20Upgradeable(flameToken).balanceOf(address(this));
         uint256 _accRewardPerShare = accRewardPerShare;
-        if (block.number > lastRewardTimestamp && flameSupply != 0) {
-            uint256 duration = block.number - lastRewardTimestamp;
+        if (block.timestamp > lastRewardTimestamp && flameSupply != 0) {
+            uint256 duration = block.timestamp - lastRewardTimestamp;
             uint256 rewardAmount = duration * rewardPerSec;
             _accRewardPerShare = _accRewardPerShare + (rewardAmount * ACC_REWARD_PRECISION) / flameSupply;
         }
@@ -79,14 +79,14 @@ contract FlamePool is Initializable, OwnableUpgradeable {
     }
 
     function updatePool() public {
-        if (block.number > lastRewardTimestamp) {
+        if (block.timestamp > lastRewardTimestamp) {
             uint256 flameSupply = IERC20Upgradeable(flameToken).balanceOf(address(this));
             if (flameSupply > 0) {
-                uint256 duration = block.number - lastRewardTimestamp;
+                uint256 duration = block.timestamp - lastRewardTimestamp;
                 uint256 rewardAmount = duration * rewardPerSec;
                 accRewardPerShare = accRewardPerShare + (rewardAmount * ACC_REWARD_PRECISION) / flameSupply;
             }
-            lastRewardTimestamp = block.number;
+            lastRewardTimestamp = block.timestamp;
 
             emit LogUpdatePool(lastRewardTimestamp, flameSupply, accRewardPerShare);
         }
