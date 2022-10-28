@@ -32,6 +32,14 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
         _;
     }
 
+    event InitSFT(
+        string name,
+        string symbol,
+        address minter,
+        address vesting,
+        uint256 vestAmountPerToken,
+        uint256 _maxVestAmountForUnset
+    );
     event SetMinter(address indexed minter);
     event SetVesting(address indexed vesting);
     event SetBaseTokenUri(string baseTokenUri);
@@ -56,6 +64,8 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
         vesting = IFirestarterSFTVesting(_vesting);
         defaultVestAmountPerToken = _vestAmountPerToken;
         maxVestAmountForUnset = _maxVestAmountForUnset;
+
+        emit InitSFT(_name, _symbol, _minter, _vesting, _vestAmountPerToken, _maxVestAmountForUnset);
     }
 
     function setMinter(address _minter) external onlyOwner {
@@ -78,7 +88,7 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
         uint256 vestAmount,
         bool unset
     ) external override onlyMinter {
-        if(unset) {
+        if (unset) {
             require(vestAmount == 0, "Invalid vestAmount");
         } else {
             vestAmount = vestAmount > 0 ? vestAmount : defaultVestAmountPerToken;
@@ -92,7 +102,7 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
 
         emit Mint(nextTokenId, to, vestAmount, unset);
 
-        nextTokenId ++;
+        nextTokenId++;
     }
 
     function batchMint(
@@ -103,23 +113,23 @@ contract FirestarterSFT is Initializable, OwnableUpgradeable, ERC721EnumerableUp
         require(users.length == vestAmounts.length, "Invalid params");
         require(users.length == unsets.length, "Invalid params");
 
-        for(uint256 i = 0; i < users.length; i ++) {
+        for (uint256 i = 0; i < users.length; i++) {
             uint256 vestAmount = 0;
-            if(unsets[i]) {
+            if (unsets[i]) {
                 require(vestAmounts[i] == 0, "Invalid vestAmount");
             } else {
                 vestAmount = vestAmounts[i] > 0 ? vestAmounts[i] : defaultVestAmountPerToken;
                 require(vestAmount > 0, "Vest amount can't be zero");
             }
-            
+
             vestingInfos[nextTokenId].totalAmount = vestAmount;
-             vestingInfos[nextTokenId].unset = unsets[i];
+            vestingInfos[nextTokenId].unset = unsets[i];
 
             _safeMint(users[i], nextTokenId);
 
             emit Mint(nextTokenId, users[i], vestAmount, unsets[i]);
 
-            nextTokenId ++;
+            nextTokenId++;
         }
     }
 

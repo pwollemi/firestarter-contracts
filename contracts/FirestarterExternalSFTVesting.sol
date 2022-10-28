@@ -4,11 +4,8 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol";
-import "./libraries/AddressPagination.sol";
-import "./interfaces/IFirestarterSFT.sol";
 
-contract FirestarterSFTVesting is Initializable {
-    using AddressPagination for address[];
+contract FirestarterExternalSFTVesting is Initializable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     struct VestingParams {
@@ -26,6 +23,13 @@ contract FirestarterSFTVesting is Initializable {
         uint256 releaseInterval;
         // Release percent in each withdrawing interval
         uint256 releaseRate;
+    }
+
+    struct VestingInfo {
+        // Total amount of tokens to be vested.
+        uint256 totalAmount;
+        // The amount that has been withdrawn.
+        uint256 amountWithdrawn;
     }
 
     /// @notice General decimal values ACCURACY unless specified differently (e.g. fees, exchange rates)
@@ -61,30 +65,33 @@ contract FirestarterSFTVesting is Initializable {
     address public rewardToken;
 
     /*************************** Status Info *************************/
-    /// @notice FirestarterSFT
-    IFirestarterSFT public vestingSFT;
 
     /// @notice Owner address(presale)
     address public owner;
 
+    /// @notice External Collection
+    IERC721Upgradeable public vestingCollection;
+
     /// @notice Sum of all user's vesting amount
     uint256 public totalVestingAmount;
 
+    /// @notice Vesting schedule info for each user(presale)
+    /// tokenId => vestingInfo
+    mapping(uint256 => VestingInfo) public recipients;
+
     // Participants list
-    address[] internal participants;
-    mapping(address => uint256) internal indexOf;
-    mapping(address => bool) internal inserted;
+    uint256[] internal participants;
+    mapping(uint256 => uint256) internal indexOf;
+    mapping(uint256 => bool) internal inserted;
 
     /// @notice Worker's address allowed to modify whitelist
     address public worker;
 
-    event InitVesting(address indexed rewardToken, address indexed sft, VestingParams params);
-
     /// @notice An event emitted when the vesting schedule is updated.
-    event VestingInfoUpdated(address indexed registeredAddress, uint256 totalAmount);
+    event VestingInfoUpdated(uint256 indexed tokenId, uint256 totalAmount);
 
     /// @notice An event emitted when withdraw happens
-    event Withdraw(address indexed registeredAddress, uint256 amountWithdrawn);
+    event Withdraw(uint256 indexed tokenId, address indexed beneficiary, uint256 amountWithdrawn);
 
     /// @notice An event emitted when startTime is set
     event StartTimeSet(uint256 startTime);
@@ -107,7 +114,7 @@ contract FirestarterSFTVesting is Initializable {
 
     function initialize(
         address _rewardToken,
-        address _vestingSFT,
+        address _vestingCollection,
         VestingParams memory _params
     ) external initializer {
         require(_rewardToken != address(0), "initialize: rewardToken cannot be zero");
@@ -116,7 +123,7 @@ contract FirestarterSFTVesting is Initializable {
 
         owner = msg.sender;
         rewardToken = _rewardToken;
-        vestingSFT = IFirestarterSFT(_vestingSFT);
+        vestingCollection = IERC721Upgradeable(_vestingCollection);
 
         vestingName = _params.vestingName;
         amountToBeVested = _params.amountToBeVested;
@@ -125,8 +132,6 @@ contract FirestarterSFTVesting is Initializable {
         releaseRate = _params.releaseRate;
         lockPeriod = _params.lockPeriod;
         vestingPeriod = _params.vestingPeriod;
-
-        emit InitVesting(_rewardToken, _vestingSFT, _params);
     }
 
     /**
@@ -139,8 +144,8 @@ contract FirestarterSFTVesting is Initializable {
     /**
      * @notice Return the list of participants
      */
-    function getParticipants(uint256 page, uint256 limit) external view returns (address[] memory) {
-        return participants.paginate(page, limit);
+    function getParticipants() external view returns (uint256[] memory) {
+        return participants;
     }
 
     /**
@@ -158,30 +163,31 @@ contract FirestarterSFTVesting is Initializable {
     /**
      * @notice Update user vesting information
      * @dev This is called by presale contract
-     * @param recp Address of Recipient
+     * @param tokenId Token Id
      * @param amount Amount of reward token
      */
-    function updateRecipient(address recp, uint256 amount) external onlyOwnerOrWorker {
+    function updateRecipient(uint256 tokenId, uint256 amount) external onlyOwnerOrWorker {
         require(
             startTime == 0 || startTime >= block.timestamp,
             "updateRecipient: Cannot update the receipient after started"
         );
         require(amount > 0, "updateRecipient: Cannot vest 0");
 
-        vestingSFT.mint(recp, amount, false);
-
-        totalVestingAmount = totalVestingAmount + amount;
+        // remove previous amount and add new amount
+        totalVestingAmount = totalVestingAmount + amount - recipients[tokenId].totalAmount;
 
         uint256 depositedAmount = IERC20Upgradeable(rewardToken).balanceOf(address(this));
         require(depositedAmount >= totalVestingAmount, "updateRecipient: Vesting amount exceeds current balance");
 
-        if (inserted[recp] == false) {
-            inserted[recp] = true;
-            indexOf[recp] = participants.length;
-            participants.push(recp);
+        if (inserted[tokenId] == false) {
+            inserted[tokenId] = true;
+            indexOf[tokenId] = participants.length;
+            participants.push(tokenId);
         }
 
-        emit VestingInfoUpdated(recp, amount);
+        recipients[tokenId].totalAmount = amount;
+
+        emit VestingInfoUpdated(tokenId, amount);
     }
 
     /**
@@ -209,32 +215,30 @@ contract FirestarterSFTVesting is Initializable {
      * for absolute safety, we may use reentracny guard.
      */
     function withdraw(uint256 tokenId) external {
-        IFirestarterSFT.VestingInfo memory vestingInfo = vestingSFT.getVestingInfo(tokenId);
+        VestingInfo storage vestingInfo = recipients[tokenId];
+        address beneficiary = vestingCollection.ownerOf(tokenId);
 
         if (vestingInfo.totalAmount == 0) return;
 
         uint256 _vested = vested(tokenId);
-        uint256 _withdrawable = _vested - vestingInfo.amountWithdrawn;
+        uint256 _withdrawable = withdrawable(tokenId);
+        vestingInfo.amountWithdrawn = _vested;
 
         require(_withdrawable > 0, "Nothing to withdraw");
-        address beneficiary = IERC721Upgradeable(address(vestingSFT)).ownerOf(tokenId);
-        vestingSFT.updateAmountWithdrawn(tokenId, _vested);
-
         IERC20Upgradeable(rewardToken).safeTransfer(beneficiary, _withdrawable);
-        emit Withdraw(beneficiary, _withdrawable);
+        emit Withdraw(tokenId, beneficiary, _withdrawable);
     }
 
     /**
      * @notice Returns the amount of vested reward tokens
      * @dev Calculates available amount depending on vesting params
-     * @param tokenId SFT tokenId
+     * @param tokenId Token Id
      * @return amount : Amount of vested tokens
      */
     function vested(uint256 tokenId) public view virtual returns (uint256 amount) {
-        IFirestarterSFT.VestingInfo memory vestingInfo = vestingSFT.getVestingInfo(tokenId);
-
         uint256 lockEndTime = startTime + lockPeriod;
         uint256 vestingEndTime = lockEndTime + vestingPeriod;
+        VestingInfo memory vestingInfo = recipients[tokenId];
 
         if (startTime == 0 || vestingInfo.totalAmount == 0 || block.timestamp <= lockEndTime) {
             return 0;
@@ -250,7 +254,7 @@ contract FirestarterSFTVesting is Initializable {
             unlockAmountPerInterval +
             initialUnlockAmount;
 
-        uint256 withdrawnAmount = vestingInfo.amountWithdrawn;
+        uint256 withdrawnAmount = recipients[tokenId].amountWithdrawn;
         vestedAmount = withdrawnAmount > vestedAmount ? withdrawnAmount : vestedAmount;
 
         return vestedAmount > vestingInfo.totalAmount ? vestingInfo.totalAmount : vestedAmount;
@@ -261,9 +265,7 @@ contract FirestarterSFTVesting is Initializable {
      * @return Locked reward token amount
      */
     function locked(uint256 tokenId) public view returns (uint256) {
-        IFirestarterSFT.VestingInfo memory vestingInfo = vestingSFT.getVestingInfo(tokenId);
-
-        uint256 totalAmount = vestingInfo.totalAmount;
+        uint256 totalAmount = recipients[tokenId].totalAmount;
         uint256 vestedAmount = vested(tokenId);
         return totalAmount - vestedAmount;
     }
@@ -273,10 +275,8 @@ contract FirestarterSFTVesting is Initializable {
      * @return Remaining vested amount of reward token
      */
     function withdrawable(uint256 tokenId) public view returns (uint256) {
-        IFirestarterSFT.VestingInfo memory vestingInfo = vestingSFT.getVestingInfo(tokenId);
-
         uint256 vestedAmount = vested(tokenId);
-        uint256 withdrawnAmount = vestingInfo.amountWithdrawn;
+        uint256 withdrawnAmount = recipients[tokenId].amountWithdrawn;
         return vestedAmount - withdrawnAmount;
     }
 
