@@ -11,7 +11,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721Enumer
 import "../chainlink/VRFConsumerBaseV2Upgradeable.sol";
 import "../chainlink/VRFCoordinatorV2Interface.sol";
 
-import "../interfaces/IERC721Extended.sol";
+import "../interfaces/IERC1155Extended.sol";
 
 /**
  * @title Flame Bet
@@ -89,9 +89,6 @@ contract Bet is
 
     // Ignition status of each token.
     mapping(uint256 => BoxInfo) public boxes;
-
-    // Current nft id
-    uint256 public currentNftId;
 
     /************************** Vesting params *************************/
 
@@ -189,13 +186,6 @@ contract Bet is
     }
 
     /**
-     * @dev Sets the current nft id
-     */
-    function setCurrentNftId(uint256 _nftId) public onlyOwner {
-        currentNftId = _nftId;
-    }
-
-    /**
      * @dev Sets the minimum flame amount
      */
     function setBetAmount(uint256 _minFlameAmount, uint256 _maxFlameAmount) public onlyOwner {
@@ -237,6 +227,22 @@ contract Bet is
      */
     function rewardTypesLength() public view returns (uint256) {
         return rewardTypes.length;
+    }
+
+    /**
+     * @notice Get token id of the tier
+     */
+    function getTier(uint256 flameAmount) public view returns (uint256) {
+        if (flameAmount < 2500 ether) {
+            return 1; // Light
+        }
+        if (flameAmount < 12000 ether) {
+            return 2; // Spark
+        }
+        if (flameAmount < 15000 ether) {
+            return 3; // Fire
+        }
+        return 4; // Flame
     }
 
     /**
@@ -304,10 +310,9 @@ contract Bet is
         require(box.claimedAt == 0, "already claimed");
 
         if (box.rewardType.winType == WinType.NFT) {
-            // start from 1
-            currentNftId++;
-            IERC721Extended(nft).mint(msg.sender, currentNftId);
-            emit ClaimNFT(msg.sender, boxId, currentNftId);
+            uint256 nftId = getTier(box.amount);
+            IERC1155ExtendedUpgradeable(nft).mint(msg.sender, nftId, 1);
+            emit ClaimNFT(msg.sender, boxId, nftId);
         } else {
             uint256 multiplier = box.rewardType.multiplierRangeStart +
                 (box.multiplierAnswer % (box.rewardType.multiplierRangeEnd - box.rewardType.multiplierRangeStart)) +
