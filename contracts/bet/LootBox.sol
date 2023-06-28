@@ -47,7 +47,7 @@ contract LootBox is
         uint256 withrawnAmount;
     }
 
-    /************************** Bet config *************************/
+    /************************** Buy config *************************/
 
     uint256 public constant ACCURACY = 10000;
 
@@ -76,6 +76,14 @@ contract LootBox is
 
     // Reward types
     RewardType[] public rewardTypes;
+
+    // Tier info
+    // eg. [100, 500, 2000, 5000]
+    // Possible tiers are 5 so is `tiers` length
+    uint256[] public flameTicks;
+
+    // Tick index to tier
+    uint256[] public tiers;
 
     /************************** Boxes info *************************/
 
@@ -131,10 +139,10 @@ contract LootBox is
 
     event BoxCreated(uint256 indexed requestId, address indexed user, uint256 boxId, uint256 buyAmount);
     event BoxOpened(uint256 indexed requestId, uint256 boxId, RewardType indexed rewardType, uint256 buyAmount);
-    event ClaimNFT(address indexed user, uint256 boxId, uint256 nftId, uint256 buyAmount);
-    event StartVesting(address indexed user, uint256 boxId, uint256 startDate, uint256 rewardAmount, uint256 buyAmount);
-    event Withdraw(address indexed user, uint256 boxId, uint256 amount, uint256 buyAmount);
-    event WithdrawVesting(address indexed user, uint256 boxId, uint256 amount, uint256 buyAmount);
+    event ClaimNFT(address indexed user, uint256 boxId, uint256 nftId);
+    event StartVesting(address indexed user, uint256 boxId, uint256 startDate, uint256 rewardAmount);
+    event Withdraw(address indexed user, uint256 boxId, uint256 amount);
+    event WithdrawVesting(address indexed user, uint256 boxId, uint256 amount);
 
     /**
      * @dev Initializes the contract
@@ -163,6 +171,15 @@ contract LootBox is
         maxFlameAmount = _maxFlameAmount;
         callbackGasLimit = 40000;
         requestConfirmations = 3;
+
+        // default tiers
+        flameTicks.push(2500 ether);
+        flameTicks.push(12000 ether);
+        flameTicks.push(15000 ether);
+        tiers.push(1);
+        tiers.push(2);
+        tiers.push(3);
+        tiers.push(4);
     }
 
     /**
@@ -201,6 +218,20 @@ contract LootBox is
     }
 
     /**
+     * @dev Sets the tier information
+     */
+    function setTierInfo(uint256[] memory _flameTicks, uint256[] memory _tiers) public onlyOwner {
+        delete flameTicks;
+        delete tiers;
+        for (uint256 i; i < _flameTicks.length; i++) {
+            flameTicks.push(_flameTicks[i]);
+        }
+        for (uint256 i; i < _tiers.length; i++) {
+            tiers.push(_tiers[i]);
+        }
+    }
+
+    /**
      * @dev Sets the vesting params
      */
     function setVestingParams(
@@ -228,16 +259,13 @@ contract LootBox is
      * @notice Get token id of the tier
      */
     function getTier(uint256 flameAmount) public view returns (uint256) {
-        if (flameAmount < 2500 ether) {
-            return 1; // Light
+        uint256 index;
+        for (; index < flameTicks.length; index++) {
+            if (flameAmount < flameTicks[index]) {
+                break;
+            }
         }
-        if (flameAmount < 12000 ether) {
-            return 2; // Spark
-        }
-        if (flameAmount < 15000 ether) {
-            return 3; // Fire
-        }
-        return 4; // Flame
+        return tiers[index];
     }
 
     /**
