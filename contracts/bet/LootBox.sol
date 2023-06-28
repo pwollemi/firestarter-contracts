@@ -13,11 +13,7 @@ import "../chainlink/VRFCoordinatorV2Interface.sol";
 
 import "../interfaces/IERC1155Extended.sol";
 
-/**
- * @title Flame Bet
- * @author Daniel Lee
- */
-contract Bet is
+contract LootBox is
     Initializable,
     OwnableUpgradeable,
     VRFConsumerBaseV2Upgradeable,
@@ -41,8 +37,7 @@ contract Bet is
 
     struct BoxInfo {
         uint256 amount;
-        bool isOpened;
-        uint256 claimedAt;
+        uint256 openedAt;
         RewardType rewardType;
         uint256 multiplierAnswer;
         // NFT
@@ -134,12 +129,12 @@ contract Bet is
 
     /************************** Events *************************/
 
-    event BoxCreated(uint256 indexed requestId, address indexed user, uint256 boxId);
-    event BoxOpened(uint256 indexed requestId, uint256 boxId, RewardType indexed rewardType);
-    event ClaimBox(address indexed user, uint256 boxId);
-    event ClaimNFT(address indexed user, uint256 boxId, uint256 nftId);
-    event StartVesting(address indexed user, uint256 boxId, uint256 startDate, uint256 betAmount, uint256 rewardAmount);
-    event Withdraw(address indexed user, uint256 boxId, uint256 amount);
+    event BoxCreated(uint256 indexed requestId, address indexed user, uint256 boxId, uint256 buyAmount);
+    event BoxOpened(uint256 indexed requestId, uint256 boxId, RewardType indexed rewardType, uint256 buyAmount);
+    event ClaimNFT(address indexed user, uint256 boxId, uint256 nftId, uint256 buyAmount);
+    event StartVesting(address indexed user, uint256 boxId, uint256 startDate, uint256 rewardAmount, uint256 buyAmount);
+    event Withdraw(address indexed user, uint256 boxId, uint256 amount, uint256 buyAmount);
+    event WithdrawVesting(address indexed user, uint256 boxId, uint256 amount, uint256 buyAmount);
 
     /**
      * @dev Initializes the contract
@@ -188,7 +183,7 @@ contract Bet is
     /**
      * @dev Sets the minimum flame amount
      */
-    function setBetAmount(uint256 _minFlameAmount, uint256 _maxFlameAmount) public onlyOwner {
+    function setBuyAmount(uint256 _minFlameAmount, uint256 _maxFlameAmount) public onlyOwner {
         minFlameAmount = _minFlameAmount;
         maxFlameAmount = _maxFlameAmount;
     }
@@ -275,7 +270,7 @@ contract Bet is
 
         vrfRequests[requestId] = boxId;
 
-        emit BoxCreated(requestId, msg.sender, boxId);
+        emit BoxCreated(requestId, msg.sender, boxId, amount);
     }
 
     /**
@@ -294,25 +289,14 @@ contract Bet is
             }
             result -= rewardTypes[i].winWeight;
         }
+        box.openedAt = block.timestamp;
 
-        box.isOpened = true;
-
-        emit BoxOpened(requestId, boxId, box.rewardType);
-    }
-
-    /**
-     * @dev Claim flame amount of the user
-     */
-    function claimBox(uint256 boxId) public {
-        require(ownerOf(boxId) == msg.sender, "Not owner");
-        BoxInfo storage box = boxes[boxId];
-        require(box.isOpened, "not opened");
-        require(box.claimedAt == 0, "already claimed");
+        address beneficiary = ownerOf(boxId);
 
         if (box.rewardType.winType == WinType.NFT) {
             uint256 nftId = getTier(box.amount);
-            IERC1155ExtendedUpgradeable(nft).mint(msg.sender, nftId, 1);
-            emit ClaimNFT(msg.sender, boxId, nftId);
+            IERC1155ExtendedUpgradeable(nft).mint(beneficiary, nftId, 1);
+            emit ClaimNFT(beneficiary, boxId, nftId, box.amount);
         } else {
             uint256 multiplier = box.rewardType.multiplierRangeStart +
                 (box.multiplierAnswer % (box.rewardType.multiplierRangeEnd - box.rewardType.multiplierRangeStart)) +
@@ -321,14 +305,13 @@ contract Bet is
             if (!box.rewardType.isVesting) {
                 require(box.totalAmount > 0, "amount zero");
                 box.withrawnAmount = box.totalAmount;
-                IERC20Upgradeable(flame).safeTransfer(msg.sender, box.totalAmount);
-                emit Withdraw(msg.sender, boxId, box.totalAmount);
+                IERC20Upgradeable(flame).safeTransfer(beneficiary, box.totalAmount);
+                emit Withdraw(beneficiary, boxId, box.totalAmount, box.amount);
             } else {
-                emit StartVesting(msg.sender, boxId, block.timestamp, box.amount, box.totalAmount);
+                emit StartVesting(beneficiary, boxId, block.timestamp, box.totalAmount, box.amount);
             }
         }
-        box.claimedAt = block.timestamp;
-        emit ClaimBox(msg.sender, boxId);
+        emit BoxOpened(requestId, boxId, box.rewardType, box.amount);
     }
 
     /**
@@ -336,9 +319,9 @@ contract Bet is
      */
     function vested(uint256 boxId) public view returns (uint256) {
         BoxInfo memory box = boxes[boxId];
-        if (box.claimedAt == 0 || box.rewardType.winType == WinType.NFT || !box.rewardType.isVesting) return 0;
+        if (box.openedAt == 0 || box.rewardType.winType == WinType.NFT || !box.rewardType.isVesting) return 0;
 
-        uint256 lockEndTime = box.claimedAt + lockPeriod;
+        uint256 lockEndTime = box.openedAt + lockPeriod;
         uint256 vestingEndTime = lockEndTime + vestPeriod;
 
         if (box.totalAmount == 0 || block.timestamp <= lockEndTime) {
@@ -380,6 +363,6 @@ contract Bet is
 
         require(_withdrawable > 0, "Nothing to withdraw");
         IERC20Upgradeable(flame).safeTransfer(msg.sender, _withdrawable);
-        emit Withdraw(msg.sender, boxId, _withdrawable);
+        emit WithdrawVesting(msg.sender, boxId, _withdrawable, box.amount);
     }
 }
