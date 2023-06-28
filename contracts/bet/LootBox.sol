@@ -324,7 +324,7 @@ contract LootBox is
         if (box.rewardType.winType == WinType.NFT) {
             uint256 nftId = getTier(box.amount);
             IERC1155ExtendedUpgradeable(nft).mint(beneficiary, nftId, 1);
-            emit ClaimNFT(beneficiary, boxId, nftId, box.amount);
+            emit ClaimNFT(beneficiary, boxId, nftId);
         } else {
             uint256 multiplier = box.rewardType.multiplierRangeStart +
                 (box.multiplierAnswer % (box.rewardType.multiplierRangeEnd - box.rewardType.multiplierRangeStart)) +
@@ -334,9 +334,9 @@ contract LootBox is
                 require(box.totalAmount > 0, "amount zero");
                 box.withrawnAmount = box.totalAmount;
                 IERC20Upgradeable(flame).safeTransfer(beneficiary, box.totalAmount);
-                emit Withdraw(beneficiary, boxId, box.totalAmount, box.amount);
+                emit Withdraw(beneficiary, boxId, box.totalAmount);
             } else {
-                emit StartVesting(beneficiary, boxId, block.timestamp, box.totalAmount, box.amount);
+                emit StartVesting(beneficiary, boxId, block.timestamp, box.totalAmount);
             }
         }
         emit BoxOpened(requestId, boxId, box.rewardType, box.amount);
@@ -391,6 +391,6 @@ contract LootBox is
 
         require(_withdrawable > 0, "Nothing to withdraw");
         IERC20Upgradeable(flame).safeTransfer(msg.sender, _withdrawable);
-        emit WithdrawVesting(msg.sender, boxId, _withdrawable, box.amount);
+        emit WithdrawVesting(msg.sender, boxId, _withdrawable);
     }
 }
