@@ -138,7 +138,7 @@ contract LootBox is
     /************************** Events *************************/
 
     event BoxCreated(uint256 indexed requestId, address indexed user, uint256 boxId, uint256 buyAmount);
-    event BoxOpened(uint256 indexed requestId, uint256 boxId, RewardType indexed rewardType, uint256 buyAmount);
+    event BoxOpened(uint256 indexed requestId, uint256 boxId, RewardType rewardType, uint256 buyAmount);
     event ClaimNFT(address indexed user, uint256 boxId, uint256 nftId);
     event StartVesting(address indexed user, uint256 boxId, uint256 startDate, uint256 rewardAmount);
     event Withdraw(address indexed user, uint256 boxId, uint256 amount);
@@ -270,9 +270,6 @@ contract LootBox is
 
     /**
      * @dev Open Box
-     *
-     * We assume chainlink VRF always correctly works, thus even though callback is not called, the flare will be marked as already tried ignition
-     *
      */
     function createBox(uint256 amount) public {
         require(startTime <= block.timestamp && block.timestamp < endTime, "Not active");
@@ -287,7 +284,6 @@ contract LootBox is
         BoxInfo storage newBox = boxes[boxId];
         newBox.amount = amount;
 
-        // request random value to try ignition
         uint256 requestId = COORDINATOR.requestRandomWords(
             s_keyHash,
             s_subscriptionId,
