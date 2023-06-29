@@ -169,7 +169,7 @@ contract LootBox is
         s_keyHash = _keyHash;
         minFlameAmount = _minFlameAmount;
         maxFlameAmount = _maxFlameAmount;
-        callbackGasLimit = 40000;
+        callbackGasLimit = 2500000;
         requestConfirmations = 3;
 
         // default tiers
