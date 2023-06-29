@@ -189,6 +189,18 @@ contract LootBox is
         flame = _flame;
     }
 
+    function setVRFInfo(
+        uint64 _subscriptionId,
+        bytes32 _keyHash,
+        uint32 _callbackGasLimit,
+        uint16 _requestConfirmations
+    ) public onlyOwner {
+        s_subscriptionId = _subscriptionId;
+        s_keyHash = _keyHash;
+        callbackGasLimit = _callbackGasLimit;
+        requestConfirmations = _requestConfirmations;
+    }
+
     /**
      * @dev Sets the active period
      */
