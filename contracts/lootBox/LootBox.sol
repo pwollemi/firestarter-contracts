@@ -159,7 +159,7 @@ contract LootBox is
     event Withdraw(address indexed user, uint256 boxId, uint256 amount);
     event WithdrawVesting(address indexed user, uint256 boxId, uint256 amount);
     event AddFreeLootBox(address indexed wallet, uint256 referralAmount);
-    event ClaimFreeLootBox(address indexed wallet, uint256 referralAmount, uint256 freeLootBoxIndex);
+    event ClaimFreeLootBox(address indexed wallet, uint256 referralAmount, uint256 freeLootBoxIndex, uint256 boxId);
 
     // Worker permission check
     modifier onlyWorker {
@@ -351,7 +351,7 @@ contract LootBox is
         vrfRequests[requestId] = boxId;
 
         emit BoxCreated(requestId, msg.sender, boxId, referral.rewardAmount);
-        emit ClaimFreeLootBox(msg.sender, referral.rewardAmount, id);
+        emit ClaimFreeLootBox(msg.sender, referral.rewardAmount, id, boxId);
     }
 
     /**
