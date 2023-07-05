@@ -158,7 +158,7 @@ contract LootBox is
     event StartVesting(address indexed user, uint256 boxId, uint256 startDate, uint256 rewardAmount);
     event Withdraw(address indexed user, uint256 boxId, uint256 amount);
     event WithdrawVesting(address indexed user, uint256 boxId, uint256 amount);
-    event AddFreeLootBox(address indexed wallet, uint256 referralAmount);
+    event AddFreeLootBox(address indexed wallet, uint256 referralAmount, uint256 freeLootBoxIndex);
     event ClaimFreeLootBox(address indexed wallet, uint256 referralAmount, uint256 freeLootBoxIndex, uint256 boxId);
 
     // Worker permission check
@@ -301,7 +301,7 @@ contract LootBox is
         referrals[wallet][index] = ReferralReward(wallet, referralRewardAmount, false);
         referralBalance[wallet] = index + 1;
 
-        emit AddFreeLootBox(wallet, referralRewardAmount);
+        emit AddFreeLootBox(wallet, referralRewardAmount, index);
     }
 
     /**
