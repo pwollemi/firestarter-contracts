@@ -47,6 +47,15 @@ contract LootBox is
         uint256 withrawnAmount;
     }
 
+    struct ReferralReward {
+        address wallet;
+        uint256 rewardAmount;
+        bool isUsed;
+    }
+
+    // Worker for free loot boxes
+    address public worker;
+
     /************************** Buy config *************************/
 
     uint256 public constant ACCURACY = 10000;
@@ -92,6 +101,12 @@ contract LootBox is
 
     // Ignition status of each token.
     mapping(uint256 => BoxInfo) public boxes;
+
+    // Referral reward information; wallet => index => referral
+    mapping(address => mapping(uint256 => ReferralReward)) public referrals;
+
+    // Balance of referrals
+    mapping(address => uint256) public referralBalance;
 
     /************************** Vesting params *************************/
 
@@ -143,6 +158,14 @@ contract LootBox is
     event StartVesting(address indexed user, uint256 boxId, uint256 startDate, uint256 rewardAmount);
     event Withdraw(address indexed user, uint256 boxId, uint256 amount);
     event WithdrawVesting(address indexed user, uint256 boxId, uint256 amount);
+    event AddFreeLootBox(address indexed wallet, uint256 referralAmount);
+    event ClaimFreeLootBox(address indexed wallet, uint256 referralAmount, uint256 freeLootBoxIndex);
+
+    // Worker permission check
+    modifier onlyWorker {
+        require(msg.sender == worker, "Not a worker!");
+        _;
+    }
 
     /**
      * @dev Initializes the contract
@@ -189,6 +212,16 @@ contract LootBox is
         flame = _flame;
     }
 
+    /**
+     * @dev Sets the worker address
+     */
+    function setWorker(address _worker) public onlyOwner {
+        worker = _worker;
+    }
+
+    /**
+     * @dev Sets VRF Info
+     */
     function setVRFInfo(
         uint64 _subscriptionId,
         bytes32 _keyHash,
@@ -261,6 +294,17 @@ contract LootBox is
     }
 
     /**
+     * @dev Add free loot boxes
+     */
+    function addFreeLootBox(address wallet, uint256 referralRewardAmount) external onlyWorker {
+        uint256 index = referralBalance[wallet];
+        referrals[wallet][index] = ReferralReward(wallet, referralRewardAmount, false);
+        referralBalance[wallet] = index + 1;
+
+        emit AddFreeLootBox(wallet, referralRewardAmount);
+    }
+
+    /**
      * @dev Returns the count of options
      */
     function rewardTypesLength() public view returns (uint256) {
@@ -278,6 +322,36 @@ contract LootBox is
             }
         }
         return tiers[index];
+    }
+
+    /**
+     * @dev Claim free loot boxes
+     */
+    function claimFreeLootBox(uint256 id) external {
+        require(referralBalance[msg.sender] > id, "Invalid Id");
+        ReferralReward storage referral = referrals[msg.sender][id];
+        require(referral.isUsed == false, "It's already claimed");
+
+        referral.isUsed = true;
+
+        uint256 boxId = boxCount;
+        _mint(msg.sender, boxId);
+        boxCount++;
+        BoxInfo storage newBox = boxes[boxId];
+        newBox.amount = referral.rewardAmount;
+
+        uint256 requestId = COORDINATOR.requestRandomWords(
+            s_keyHash,
+            s_subscriptionId,
+            requestConfirmations,
+            callbackGasLimit,
+            2
+        );
+
+        vrfRequests[requestId] = boxId;
+
+        emit BoxCreated(requestId, msg.sender, boxId, referral.rewardAmount);
+        emit ClaimFreeLootBox(msg.sender, referral.rewardAmount, id);
     }
 
     /**
