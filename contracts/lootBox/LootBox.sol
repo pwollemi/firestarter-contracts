@@ -150,6 +150,14 @@ contract LootBox is
     // The default is 3, but you can set this higher.
     uint16 requestConfirmations;
 
+    /************************** Pause flags *************************/
+
+    // Set to true when general buy box is paused
+    bool public isGeneralPaused;
+
+    // Set to true if referral free loot boxes are paused
+    bool public isReferralPaused;
+
     /************************** Events *************************/
 
     event BoxCreated(uint256 indexed requestId, address indexed user, uint256 boxId, uint256 buyAmount);
@@ -160,6 +168,8 @@ contract LootBox is
     event WithdrawVesting(address indexed user, uint256 boxId, uint256 amount);
     event AddFreeLootBox(address indexed wallet, uint256 referralAmount, uint256 freeLootBoxIndex);
     event ClaimFreeLootBox(address indexed wallet, uint256 referralAmount, uint256 freeLootBoxIndex, uint256 boxId);
+    event GeneralBoxPaused(bool isPaused);
+    event FreeLootBoxPaused(bool isPaused);
 
     // Worker permission check
     modifier onlyWorker {
@@ -277,6 +287,22 @@ contract LootBox is
     }
 
     /**
+     * @dev Pause general buying boxes
+     */
+    function pauseGeneral(bool _isGeneralPaused) external onlyOwner {
+        isGeneralPaused = _isGeneralPaused;
+        emit GeneralBoxPaused(_isGeneralPaused);
+    }
+
+    /**
+     * @dev Pause free loot boxes
+     */
+    function pauseFreeLootBoxes(bool _isReferralPaused) external onlyOwner {
+        isReferralPaused = _isReferralPaused;
+        emit FreeLootBoxPaused(_isReferralPaused);
+    }
+
+    /**
      * @dev Sets the vesting params
      */
     function setVestingParams(
@@ -328,6 +354,7 @@ contract LootBox is
      * @dev Claim free loot boxes
      */
     function claimFreeLootBox(uint256 id) external {
+        require(!isReferralPaused, "Paused");
         require(referralBalance[msg.sender] > id, "Invalid Id");
         ReferralReward storage referral = referrals[msg.sender][id];
         require(referral.isUsed == false, "It's already claimed");
@@ -358,6 +385,7 @@ contract LootBox is
      * @dev Open Box
      */
     function createBox(uint256 amount) public {
+        require(!isGeneralPaused, "Paused");
         require(startTime <= block.timestamp && block.timestamp < endTime, "Not active");
         require(amount >= minFlameAmount, "Less than minimum");
         require(amount <= maxFlameAmount, "More than Maximum");
