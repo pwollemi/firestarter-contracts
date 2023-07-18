@@ -40,7 +40,7 @@ const config: HardhatUserConfig = {
       ...defaultConfig
     },
     matic: {
-      url: 'https://rpc-mainnet.matic.network',
+      url: 'https://polygon-rpc.com',
       chainId: 137,
       ...defaultConfig
     },
