@@ -5,4 +5,6 @@ interface IVesting {
     function updateRecipient(address, uint256) external;
 
     function setStartTime(uint256) external;
+
+    function refundRecipient(address) external returns (uint256);
 }

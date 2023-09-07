@@ -22,6 +22,8 @@ contract Presale is Initializable, OwnableUpgradeable {
         uint256 ftBalance;
         // Rewards Token amount that needs to be vested
         uint256 rtBalance;
+        // True if has withdrawn refunded funds
+        bool refunded;
     }
 
     struct AddressParams {
@@ -48,6 +50,10 @@ contract Presale is Initializable, OwnableUpgradeable {
         uint256 serviceFee;
         // Initial Deposited rewardToken amount
         uint256 initialRewardsAmount;
+        // Timestamp when listing happens
+        uint256 listTime;
+        // Refund period
+        uint256 refundPeriod;
     }
 
     /// @notice General decimal values ACCURACY unless specified differently (e.g. fees, exchange rates)
@@ -83,6 +89,12 @@ contract Presale is Initializable, OwnableUpgradeable {
 
     /// @notice Presale Start Time
     uint256 public startTime;
+
+    /// @notice Refund List Time
+    uint256 public listTime;
+
+    /// @notice Refund Period
+    uint256 public refundPeriod;
 
     /// @notice Service Fee : if `ACCURACY` is 1e10(default), 1e9 is 10%
     uint256 public serviceFee;
@@ -138,6 +150,9 @@ contract Presale is Initializable, OwnableUpgradeable {
 
     /// @notice An event emitted when the remaining reward token is withdrawn
     event WithdrawUnsoldToken(address indexed receiver, uint256 amount, uint256 timestamp);
+
+    /// @notice An event emitted when refund is activated
+    event Refunded(address indexed user, uint256 fundAmount, uint256 tokenAmount);
 
     /// @notice An event emitted when funded token is withdrawn(project owner and service fee)
     event WithdrawFunds(address indexed receiver, uint256 amount, uint256 timestamp);
@@ -196,6 +211,8 @@ contract Presale is Initializable, OwnableUpgradeable {
         exchangeRate = _presale.rate;
         startTime = _presale.startTime;
         presalePeriod = _presale.period;
+        listTime = _presale.listTime;
+        refundPeriod = _presale.refundPeriod;
         closePeriod = 3600;
         serviceFee = _presale.serviceFee;
         initialRewardAmount = _presale.initialRewardsAmount;
@@ -349,6 +366,24 @@ contract Presale is Initializable, OwnableUpgradeable {
     }
 
     /**
+     * @notice Process refunds
+     */
+    function redeemFunds() external whileFinished {
+        require(block.timestamp >= listTime, "Not listed yet");
+        require(block.timestamp < listTime + refundPeriod, "Refund period ended");
+
+        Recipient storage recp = recipients[msg.sender];
+        require(recp.refunded == false, "Already redeemed");
+
+        recp.refunded = true;
+
+        emit Refunded(msg.sender, recp.ftBalance, recp.rtBalance);
+
+        IERC20Upgradeable(fundToken).safeTransfer(msg.sender, recp.ftBalance);
+        IERC20Upgradeable(rewardToken).safeTransferFrom(address(vesting), projectOwner, recp.rtBalance);
+    }
+
+    /**
      * @notice Process fund tokens and start vesting at given time
      *
      *  - accepts two parameters (treasury address and start vesting time)
@@ -385,6 +420,7 @@ contract Presale is Initializable, OwnableUpgradeable {
      * @param treasury address of the participant
      */
     function withdrawFunds(address treasury) external whileFinished onlyOwner {
+        require(refundActivated == false, "Refund is activated");
         _withdrawFunds(treasury);
     }
 

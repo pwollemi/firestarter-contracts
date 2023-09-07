@@ -91,6 +91,9 @@ contract Vesting is Initializable {
     /// @notice An event emitted when the vesting schedule is updated.
     event VestingInfoUpdated(address indexed registeredAddress, uint256 totalAmount);
 
+    /// @notice An event emitted when the refund is triggered.
+    event Refunded(address indexed registeredAddress, uint256 totalAmount);
+
     /// @notice An event emitted when withdraw happens
     event Withdraw(address indexed registeredAddress, uint256 amountWithdrawn);
 
@@ -191,6 +194,23 @@ contract Vesting is Initializable {
         recipients[recp].totalAmount = amount;
 
         emit VestingInfoUpdated(recp, amount);
+    }
+
+    /**
+     * @notice Trigger refunds
+     * @param recp Address of register
+     * @return tokenAmount Refund amount in token
+     */
+    function refundRecipient(address recp) external onlyOwnerOrWorker returns (uint256 tokenAmount) {
+
+        VestingInfo memory vestingInfo = recipients[recp];
+        require(vestingInfo.totalAmount > 0, "No tokens vesting");
+        require(vestingInfo.amountWithdrawn == 0, "Already withdrawn");
+
+        tokenAmount = vestingInfo.totalAmount;
+        emit Refunded(recp, tokenAmount);
+
+        vestingInfo.totalAmount = 0;
     }
 
     /**
