@@ -376,6 +376,7 @@ contract Presale is Initializable, OwnableUpgradeable {
         require(recp.refunded == false, "Already redeemed");
 
         recp.refunded = true;
+        IVesting(vesting).refundRecipient(msg.sender);
 
         emit Refunded(msg.sender, recp.ftBalance, recp.rtBalance);
 
@@ -420,7 +421,6 @@ contract Presale is Initializable, OwnableUpgradeable {
      * @param treasury address of the participant
      */
     function withdrawFunds(address treasury) external whileFinished onlyOwner {
-        require(refundActivated == false, "Refund is activated");
         _withdrawFunds(treasury);
     }
 

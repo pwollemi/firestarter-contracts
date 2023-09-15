@@ -63,7 +63,9 @@ describe('Presale', () => {
             startTime: timestamp + 86400, // tomorrow
             period: 86400 * 7, // 1 week,
             serviceFee: "5000000000", // 5%,
-            initialRewardsAmount: totalTokenSupply.div(5) // 10k tokens will be deposited to vesting
+            initialRewardsAmount: totalTokenSupply.div(5), // 10k tokens will be deposited to vesting
+            listTime: timestamp + 86400 * 9,
+            refundPeriod: 86400
         };
 
         const project = await deployCampaign("contracts/Presale.sol:Presale", vestingParams, addresses, presaleParams);
@@ -574,7 +576,7 @@ describe('Presale', () => {
                 .withArgs(signers[1].address, rewardAmount, false, nextTimestamp);
         });
 
-        it.only("Deposit in fill period", async () => { 
+        it("Deposit in fill period", async () => { 
             const alloInfo = {
                 wallet: signers[1].address,
                 isKycPassed: true,
@@ -774,6 +776,139 @@ describe('Presale', () => {
             assert(events?.[1].args?.receiver === treasury, "invalid receiver");
             assert(events?.[1].args?.amount.eq(feeAmount), "invalid amount");
             assert(events?.[1].args?.timestamp.eq(withdrawTime), "invalid timestamp");
+        });
+    });
+
+    describe("Redeem funds", async () => {
+        it("Can only be called when finished", async () => {
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+            await presale.endPrivateSale();
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.startPresale();
+            await setNextBlockTimestamp(startTime + 1);
+
+            const alloInfo1 = alloInfos[signers[1].address];
+            const proof1 = merkleTree.getHexProof(getNode(alloInfo1));
+            const depositAmount = BigNumber.from(fakeUsers[1].publicMaxAlloc).div(2);
+            await presale.connect(signers[1]).deposit(depositAmount, alloInfo1, proof1);
+            const alloInfo2 = alloInfos[signers[2].address];
+            const proof2 = merkleTree.getHexProof(getNode(alloInfo2));
+            await presale.connect(signers[2]).deposit(depositAmount, alloInfo2, proof2);
+            const alloInfo3 = alloInfos[signers[3].address];
+            const proof3 = merkleTree.getHexProof(getNode(alloInfo3));
+            await presale.connect(signers[3]).deposit(depositAmount, alloInfo3, proof3);
+            const alloInfo4 = alloInfos[signers[4].address];
+            const proof4 = merkleTree.getHexProof(getNode(alloInfo4));
+            await presale.connect(signers[4]).deposit(depositAmount, alloInfo4, proof4);
+
+            await expect(presale.connect(signers[1]).redeemFunds()).to.be.revertedWith("Presale has not been ended yet!");
+        });
+
+        it("Can only be called in list period", async () => {
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+            await presale.endPrivateSale();
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.startPresale();
+            await setNextBlockTimestamp(startTime + 1);
+
+            const alloInfo1 = alloInfos[signers[1].address];
+            const proof1 = merkleTree.getHexProof(getNode(alloInfo1));
+            const depositAmount = BigNumber.from(fakeUsers[1].publicMaxAlloc).div(2);
+            await presale.connect(signers[1]).deposit(depositAmount, alloInfo1, proof1);
+            const alloInfo2 = alloInfos[signers[2].address];
+            const proof2 = merkleTree.getHexProof(getNode(alloInfo2));
+            await presale.connect(signers[2]).deposit(depositAmount, alloInfo2, proof2);
+            const alloInfo3 = alloInfos[signers[3].address];
+            const proof3 = merkleTree.getHexProof(getNode(alloInfo3));
+            await presale.connect(signers[3]).deposit(depositAmount, alloInfo3, proof3);
+            const alloInfo4 = alloInfos[signers[4].address];
+            const proof4 = merkleTree.getHexProof(getNode(alloInfo4));
+            await presale.connect(signers[4]).deposit(depositAmount, alloInfo4, proof4);
+
+            await setNextBlockTimestamp(startTime + presaleParams.period + 1);
+            await expect(presale.connect(signers[1]).redeemFunds()).to.be.revertedWith("Not listed yet");
+            await setNextBlockTimestamp(presaleParams.listTime + presaleParams.refundPeriod + 1);
+            await expect(presale.connect(signers[1]).redeemFunds()).to.be.revertedWith("Refund period ended");
+        });
+
+        it("Redeem works; Cannot be redeemed again", async () => {
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+            await presale.endPrivateSale();
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.startPresale();
+            await setNextBlockTimestamp(startTime + 1);
+
+            const alloInfo1 = alloInfos[signers[1].address];
+            const proof1 = merkleTree.getHexProof(getNode(alloInfo1));
+            const depositAmount = BigNumber.from(fakeUsers[1].publicMaxAlloc).div(2);
+            await presale.connect(signers[1]).deposit(depositAmount, alloInfo1, proof1);
+            const alloInfo2 = alloInfos[signers[2].address];
+            const proof2 = merkleTree.getHexProof(getNode(alloInfo2));
+            await presale.connect(signers[2]).deposit(depositAmount, alloInfo2, proof2);
+            const alloInfo3 = alloInfos[signers[3].address];
+            const proof3 = merkleTree.getHexProof(getNode(alloInfo3));
+            await presale.connect(signers[3]).deposit(depositAmount, alloInfo3, proof3);
+            const alloInfo4 = alloInfos[signers[4].address];
+            const proof4 = merkleTree.getHexProof(getNode(alloInfo4));
+            await presale.connect(signers[4]).deposit(depositAmount, alloInfo4, proof4);
+
+            await setNextBlockTimestamp(startTime + presaleParams.period + 1);
+            await expect(presale.connect(signers[1]).redeemFunds()).to.be.revertedWith("Not listed yet");
+            await setNextBlockTimestamp(presaleParams.listTime + 1);
+
+            const fundBalance0 = await fundToken.balanceOf(signers[1].address);
+            const vestingInfo0 = await vesting.recipients(signers[1].address);
+            const rewardBalance0 = await rewardToken.balanceOf(signers[2].address);
+            await presale.connect(signers[1]).redeemFunds();
+            const fundBalance1 = await fundToken.balanceOf(signers[1].address);
+            const rewardBalance1 = await rewardToken.balanceOf(signers[2].address);
+            const vestingInfo1 = await vesting.recipients(signers[1].address);
+
+            expect(fundBalance1.sub(fundBalance0)).to.be.equal(depositAmount);
+            expect(vestingInfo1.totalAmount).to.be.equal(0);
+            expect(rewardBalance1.sub(rewardBalance0)).to.be.equal(vestingInfo0.totalAmount);
+
+            await expect(presale.connect(signers[1]).redeemFunds()).to.be.revertedWith("Already redeemed");
+        });
+
+        it("Can't refund if already withdrawn", async () => {
+            await rewardToken.transfer(vesting.address, presaleParams.initialRewardsAmount);
+            await presale.endPrivateSale();
+            const startTime = await getLatestBlockTimestamp() + 10000;
+            await presale.setStartTime(startTime);
+            await presale.startPresale();
+            await setNextBlockTimestamp(startTime + 1);
+
+            const alloInfo1 = alloInfos[signers[1].address];
+            const proof1 = merkleTree.getHexProof(getNode(alloInfo1));
+            const depositAmount = BigNumber.from(fakeUsers[1].publicMaxAlloc).div(2);
+            await presale.connect(signers[1]).deposit(depositAmount, alloInfo1, proof1);
+            const alloInfo2 = alloInfos[signers[2].address];
+            const proof2 = merkleTree.getHexProof(getNode(alloInfo2));
+            await presale.connect(signers[2]).deposit(depositAmount, alloInfo2, proof2);
+            const alloInfo3 = alloInfos[signers[3].address];
+            const proof3 = merkleTree.getHexProof(getNode(alloInfo3));
+            await presale.connect(signers[3]).deposit(depositAmount, alloInfo3, proof3);
+            const alloInfo4 = alloInfos[signers[4].address];
+            const proof4 = merkleTree.getHexProof(getNode(alloInfo4));
+            await presale.connect(signers[4]).deposit(depositAmount, alloInfo4, proof4);
+
+            await setNextBlockTimestamp(startTime + presaleParams.period + 1);
+            await expect(presale.connect(signers[1]).redeemFunds()).to.be.revertedWith("Not listed yet");
+            await setNextBlockTimestamp(presaleParams.listTime + 1);
+
+            await presale.withdrawUnsoldToken();
+            await presale.startVesting();
+            await setNextBlockTimestamp(presaleParams.listTime + 43200);
+            await vesting.connect(signers[1]).withdraw();
+
+            const vestingInfo0 = await vesting.recipients(signers[1].address);
+            expect(vestingInfo0.amountWithdrawn).to.be.gt(0);
+
+            await expect(presale.connect(signers[1]).redeemFunds()).to.be.revertedWith("Already withdrawn");
         });
     });
 

@@ -203,7 +203,7 @@ contract Vesting is Initializable {
      */
     function refundRecipient(address recp) external onlyOwnerOrWorker returns (uint256 tokenAmount) {
 
-        VestingInfo memory vestingInfo = recipients[recp];
+        VestingInfo storage vestingInfo = recipients[recp];
         require(vestingInfo.totalAmount > 0, "No tokens vesting");
         require(vestingInfo.amountWithdrawn == 0, "Already withdrawn");
 
